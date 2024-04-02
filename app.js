@@ -40,7 +40,7 @@ const { MongoClient } = require('mongodb');
 // const { MongoClient, ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const path = require("path");
-
+const html_to_pdf = require('html-pdf-node');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -198,6 +198,40 @@ const formattedStartDate2 = formatDate2(lastWeek2);
 const timeFrame = `from ${formattedStartDate2} to ${formattedToday2}`;
 
 const groupId= "2347035517578"
+
+
+
+
+
+
+
+
+
+// let options = { format: 'A4' };
+// // Example of options with args //
+// // let options = { format: 'A4', args: ['--no-sandbox', '--disable-setuid-sandbox'] };
+
+// let file = { content: "<h1>Welcome to html-pdf-node</h1>" };
+// // or //
+// let file = { url: "https://example.com" };
+// html_to_pdf.generatePdf(file, options).then(pdfBuffer => {
+//   console.log("PDF Buffer:-", pdfBuffer);
+// });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // const generateSVGMap = () => {
 //   // Your dynamic SVG generation logic goes here

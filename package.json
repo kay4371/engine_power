@@ -30,6 +30,7 @@
     "fs": "^0.0.1-security",
     "helmet": "^5.1.0",
     "html-pdf": "^3.0.1",
+    "html-pdf-node": "^1.0.8",
     "https": "^1.0.0",
     "jsonwebtoken": "^9.0.0",
     "jspdf": "^2.5.1",
