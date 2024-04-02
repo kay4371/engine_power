@@ -41,7 +41,6 @@ const { MongoClient } = require('mongodb');
 const mongoose = require('mongoose');
 const path = require("path");
 const html_to_pdf = require('html-pdf-node');
-
 const app = express();
 const port = process.env.PORT || 3000;
 // Set up a route for the new visitor page
@@ -205,6 +204,41 @@ const groupId= "2347035517578"
 
 
 
+
+
+// Function to generate and save PDF
+function generateAndSavePdf(content, filename) {
+  const options = { format: 'A4' }; // Optional format setting
+
+  const file = { content };
+
+  html_to_pdf.generatePdf(file, options)
+    .then(pdfBuffer => {
+      // Create downloads folder if it doesn't exist
+      const downloadsDir = path.join(__dirname, 'downloads');
+      if (!fs.existsSync(downloadsDir)) {
+        fs.mkdirSync(downloadsDir);
+      }
+
+      const filePath = path.join(downloadsDir, filename + '.pdf');
+      fs.writeFile(filePath, pdfBuffer, err => {
+        if (err) {
+          console.error('Error saving PDF:', err);
+        } else {
+          console.log(`PDF saved successfully to: ${filePath}`);
+        }
+      });
+    })
+    .catch(error => {
+      console.error('Error generating PDF:', error);
+    });
+}
+
+// Example usage: Replace "<h1>Welcome...</h1>" with your HTML content
+const htmlContent = "<h1>Welcome to html-pdf-node</h1>";
+const filename = "my_pdf"; // Customize the filename
+
+generateAndSavePdf(htmlContent, filename);
 
 
 // let options = { format: 'A4' };
