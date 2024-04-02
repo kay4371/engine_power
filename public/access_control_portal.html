@@ -1,0 +1,1192 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+	<link rel="stylesheet"
+		href="https://rawcdn.githack.com/Loopple/loopple-public-assets/ad60f16c8a16d1dcad75e176c00d7f9e69320cd4/argon-dashboard/css/nucleo/css/nucleo.css">
+	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="./assets_for access_control/css/theme.css">
+	<style>
+		.tab-content {
+			display: none;
+		}
+
+		.table-container {
+			margin-top: 20px;
+		}
+
+		.table-container table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.table-container th,
+		.table-container td {
+			padding: 10px;
+			border: 1px solid #ccc;
+		}
+
+		.table-container th {
+			background-color: #f2f2f2;
+		}
+
+		.access-buttons {
+			display: flex;
+			justify-content: center;
+			margin-top: 10px;
+		}
+
+		.grant-access {
+			background-color: #5cb85c;
+			color: white;
+		}
+
+		.deny-access {
+			background-color: #d9534f;
+			color: white;
+		}
+
+		.history-container {
+			margin-top: 20px;
+		}
+
+		.history-container table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.history-container th,
+		.history-container td {
+			padding: 10px;
+			border: 1px solid #ccc;
+		}
+
+		.history-container th {
+			background-color: #f2f2f2;
+		}
+	</style>
+</head>
+
+
+<body class="g-sidenav-show">
+	<nav class="sidenav navbar navbar-vertical fixed-left navbar-expand-xs navbar-light bg-white loopple-fixed-start"
+		id="sidenav-main">
+		<div class="sidenav-header  align-items-center">
+			<a class="navbar-brand" href="javascript:void(0)">
+				<img src="assets/Mota-Engil.svg.png">
+
+				<!-- <img src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/brand/blue.png" class="navbar-brand-img" alt="..."> -->
+			</a>
+		</div>
+
+
+		<div class="navbar-inner">
+			<div class="collapse navbar-collapse" id="sidenav-collapse-main">
+				<ul class="navbar-nav">
+					<li class="nav-item">
+						<a class="nav-link active" href="javascript:">
+							<i class="fas fa-desktop text-primary"></i>
+							<span class="nav-link-text">Dashboard</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" onclick="showTab(2)" href="javascript:">
+							<i class="fas fa-exchange-alt text-danger"></i>
+							<span class="nav-link-text">Movements</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" onclick="showTab(0)" href="javascript:">
+							<i class="fas fa-users text-danger"></i>
+							<span class="nav-link-text">Visitors</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" onclick="showTab(1)" href="javascript:">
+							<i class="fas fa-history text-danger"></i>
+							<span class="nav-link-text">History</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</nav>
+
+	<!-- <title>Access Control Management System</title>
+</head> -->
+
+	<div class="main-content" id="panel">
+		<nav class="navbar navbar-top navbar-expand navbar-dark border-bottom bg-dark" id="navbarTop">
+			<div class="container-fluid">
+				<div class="collapse navbar-collapse" id="navbarSupportedContent">
+					<form class="navbar-search navbar-search-light form-inline mr-sm-3 mb-0" id="navbar-search-main">
+						<div class="form-group mb-0">
+							<div class="input-group input-group-alternative input-group-merge">
+								<div class="input-group-prepend">
+									<span class="input-group-text"><i class="fas fa-search"></i></span>
+								</div>
+								<input class="form-control" placeholder="Search" type="text">
+							</div>
+						</div>
+						<button type="button" class="close" data-action="search-close" data-target="#navbar-search-main"
+							aria-label="Close">
+							<span aria-hidden="true">×</span>
+						</button>
+					</form>
+
+
+					<ul class="navbar-nav align-items-center  ml-md-auto ">
+						<li class="nav-item d-xl-none">
+							<div class="pr-3 sidenav-toggler sidenav-toggler-dark active" data-action="sidenav-pin"
+								data-target="#sidenav-main">
+								<div class="sidenav-toggler-inner">
+									<i class="sidenav-toggler-line"></i>
+									<i class="sidenav-toggler-line"></i>
+									<i class="sidenav-toggler-line"></i>
+								</div>
+							</div>
+						</li>
+						<li class="nav-item d-sm-none">
+							<a class="nav-link" href="#" data-action="search-show" data-target="#navbar-search-main">
+								<i class="ni ni-zoom-split-in"></i>
+							</a>
+						</li>
+
+						<li class="nav-item dropdown">
+							<a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+								aria-expanded="false">
+								<i class="fa fa-bell"></i>
+							</a>
+							<div class="dropdown-menu dropdown-menu-xl  dropdown-menu-right  py-0 overflow-hidden">
+								<div class="px-3 py-3">
+									<h6 class="text-sm text-muted m-0">You have <strong class="text-primary">13</strong>
+										notifications.</h6>
+								</div>
+								<div class="list-group list-group-flush">
+									<a href="#!" class="list-group-item list-group-item-action">
+										<div class="row align-items-center">
+											<div class="col-auto">
+												<img alt="Image placeholder"
+													src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-1.jpg"
+													class="avatar rounded-circle">
+											</div>
+											<div class="col ml--2">
+												<div class="d-flex justify-content-between align-items-center">
+													<div>
+														<h4 class="mb-0 text-sm">User</h4>
+													</div>
+													<div class="text-right text-muted">
+														<!-- <small>2 hrs ago</small> -->
+													</div>
+												</div>
+												<!-- <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p> -->
+											</div>
+										</div>
+									</a>
+
+									<a href="#!" class="list-group-item list-group-item-action">
+										<div class="row align-items-center">
+
+
+											<div class="col-auto">
+
+												<img alt="Image placeholder"
+													src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-2.jpg"
+													class="avatar rounded-circle">
+											</div>
+											<div class="col ml--2">
+												<div class="d-flex justify-content-between align-items-center">
+
+													<div>
+														<h4 class="mb-0 text-sm">User</h4>
+													</div>
+													<div class="text-right text-muted">
+														<small>3 hrs ago</small>
+													</div>
+												</div>
+												<!-- <p class="text-sm mb-0">A new issue has been reported for Argon.</p> -->
+											</div>
+										</div>
+									</a>
+
+
+									<a href="#!" class="list-group-item list-group-item-action">
+										<div class="row align-items-center">
+											<div class="col-auto">
+												<img alt="Image placeholder"
+													src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-3.jpg"
+													class="avatar rounded-circle">
+											</div>
+											<div class="col ml--2">
+												<div class="d-flex justify-content-between align-items-center">
+													<div>
+														<h4 class="mb-0 text-sm">User</h4>
+													</div>
+													<div class="text-right text-muted">
+														<small>5 hrs ago</small>
+													</div>
+												</div>
+												<p class="text-sm mb-0">Your posts have been liked a lot.</p>
+											</div>
+										</div>
+									</a>
+									<a href="#!" class="list-group-item list-group-item-action">
+										<div class="row align-items-center">
+											<div class="col-auto">
+												<img alt="Image placeholder"
+													src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-4.jpg"
+													class="avatar rounded-circle">
+											</div>
+											<div class="col ml--2">
+												<div class="d-flex justify-content-between align-items-center">
+													<div>
+														<h4 class="mb-0 text-sm">User</h4>
+													</div>
+													<div class="text-right text-muted">
+														<small>2 hrs ago</small>
+													</div>
+												</div>
+												<p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+											</div>
+										</div>
+									</a>
+									<a href="#!" class="list-group-item list-group-item-action">
+										<div class="row align-items-center">
+											<div class="col-auto">
+												<img alt="Image placeholder"
+													src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-5.jpg"
+													class="avatar rounded-circle">
+											</div>
+											<div class="col ml--2">
+												<div class="d-flex justify-content-between align-items-center">
+													<div>
+														<h4 class="mb-0 text-sm">User </h4>
+													</div>
+													<div class="text-right text-muted">
+														<small>3 hrs ago</small>
+													</div>
+												</div>
+												<p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+											</div>
+										</div>
+									</a>
+								</div>
+								<a href="#!" class="dropdown-item text-center text-primary font-weight-bold py-3">View
+									all</a>
+							</div>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+								aria-expanded="false">
+								<i class="fa fa-layer-group"></i>
+							</a>
+							<div
+								class="dropdown-menu dropdown-menu-lg dropdown-menu-dark bg-default  dropdown-menu-right ">
+								<div class="row shortcuts px-4">
+									<a href="#!" class="col-4 shortcut-item text-center">
+										<span class="shortcut-media avatar rounded-circle bg-gradient-red">
+											<i class="fa fa-calendar"></i>
+										</span>
+										<small class="text-white">Calendar</small>
+									</a>
+									<a href="#!" class="col-4 shortcut-item text-center">
+										<span class="shortcut-media avatar rounded-circle bg-gradient-orange">
+											<i class="fa fa-envelope"></i>
+										</span>
+										<small class="text-white">Email</small>
+									</a>
+									<a href="#!" class="col-4 shortcut-item text-center">
+										<span class="shortcut-media avatar rounded-circle bg-gradient-info">
+											<i class="fa fa-credit-card"></i>
+										</span>
+										<small class="text-white">Payments</small>
+									</a>
+									<a href="#!" class="col-4 shortcut-item text-center">
+										<span class="shortcut-media avatar rounded-circle bg-gradient-green">
+											<i class="fa fa-book"></i>
+										</span>
+										<small class="text-white">Reports</small>
+									</a>
+									<a href="#!" class="col-4 shortcut-item text-center">
+										<span class="shortcut-media avatar rounded-circle bg-gradient-purple">
+											<i class="fa fa-map"></i>
+										</span>
+										<small class="text-white">Maps</small>
+									</a>
+									<a href="#!" class="col-4 shortcut-item text-center">
+										<span class="shortcut-media avatar rounded-circle bg-gradient-yellow">
+											<i class="fa fa-store"></i>
+										</span>
+										<small class="text-white">Shop</small>
+									</a>
+								</div>
+							</div>
+						</li>
+					</ul>
+					<ul class="navbar-nav align-items-center  ml-auto ml-md-0 ">
+						<li class="nav-item dropdown">
+							<a class="nav-link pr-0" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+								aria-expanded="false">
+								<div class="media align-items-center">
+									<span class="avatar avatar-sm rounded-circle">
+										<img alt="Image placeholder"
+											src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg">
+									</span>
+									<div class="media-body  ml-2  d-none d-lg-block">
+										<span class="mb-0 text-sm  font-weight-bold">User </span>
+									</div>
+								</div>
+							</a>
+							<div class="dropdown-menu  dropdown-menu-right ">
+								<div class="dropdown-header noti-title">
+									<h6 class="text-overflow m-0">Welcome!</h6>
+								</div>
+								<a href="#!" class="dropdown-item">
+									<i class="fa fa-user"></i>
+									<span>My profile</span>
+								</a>
+								<a href="#!" class="dropdown-item">
+									<i class="fa fa-tools"></i>
+									<span>Settings</span>
+								</a>
+								<a href="#!" class="dropdown-item">
+									<i class="far fa-calendar"></i>
+									<span>Activity</span>
+								</a>
+								<a href="#!" class="dropdown-item">
+									<i class="fa fa-phone"></i>
+									<span>Support</span>
+								</a>
+								<div class="dropdown-divider"></div>
+								<a href="#!" class="dropdown-item">
+									<i class="fa fa-sign-out-alt"></i>
+									<span>Logout</span>
+								</a>
+							</div>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+		<div class="container-fluid pt-3">
+			<div class="row removable">
+				<div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-primary border-0" onclick="showTab(0)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0 text-white">Visitors</h5>
+									<span class="h2 font-weight-bold mb-0 text-white">8/24</span>
+									<div class="progress progress-xs mt-3 mb-0">
+										<div class="progress-bar bg-success" role="progressbar" aria-valuenow="30"
+											aria-valuemin="0" aria-valuemax="100" style="width: 30%;"></div>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+										aria-haspopup="true" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i>
+									</button>
+									<div class="dropdown-menu dropdown-menu-right">
+										<a class="dropdown-item" href="#">Expected Visitors</a>
+										<a class="dropdown-item" href="#">History</a>
+										<a class="dropdown-item" href="#">Something else here</a>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+				<div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-info border-0" onclick="showTab(2)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0 text-white">Movements/Travels
+									</h5>
+									<span class="h2 font-weight-bold mb-0 text-white">123/267</span>
+									<div class="progress progress-xs mt-3 mb-0">
+										<div class="progress-bar bg-success" role="progressbar" aria-valuenow="50"
+											aria-valuemin="0" aria-valuemax="100" style="width: 50%;"></div>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+										aria-haspopup="true" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i>
+									</button>
+									<div class="dropdown-menu dropdown-menu-right">
+										<a class="dropdown-item" href="#">Action</a>
+										<a class="dropdown-item" href="#">Another action</a>
+										<a class="dropdown-item" href="#">Something else here</a>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+				<div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-danger border-0" onclick="showTab(1)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0 text-white">History</h5>
+									<span class="h2 font-weight-bold mb-0 text-white">200/300</span>
+									<div class="progress progress-xs mt-3 mb-0">
+										<div class="progress-bar bg-success" role="progressbar" aria-valuenow="80"
+											aria-valuemin="0" aria-valuemax="100" style="width: 80%;"></div>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+										aria-haspopup="true" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i>
+									</button>
+									<div class="dropdown-menu dropdown-menu-right">
+										<a class="dropdown-item" href="#">Action</a>
+										<a class="dropdown-item" href="#">Another action</a>
+										<a class="dropdown-item" href="#">Something else here</a>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+				<div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-default border-0" onclick="showTab(2)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0 text-white">Notifications</h5>
+									<span class="h2 font-weight-bold mb-0 text-white">50/62</span>
+									<div class="progress progress-xs mt-3 mb-0">
+										<div class="progress-bar bg-success" role="progressbar" aria-valuenow="90"
+											aria-valuemin="0" aria-valuemax="100" style="width: 90%;"></div>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+										aria-haspopup="true" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i>
+									</button>
+									<div class="dropdown-menu dropdown-menu-right">
+										<a class="dropdown-item" href="#">Action</a>
+										<a class="dropdown-item" href="#">Another action</a>
+										<a class="dropdown-item" href="#">Something else here</a>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="row removable">
+				<div class="col-xl-3 col-md-6">
+					<div class="card card-stats" onclick="showTab(1)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">Visits History</h5>
+									<span class="h2 font-weight-bold mb-0">350,897</span>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-red text-white rounded-circle shadow">
+										<i class="fa fa-user"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% </span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div>
+				<div class="col-xl-3 col-md-6">
+					<div class="card card-stats"onclick="showTab(3)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">Movements History</h5>
+									<span class="h2 font-weight-bold mb-0">21</span>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-orange text-white rounded-circle shadow">
+										<i class="fa fa-chart-pie"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% </span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-xl-3 col-md-6">
+					<div class="card card-stats">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">New users</h5>
+									<span class="h2 font-weight-bold mb-0">2,356</span>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-orange text-white rounded-circle shadow">
+										<i class="fa fa-chart-pie"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% </span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-xl-3 col-md-6">
+					<div class="card card-stats">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">New users</h5>
+									<span class="h2 font-weight-bold mb-0">2,356</span>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-orange text-white rounded-circle shadow">
+										<i class="fa fa-chart-pie"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% </span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="tab-content" id="tab1Content">
+					<h2>Visitors</h2>
+
+				<!-- Add this HTML element to display the gate pass -->
+					<div id="gatePassOverlay" style="display: none;">
+						<!-- Your gate pass content here -->
+					</div>
+	
+					<div class="table-container">
+						<table>
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Whom to See</th>
+									<th>Address / Company</th>
+									<th>Purpose of Visit</th>
+									<th>Phone Number</th>
+									<th>Date</th>
+									<th>Time</th>
+									<th>Access</th>
+								</tr>
+							</thead>
+							<tbody id="visitorTableBody1"></tbody>
+						</table>
+					</div>
+				</div>
+
+				<div class="tab-content" id="tab2Content">
+					<h2>History</h2>
+					<div class="table-container">
+						<table>
+							<thead>
+								<!-- <tr>
+									<th>Name</th>
+									<th>Whom to See</th>
+									<th>Address / Company</th>
+									<th>Purpose of Visit</th>
+									<th>Phone Number</th>
+									<th>Access</th>
+									
+								</tr> -->
+
+									<tr>
+										<th>Name</th>
+										<th>Whom to See</th>
+										<th>Address / Company</th>
+										<th>Purpose of Visit</th>
+										<th>Phone Number</th>
+										<th>Access</th>
+										<th>Date</th>
+									</tr>
+							
+
+							</thead>
+							<tbody id="visitorTableBody2"></tbody>
+						</table>
+					</div>
+				</div>
+
+				<div class="tab-content" id="tab3Content">
+					<h2>Drivers Details</h2>
+					<div class="table-container">
+						<table>
+							<thead>
+								<tr>
+									<th style="text-align: left;">Driver's Name</th>
+									<th style="text-align: left;">Armed Guard</th>
+									<th style="text-align: left;">Time Out</th>
+									<th style="text-align: left;">Time In</th>
+									<th style="text-align: left;">Destination</th>
+									<th style="text-align: left;">Passenger</th>
+									<th style="text-align: left;">Gate Pass</th>
+								</tr>
+							</thead>
+							<tbody id="driverTableBody"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+
+			<!-- <div class="tab-content" id="tab4Content">
+				<h2>Movement History</h2>
+				<div class="table-container">
+					<table>
+						<thead>
+							<tr>
+								<th style="text-align: left;">Driver's Name</th>
+								<th style="text-align: left;">Armed Guard</th>
+								<th style="text-align: left;">Time Out</th>
+								<th style="text-align: left;">Time In</th>
+								<th style="text-align: left;">Destination</th>
+								<th style="text-align: left;">Passenger</th>
+								<th style="text-align: left;">Gate Pass</th>
+							</tr>
+						</thead>
+						<tbody id="MovementHistoryTableBody"></tbody>
+					</table>
+				</div>
+			</div> -->
+
+				<style>
+					.tab-content table {
+						width: 100%;
+						table-layout: fixed;
+					}
+
+					.tab-content th {
+						background: linear-gradient(to bottom, #003399, #66ccff);
+						color: white;
+					}
+
+					.tab-content td,
+					.tab-content th {
+						padding: 8px;
+						border: 1px solid #ddd;
+						text-align: left;
+					}
+
+					.preview-button,
+					.print-button,
+					.share-button {
+						display: block;
+						width: 100%;
+						padding: 6px 12px;
+						border: none;
+						border-radius: 4px;
+						margin-bottom: 5px;
+						cursor: pointer;
+					}
+
+					.preview-button {
+						background-color: #5cb85c;
+						color: white;
+					}
+
+					.print-button {
+						background-color: #337ab7;
+						color: white;
+					}
+
+					.share-button {
+						background-color: #d9534f;
+						color: white;
+					}
+				</style>
+
+				<script>
+					const tabs = document.querySelectorAll('.tab');
+					const tabContents = document.querySelectorAll('.tab-content');
+
+					tabs.forEach((tab, index) => {
+						tab.addEventListener('click', () => {
+							showTab(index);
+						});
+					});
+
+					function showTab(tabIndex) {
+						tabContents.forEach(content => {
+							content.style.display = 'none';
+						});
+
+						tabContents[tabIndex].style.display = 'block';
+
+						if (tabIndex === 2) {
+							// Fetch and populate the drivers details table
+							fetch('/get_driver_details')
+								.then(response => response.json())
+								.then(driverDetails => {
+									const driverTableBody = document.getElementById('driverTableBody');
+									driverTableBody.innerHTML = '';
+
+									driverDetails.forEach(driver => {
+										const row = document.createElement('tr');
+
+										const timeOut = new Date(driver.time_out);
+										const timeIn = new Date(driver.time_in);
+										const formattedTimeOut = `${timeOut.getHours()}.${timeOut.getMinutes().toString().padStart(2, '0')}${timeOut.getHours() >= 12 ? 'pm' : 'am'} ${timeOut.getDate()}/${timeOut.getMonth() + 1}/${timeOut.getFullYear()}`;
+										const formattedTimeIn = `${timeIn.getHours()}.${timeIn.getMinutes().toString().padStart(2, '0')}${timeIn.getHours() >= 12 ? 'pm' : 'am'} ${timeIn.getDate()}/${timeIn.getMonth() + 1}/${timeIn.getFullYear()}`;
+
+
+					
+						const rowHTML = `
+							<td style="text-align: left;">${driver.driver_name}</td>
+							<td style="text-align: left;">${driver.armed_guard}</td>
+							<td style="text-align: left;">${formattedTimeOut}</td>
+							<td style="text-align: left;">${formattedTimeIn}</td>
+							<td style="text-align: left;">${driver.target_location}</td>
+							<td style="text-align: left;">${driver.passenger}</td>
+							<td style="text-align: left;">
+								<button class="preview-button" data-driver-id="123" onclick="previewGatePass('123')">Preview Gate Pass</button>
+								<button class="print-button" onclick="printGatePass('123')">Print Gate Pass</button>
+								<button class="share-button" onclick="shareGatePass('123')">Authorize</button>
+
+							</td>
+						  `;
+										row.innerHTML = rowHTML;
+										driverTableBody.appendChild(row);
+									});
+								})
+								.catch(error => {
+									console.error(error);
+								});
+						}
+
+
+
+						tabContents[tabIndex].style.display = 'block';
+
+						if (tabIndex === 1) { // Check if it's the "History" tab
+							// Fetch and populate the visitor history table
+							fetch('/get_visitor_history') // Replace with the appropriate endpoint
+								.then(response => response.json())
+								.then(visitorHistory => {
+									const historyTableBody = document.getElementById('visitorTableBody2');
+									historyTableBody.innerHTML = '';
+
+									visitorHistory.forEach(visitor => {
+										const row = document.createElement('tr');
+										row.innerHTML = `
+										<td>${visitor.name}</td>
+										<td>${visitor.whomToSee}</td>
+										<td>${visitor.address}</td>
+										<td>${visitor.purposeOfVisit}</td>
+										<td>${visitor.phoneNumber}</td>
+										<td>${visitor.accessStatus}</td>
+										<td>${visitor.date}</td>
+									`;
+
+										historyTableBody.appendChild(row);
+									});
+								})
+								.catch(error => {
+									console.error(error);
+								});
+						}
+
+						if (tabIndex === 0) {
+							// Fetch and populate the expected visitors table
+							fetch('/get_expected_visitors')
+								.then(response => response.json())
+								.then(expectedVisitors => {
+									const visitorTableBody = document.getElementById('visitorTableBody1');
+									visitorTableBody.innerHTML = '';
+
+									expectedVisitors.forEach(visitor => {
+										const row = document.createElement('tr');
+										const currentDate = new Date().toLocaleDateString();
+										const currentTime = new Date().toLocaleTimeString();
+										const rowHTML = `
+							<td>${visitor.name}</td>
+							<td>${visitor.whomToSee}</td>
+							<td>${visitor.address}</td>
+							<td>${visitor.purposeOfVisit}</td>
+							<td>${visitor.phoneNumber}</td>
+							<td>${currentDate}</td>
+							<td>${currentTime}</td>
+							<td class="access-buttons">
+							  <button class="grant-access" onclick="grantAccess('${visitor.name}', '${visitor.whomToSee}', '${visitor.address}', '${visitor.purposeOfVisit}', '${visitor.phoneNumber}')">
+								Grant Access
+							  </button>
+							  <button class="deny-access" onclick="denyAccess('${visitor.name}', '${visitor.whomToSee}', '${visitor.address}', '${visitor.purposeOfVisit}', '${visitor.phoneNumber}')">
+								Deny Access
+							  </button>
+							</td>
+						  `;
+
+										row.innerHTML = rowHTML;
+										visitorTableBody.appendChild(row);
+									});
+								})
+								.catch(error => {
+									console.error(error);
+								});
+						}
+					}
+
+					function grantAccess(name, whomToSee, address, purposeOfVisit, phoneNumber) {
+						const currentDate = new Date().toLocaleDateString();
+						const currentTime = new Date().toLocaleTimeString();
+
+						const row = document.createElement('tr');
+						const formattedDate = `${currentDate}`;
+						const formattedTime = `${currentTime}`;
+
+						row.innerHTML = `
+					<td>${name}</td>
+					<td>${whomToSee}</td>
+					<td>${address}</td>
+					<td>${purposeOfVisit}</td>
+					<td>${phoneNumber}</td>
+					<td>${formattedDate}</td>
+					<td>${formattedTime}</td>
+					<td class="access-buttons">
+					  <button class="grant-access" onclick="grantAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Grant Access
+					  </button>
+					  <button class="deny-access" onclick="denyAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Deny Access
+					  </button>
+					</td>
+				  `;
+
+						const historyTableBody = document.getElementById('visitorTableBody2');
+						historyTableBody.appendChild(row);
+
+						// Remove the row from the visitor table
+						const grantAccessButtons = document.getElementsByClassName('grant-access');
+
+						for (let i = 0; i < grantAccessButtons.length; i++) {
+							if (grantAccessButtons[i].innerText === 'Grant Access' && grantAccessButtons[i].parentNode.parentNode.contains(event.target)) {
+								grantAccessButtons[i].parentNode.parentNode.remove();
+								break;
+							}
+						}
+
+						sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, 'Granted', currentDate, currentTime);
+					}
+
+					function denyAccess(name, whomToSee, address, purposeOfVisit, phoneNumber) {
+						const currentDate = new Date().toLocaleDateString();
+						const currentTime = new Date().toLocaleTimeString();
+
+						const row = document.createElement('tr');
+						const formattedDate = `${currentDate}`;
+						const formattedTime = `${currentTime}`;
+
+						row.innerHTML = `
+					<td>${name}</td>
+					<td>${whomToSee}</td>
+					<td>${address}</td>
+					<td>${purposeOfVisit}</td>
+					<td>${phoneNumber}</td>
+					<td>${formattedDate}</td>
+					<td>${formattedTime}</td>
+					<td class="access-buttons">
+					  <button class="grant-access" onclick="grantAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Grant Access
+					  </button>
+					  <button class="deny-access" onclick="denyAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Deny Access
+					  </button>
+					</td>
+				  `;
+
+						const historyTableBody = document.getElementById('visitorTableBody2');
+						historyTableBody.appendChild(row);
+
+						// Remove the row from the visitor table
+						const denyAccessButtons = document.getElementsByClassName('deny-access');
+
+						for (let i = 0; i < denyAccessButtons.length; i++) {
+							if (denyAccessButtons[i].innerText === 'Deny Access' && denyAccessButtons[i].parentNode.parentNode.contains(event.target)) {
+								denyAccessButtons[i].parentNode.parentNode.remove();
+								break;
+							}
+						}
+
+						sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, 'Denied', currentDate, currentTime);
+					}
+
+
+
+								// function authorizeDriver(driverId) {
+								// // Fetch the driver details from the "driverTableBody" using the driverId
+								// const driverTableBody = document.getElementById('driverTableBody');
+								// const driverRow = Array.from(driverTableBody.children).find(row => {
+								// 	const driverData = row.querySelector('authorize').dataset.driverId;
+								// 	return driverData === driverId;
+								// });
+
+								// // Extract the data from the row
+								// const driverName = driverRow.querySelector('td:nth-child(1)').innerText;
+								// const armedGuard = driverRow.querySelector('td:nth-child(2)').innerText;
+								// const timeOut = driverRow.querySelector('td:nth-child(3)').innerText;
+								// const timeIn = driverRow.querySelector('td:nth-child(4)').innerText;
+								// const destination = driverRow.querySelector('td:nth-child(5)').innerText;
+								// const passenger = driverRow.querySelector('td:nth-child(6)').innerText;
+
+								// // Log the data of the row
+								// console.log('Driver Name:', driverName);
+								// console.log('Armed Guard:', armedGuard);
+								// console.log('Time Out:', timeOut);
+								// console.log('Time In:', timeIn);
+								// console.log('Destination:', destination);
+								// console.log('Passenger:', passenger);
+
+								// // Call the "driversHistoryData" endpoint
+								// fetch('/movement_history', {
+								// 	method: 'POST',
+								// 	headers: {
+								// 	'Content-Type': 'application/json',
+								// 	},
+								// 	body: JSON.stringify({
+								// 	driverName,
+								// 	armedGuard,
+								// 	timeOut,
+								// 	timeIn,
+								// 	destination,
+								// 	passenger,
+								// 	}),
+								// })
+								// 	.then(response => response.json())
+								// 	.then(data => {
+								// 	console.log('Data sent to the "driversHistoryData" endpoint:', data);
+								// 	})
+								// 	.catch(error => {
+								// 	console.error('Error sending data to "driversHistoryData" endpoint:', error);
+								// 	});
+								// }
+
+
+// function authorizeDriver(driverId) {
+//   // Fetch the driver details from the "driverTableBody" using the driverId
+//   const driverTableBody = document.getElementById('driverTableBody');
+//   const driverRow = Array.from(driverTableBody.children).find(row => {
+//     const driverData = row.querySelector('.share-button').dataset.driverId;
+//     return driverData === driverId;
+//   });
+
+//   // Now you can extract the data from the row as needed
+//   if (driverRow) {
+//     const driverName = driverRow.querySelector('td:nth-child(1)').innerText;
+//     const armedGuard = driverRow.querySelector('td:nth-child(2)').innerText;
+//     const timeOut = driverRow.querySelector('td:nth-child(3)').innerText;
+//     const timeIn = driverRow.querySelector('td:nth-child(4)').innerText;
+//     const destination = driverRow.querySelector('td:nth-child(5)').innerText;
+//     const passenger = driverRow.querySelector('td:nth-child(6)').innerText;
+
+//     // Log the data of the row
+//     console.log('Driver Name:', driverName);
+//     console.log('Armed Guard:', armedGuard);
+//     console.log('Time Out:', timeOut);
+//     console.log('Time In:', timeIn);
+//     console.log('Destination:', destination);
+//     console.log('Passenger:', passenger);
+
+//     // Send the relevant data to the server for authorization
+//     // Implement the API call to the server here, for example:
+//     fetch('/movement_history', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         driverId,
+//         driverName,
+//         armedGuard,
+//         timeOut,
+//         timeIn,
+//         destination,
+//         passenger,
+//       }),
+//     })
+//       .then(response => response.json())
+//       .then(data => {
+//         console.log('Authorization status:', data.status);
+//         // Handle the response from the server as needed
+//       })
+//       .catch(error => {
+//         console.error('Error authorizing driver:', error);
+//         // Handle error if necessary
+//       });
+//   }
+// }
+
+
+
+
+
+
+
+// function authorizeDriver(driverId) {
+// 	console.log("ffrfrfrfrf")
+//   // Fetch the driver details from the "driverTableBody" using the driverId
+//   const driverTableBody = document.getElementById('driverTableBody');
+//   const driverRow = Array.from(driverTableBody.children).find(row => {
+//     const driverData = row.querySelector('.share-button').dataset.driverId;
+//     return driverData === driverId;
+//   });
+
+//   // Now you can extract the data from the row as needed
+//   if (driverRow) {
+//     const driverName = driverRow.querySelector('td:nth-child(1)').innerText;
+//     const armedGuard = driverRow.querySelector('td:nth-child(2)').innerText;
+//     const timeOut = driverRow.querySelector('td:nth-child(3)').innerText;
+//     const timeIn = driverRow.querySelector('td:nth-child(4)').innerText;
+//     const destination = driverRow.querySelector('td:nth-child(5)').innerText;
+//     const passenger = driverRow.querySelector('td:nth-child(6)').innerText;
+
+//     // Log the data of the row
+//     console.log('Driver Name:', driverName);
+//     console.log('Armed Guard:', armedGuard);
+//     console.log('Time Out:', timeOut);
+//     console.log('Time In:', timeIn);
+//     console.log('Destination:', destination);
+//     console.log('Passenger:', passenger);
+
+//     // Send the relevant data to the server for authorization
+//     // Implement the API call to the server here, for example:
+//     fetch('/movement_history', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         driverId,
+//         driverName,
+//         armedGuard,
+//         timeOut,
+//         timeIn,
+//         destination,
+//         passenger,
+//       }),
+//     })
+//       .then(response => response.json())
+//       .then(data => {
+//         console.log('Authorization status:', data.status);
+//         // Handle the response from the server as needed
+//       })
+//       .catch(error => {
+//         console.error('Error authorizing driver:', error);
+//         // Handle error if necessary
+//       });
+//   }
+// }
+
+
+function authorizeDriver(driverId) {
+							const previewButton = document.querySelector(`button.preview-button[data-driver-id="${driverId}"]`);
+							if (!previewButton) {
+							alert('Please click on the Preview Gate Pass button first.');
+							return;
+							}
+
+							deleteDriver(driverId);
+						}
+
+						function deleteDriver(driverId) {
+							fetch(`/deleteDriver/${driverId}`, {
+							method: 'DELETE'
+							})
+							.then(response => response.json())
+							.then(data => {
+								console.log('Driver deleted:', data);
+								// Perform additional actions if needed
+							})
+							.catch(error => {
+								console.error('Error deleting driver:', error);
+								// Handle error if necessary
+							});
+						}
+
+
+					function sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, accessStatus, date, time) {
+							const data = {
+							name: name,
+							whomToSee: whomToSee,
+							address: address,
+							purposeOfVisit: purposeOfVisit,
+							phoneNumber: phoneNumber,
+							accessStatus: accessStatus,
+							date: date,
+							time: time
+							};
+
+						fetch('/addVisitorHistory', {
+							method: 'POST',
+							headers: {
+							'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(data),
+							})
+							.then(response => response.json())
+							.then(data => {
+							console.log('Data added to history:', data);
+							// You can perform additional actions if needed
+							})
+							.catch(error => {
+							console.error('Error adding data to history:', error);
+							// Handle error if necessary
+							});
+							}
+
+
+				</script>
+				</footer>
+			</div>
+</body>
+
+</html>

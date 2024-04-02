@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send PDF to WhatsApp</title>
+</head>
+<body>
+  <h1>Send PDF to WhatsApp</h1>
+  <button id="sendPdfButton">Send PDF</button>
+
+  <script>
+    document.getElementById('sendPdfButton').addEventListener('click', async () => {
+      try {
+        // Make an asynchronous POST request to the backend endpoint
+        const response = await fetch('/send-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        // Check if the request was successful (status code 200)
+        if (response.ok) {
+          alert('PDF sent successfully to WhatsApp');
+        } else {
+          // If the request was not successful, display an error message
+          alert(`Error: ${response.status} - ${response.statusText}`);
+        }
+      } catch (error) {
+        // Handle any network or server-related errors
+        console.error('Error:', error.message);
+        alert('An error occurred. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>

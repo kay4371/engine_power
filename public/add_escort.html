@@ -1,0 +1,1114 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Escort Officer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<form id="escortForm">
+    <label for="firstName">First Name:</label>
+    <input type="text" id="firstName" name="firstName" required>
+
+    <label for="lastName">Last Name:</label>
+    <input type="text" id="lastName" name="lastName" required>
+
+    <label for="phoneNumber">Phone Number:</label>
+    <input type="tel" id="phoneNumber" name="phoneNumber" pattern="[0-9]{11}" placeholder="e.g., 08012345678" required>
+
+    <label for="unit">Unit:</label>
+    <input type="text" id="unit" name="unit" required>
+
+    <label for="houseAddress">House Address:</label>
+    <input type="text" id="houseAddress" name="houseAddress" required>
+
+    <label for="vendorCompany">Vendor Company:</label>
+    <input type="text" id="vendorCompany" name="vendorCompany" required>
+
+    <label for="rank">Rank:</label>
+    <input type="text" id="rank" name="rank" required>
+
+    <button type="button" onclick="addNewEscort()">Add Escort</button>
+</form>
+
+<script>
+    async function addNewEscort() {
+        const firstName = document.getElementById('firstName').value;
+        const lastName = document.getElementById('lastName').value;
+        const phoneNumber = document.getElementById('phoneNumber').value;
+        const unit = document.getElementById('unit').value;
+        const houseAddress = document.getElementById('houseAddress').value;
+        const vendorCompany = document.getElementById('vendorCompany').value;
+        const rank = document.getElementById('rank').value;
+
+        const escortData = {
+            firstName,
+            lastName,
+            phoneNumber,
+            unit,
+            houseAddress,
+            vendorCompany,
+            rank
+        };
+
+        try {
+            const response = await fetch('/add_escort', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(escortData),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Escort officer added successfully.');
+                // You can add additional logic here, e.g., clearing form fields
+            } else {
+                alert('Failed to add escort officer. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error adding escort officer:', error);
+            alert('An error occurred while adding an escort officer.');
+        }
+    }
+</script>
+
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Escort Officer</title>
+   <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+             padding: 0; 
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        form {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 24px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style> 
+</head>
+
+<body>
+
+    <form id="escortForm">
+        <label for="firstName">First Name:</label>
+        <input type="text" id="firstName" name="firstName" required>
+
+        <label for="lastName">Last Name:</label>
+        <input type="text" id="lastName" name="lastName" required>
+
+        <label for="phoneNumber">Phone Number:</label>
+        <input type="tel" id="phoneNumber" name="phoneNumber" pattern="[0-9]{11}" placeholder="e.g., 08012345678" required>
+
+        <label for="unit">Unit:</label>
+        <input type="text" id="unit" name="unit" required>
+
+        <label for="houseAddress">House Address:</label>
+        <input type="text" id="houseAddress" name="houseAddress" required>
+
+        <label for="vendorCompany">Vendor Company:</label>
+        <input type="text" id="vendorCompany" name="vendorCompany" required>
+
+        <label for="rank">Rank:</label>
+        <input type="text" id="rank" name="rank" required>
+
+        <button type="button" onclick="addNewEscort()">Add Escort</button>
+    </form>
+
+    <script>
+        // Your existing JavaScript code
+    </script>
+
+</body>
+
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Escort Officer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        form {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 24px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4caf50;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <form id="escortForm">
+        <label for="firstName">First Name:</label>
+        <input type="text" id="firstName" name="firstName" required>
+
+        <label for="lastName">Last Name:</label>
+        <input type="text" id="lastName" name="lastName" required>
+
+        <label for="phoneNumber">Phone Number:</label>
+        <input type="tel" id="phoneNumber" name="phoneNumber" pattern="[0-9]{11}" placeholder="e.g., 08012345678" required>
+
+        <label for="unit">Unit:</label>
+        <input type="text" id="unit" name="unit" required>
+
+        <label for="houseAddress">House Address:</label>
+        <input type="text" id="houseAddress" name="houseAddress" required>
+
+        <label for="vendorCompany">Vendor Company:</label>
+        <input type="text" id="vendorCompany" name="vendorCompany" required>
+
+        <label for="rank">Rank:</label>
+        <input type="text" id="rank" name="rank" required>
+
+        <button type="button" onclick="addNewEscort()">Add Escort</button>
+    </form>
+
+    <table id="escortTable">
+        <tr>
+            <th>Select Escort Commander</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Phone Number</th>
+            <th>Unit</th>
+            <th>House Address</th>
+            <th>Vendor Company</th>
+            <th>Rank</th>
+        </tr>
+    </table>
+
+    <script>
+      // Inside your existing <script> tag
+async function fetchAndDisplayEscorts() {
+  const response = await fetch('/fetch_escorts'); // Create a new endpoint for fetching escorts
+  const escorts = await response.json();
+
+  const table = document.querySelector('table');
+  table.innerHTML = '<tr><th>Select Escort Commander</th><th>First Name</th><th>Last Name</th><th>Phone Number</th><th>Unit</th><th>House Address</th><th>Vendor Company</th><th>Rank</th></tr>';
+
+  escorts.forEach((escort) => {
+    const row = table.insertRow();
+    const cell1 = row.insertCell(0);
+    const cell2 = row.insertCell(1);
+    // Add cells for other fields
+
+    cell1.innerHTML = `<input type="checkbox" name="escortCommander" value="${escort._id}">`;
+    cell2.innerHTML = escort.firstName;
+    // Populate other cells with escort data
+  });
+}
+
+fetchAndDisplayEscorts(); // Fetch and display escorts when the page loads
+
+    </script>
+
+</body>
+
+</html> -->
+
+<!-- 
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+        integrity="sha512-q+7bCSUC+nEQ1PgIOTdCX6rD5vdaokA7NCd3gQpS5KVvwu9s5kxEjgCzXn3bOrUj8bMHT9HsMeN+37Sy4p4Zxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="fleet.css">
+    <title>Add New Armed Guard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0 20px;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        main {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        aside {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            border-radius: 6px;
+            color: white;
+            width: 20%;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav li {
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        section {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .card {
+            background: linear-gradient(90deg, #0056b3 0%, #003a73 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        form {
+            background: linear-gradient(90deg, #0056b3 0%, #003a73 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #00254e 0%, #001037 100%);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Security Management System (GMS)</h1>
+    </header>
+    <main>
+        <aside>
+            <nav>
+                <ul>
+                    <li><a href="#aarmed_guard"><i class="fas fa-shield-alt"></i> Armed Guards</a></li>
+                     Add more sections as needed -->
+                <!-- </ul>
+            </nav>
+        </aside>
+        <section id="addArmedGuardForm">
+            <h2><i class="fas fa-shield-alt"></i> Add New Armed Guard</h2>
+             Armed Guard details will be dynamically added here -->
+            <!-- <form>
+                <label for="guardName">Guard Name:</label>
+                <input type="text" id="guardName" name="guardName" required>
+
+                <label for="phoneNumber">Phone Number:</label>
+                <input type="tel" id="phoneNumber" name="phoneNumber" pattern="[0-9]{11}" placeholder="e.g., 08012345678"
+                    required>
+
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address" required>
+
+                <label for="vendorCompany">Vendor Company:</label>
+                <input type="text" id="vendorCompany" name="vendorCompany" required>
+
+                <label for="rank">Rank:</label>
+                <input type="text" id="rank" name="rank" required>
+
+                <button type="button" onclick="addNewArmedGuard()">Add Armed Guard</button>
+            </form>
+        </section>
+    </main>
+    <script>
+        function addNewArmedGuard() {
+            // Add logic to add a new armed guard
+            console.log("Adding new armed guard");
+            // You can further enhance this function to handle form data
+        }
+    </script>
+</body>
+
+</html> -->
+  
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+        integrity="sha512-q+7bCSUC+nEQ1PgIOTdCX6rD5vdaokA7NCd3gQpS5KVvwu9s5kxEjgCzXn3bOrUj8bMHT9HsMeN+37Sy4p4Zxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="fleet.css">
+    <title>Add New Armed Guard</title>
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0 20px;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        main {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        aside {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            border-radius: 6px;
+            color: white;
+            width: 20%;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav li {
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        section {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .card {
+            background: linear-gradient(90deg, #0056b3 0%, #003a73 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        form {
+            background: linear-gradient(90deg, #0056b3 0%, #003a73 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #00254e 0%, #001037 100%);
+        }
+  
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+     Header and main section remain the same -->
+    <!-- <main>
+        <aside>
+            <nav>
+                <ul>
+                    <li><a href="#aarmed_guard"><i class="fas fa-shield-alt"></i> Armed Guards</a></li>
+                   
+                 </ul>
+            </nav>
+        </aside>
+        <section id="addArmedGuardForm">
+            <h2><i class="fas fa-shield-alt"></i> Add New Armed Guard</h2>
+            
+            <form>
+                <label for="guardName">Guard Name:</label>
+                <input type="text" id="guardName" name="guardName" required>
+
+                <label for="phoneNumber">Phone Number:</label>
+                <input type="tel" id="phoneNumber" name="phoneNumber" pattern="[0-9]{11}" placeholder="e.g., 08012345678"
+                    required>
+
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address" required>
+
+                <label for="vendorCompany">Vendor Company:</label>
+                <input type="text" id="vendorCompany" name="vendorCompany" required>
+
+                <label for="rank">Rank:</label>
+                <input type="text" id="rank" name="rank" required>
+
+                <button type="button" onclick="addNewArmedGuard()">Add Armed Guard</button>
+            </form>
+        </section>
+    </main>
+    <section id="aarmed_guard">
+        <h2><i class="fas fa-shield-alt"></i> Armed Guards</h2>
+         Display total armed guards and available armed guards -->
+        <!-- <div class="card">
+            <h3>Total Armed Guards: 10</h3>
+            <p>Available Guards: 5</p>
+            <button onclick="armed_guard()">Add New Armed Guard</button>
+        </div>
+
+        Table to display armed guards -->
+        <!-- <table id="armedGuardTable">
+            <tr>
+                <th>Guard Name</th>
+                <th>Phone Number</th>
+                <th>Address</th>
+                <th>Vendor Company</th>
+                <th>Rank</th>
+            </tr> -->
+            <!-- Armed guard details will be dynamically added here -->
+        <!-- </table>
+    </section>
+
+    <script>
+        function addNewArmedGuard() { -->
+            <!-- // Add logic to add a new armed guard
+            console.log("Adding new armed guard");
+            // You can further enhance this function to handle form data
+
+            // Simulate fetching armed guards data (replace with actual fetch logic)
+            const armedGuardsData = [
+                { guardName: "John Doe", phoneNumber: "08012345678", address: "123 Main St", vendorCompany: "Security Inc", rank: "Sergeant" },
+                // Add more armed guard data as needed
+            ];
+
+            // Display armed guards in the table
+            const table = document.getElementById("armedGuardTable");
+            armedGuardsData.forEach((guard) => {
+                const row = table.insertRow();
+                const cell1 = row.insertCell(0);
+                const cell2 = row.insertCell(1);
+                const cell3 = row.insertCell(2);
+                const cell4 = row.insertCell(3);
+                const cell5 = row.insertCell(4);
+
+                cell1.innerHTML = guard.guardName;
+                cell2.innerHTML = guard.phoneNumber;
+                cell3.innerHTML = guard.address;
+                cell4.innerHTML = guard.vendorCompany;
+                cell5.innerHTML = guard.rank;
+            }); -->
+        <!-- }
+
+        // Fetch and display armed guards when the page loads
+        addNewArmedGuard();
+    </script>
+</body>
+
+</html>  -->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+        integrity="sha512-q+7bCSUC+nEQ1PgIOTdCX6rD5vdaokA7NCd3gQpS5KVvwu9s5kxEjgCzXn3bOrUj8bMHT9HsMeN+37Sy4p4Zxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="fleet.css">
+    <title>Add New Armed Guard</title>
+    <style>
+
+/* Add this style to your existing CSS */
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 20px;
+    color: white; /* Set the text color for the table */
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    color: white; /* Set the text color for table cells */
+}
+
+th {
+    background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+    color: white;
+}
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0 20px;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        main {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        aside {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            border-radius: 6px;
+            color: white;
+            width: 20%;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            display: block;
+            margin-bottom: 10px;
+            transition: text-decoration 0.3s;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        section {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .card, form {
+            background: linear-gradient(90deg, #0056b3 0%, #003a73 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #00254e 0%, #001037 100%);
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+        }
+    </style>
+<style>
+    /* Add this style for the aarmed_guard section */
+    #aarmed_guard h2,
+    #aarmed_guard h3,
+    #aarmed_guard p,
+    #aarmed_guard button {
+        color: #ffcc00; /* You can change the color code to the desired brighter color */
+    }
+</style>
+
+</head>
+
+<body>
+    <header>
+        <h1>Security Management System (GMS)</h1>
+    </header>
+    <main>
+        <aside>
+            <nav>
+                <a href="#addArmedGuardForm"><i class="fas fa-shield-alt"></i> Add New Armed Guard</a>
+                <!-- Add more navigation links as needed -->
+            </nav>
+        </aside>
+        <section id="addArmedGuardForm">
+            <h2><i class="fas fa-shield-alt"></i> Add New Armed Guard</h2>
+            <form>
+               <!-- Include these form elements for adding an escort -->
+<label for="firstName">First Name:</label>
+<input type="text" id="firstName" name="firstName" required>
+
+<label for="lastName">Last Name:</label>
+<input type="text" id="lastName" name="lastName" required>
+
+<label for="phoneNumber">Phone Number:</label>
+<input type="tel" id="phoneNumber" name="phoneNumber" pattern="[0-9]{11}" placeholder="e.g., 08012345678" required>
+
+<label for="unit">Unit:</label>
+<input type="text" id="unit" name="unit" required>
+
+<label for="houseAddress">House Address:</label>
+<input type="text" id="houseAddress" name="houseAddress" required> 
+<label for="designation">Designation:</label>
+<select id="designation" name="designation" required>
+    <option value="Escort">Escort</option>
+    <option value="Escort21C">Escort 21C</option>
+    <option value="EscortCommander">Escort Commander</option>
+</select>
+<!-- The rest of your form elements -->
+<label for="rank">Rank:</label>
+<input type="text" id="rank" name="rank" required>
+
+<button type="button" onclick="addNewEscort()">Add Escort</button>
+
+            </form>
+        </section>
+    </main>
+    <section id="aarmed_guard">
+        <h2><i class="fas fa-shield-alt"></i> Armed Guards</h2>
+        <div class="card">
+            <h3>Total Armed Guards: 10</h3>
+            <p>Available Guards: 5</p>
+
+            <button type="button" onclick="addNewEscort2()">Query Database</button>
+<!-- 
+            <button onclick="armed_guard()">Add New Armed Guard</button> -->
+        </div>
+        <table id="armedGuardTable">
+            <tr>
+                <th>Guard Name</th>
+                <th>Phone Number</th>
+                <th>Address</th>
+                <th>Rank</th>
+                <th>Designation</th>
+            </tr>
+            <!-- Armed guard details will be dynamically added here -->
+        </table>
+    </section>
+
+    <script>
+      
+      function addNewArmedGuard() {
+    // Add logic to add a new armed guard
+    console.log("Adding new armed guard");
+
+    // Simulate fetching armed guards data (replace with actual fetch logic)
+    const armedGuardsData = [
+        { guardName: "John Doe", phoneNumber: "08012345678", houseAddress: "123 Main St", rank: "Sergeant", designation: "Escort" },
+        // Add more armed guard data as needed
+    ];
+
+    // Display armed guards in the table
+    const table = document.getElementById("armedGuardTable");
+    armedGuardsData.forEach((guard) => {
+        const row = table.insertRow();
+        const cell1 = row.insertCell(0);
+        const cell2 = row.insertCell(1);
+        const cell3 = row.insertCell(2);
+        const cell4 = row.insertCell(3);
+        const cell5 = row.insertCell(4);
+
+        cell1.innerHTML = guard.firstName + ' ' + guard.lastName; // Combine first name and last name
+        cell2.innerHTML = guard.phoneNumber;
+        cell3.innerHTML = guard.houseAddress;
+        cell4.innerHTML = guard.rank;
+        cell5.innerHTML = guard.designation;
+    });
+}
+
+    
+
+    // Fetch and display armed guards when the page loads
+    addNewArmedGuard();
+</script>
+
+ <script>
+    function addNewEscort() {
+
+    // Fetch the form values
+    const firstName = document.getElementById("firstName").value;
+    const lastName = document.getElementById("lastName").value;
+    const phoneNumber = document.getElementById("phoneNumber").value;
+    const unit = document.getElementById("unit").value;
+    const houseAddress = document.getElementById("houseAddress").value;
+    const rank = document.getElementById("rank").value;
+    const designation = document.getElementById("designation").value; // Get the selected designation
+
+    // Create an object with the form values
+    const newEscort = {
+        firstName,
+        lastName,
+        phoneNumber,
+        unit,
+        houseAddress,
+        rank,
+        designation, // Include the designation field
+    };
+
+    // Make a POST request to the server endpoint
+    fetch('/add_new_escort', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newEscort),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to add new escort');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log(data); // Log the response from the server
+        // You can update the UI or perform additional actions as needed
+    })
+    .catch(error => {
+        console.error(error);
+        // Handle errors or display an error message to the user
+    });
+}
+
+   
+    async function fetchAndDisplayArmedGuards() {
+        try {
+            const response = await fetch('/fetch_armed_guards'); // Assuming you have an endpoint for fetching armed guards
+            const responseData = await response.text(); // Use text() to see the raw response
+
+            console.log(responseData); // Log the response to inspect it
+
+            // Parse the response as JSON
+            const armedGuardsData = JSON.parse(responseData);
+
+            // Display armed guards in the table
+            const table = document.getElementById("armedGuardTable");
+            armedGuardsData.forEach((guard) => {
+                const row = table.insertRow();
+        const cell1 = row.insertCell(0);
+        const cell2 = row.insertCell(1);
+        const cell3 = row.insertCell(2);
+        const cell4 = row.insertCell(3);
+        const cell5 = row.insertCell(4);
+
+        cell1.innerHTML = guard.firstName + ' ' + guard.lastName; // Combine first name and last name
+        cell2.innerHTML = guard.phoneNumber;
+        cell3.innerHTML = guard.houseAddress;
+        cell4.innerHTML = guard.rank;
+        cell5.innerHTML = guard.designation;
+    });
+
+        } catch (error) {
+            console.error(error);
+            // Handle errors or display an error message to the user
+        }
+    }
+
+    // Fetch and display armed guards when the page loads
+    fetchAndDisplayArmedGuards();
+</script>
+
+</body>
+
+</html>

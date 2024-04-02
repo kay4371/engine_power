@@ -1,0 +1,298 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+        integrity="sha512-q+7bCSUC+nEQ1PgIOTdCX6rD5vdaokA7NCd3gQpS5KVvwu9s5kxEjgCzXn3bOrUj8bMHT9HsMeN+37Sy4p4Zxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="fleet.css">
+    <title>Security Management System (SMS)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0 20px;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        main {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        aside {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            border-radius: 6px;
+            color: white;
+            width: 20%;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav li {
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        section {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .card {
+            background: linear-gradient(90deg, #0056b3 0%, #003a73 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #00254e 0%, #001037 100%);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Security Management System (GMS)</h1>
+    </header>
+    <main>
+        <aside>
+            <nav>
+                <ul>
+                    <li><a href="#aarmed_guard"><i class="fas fa-shield-alt"></i> Armed Guards</a></li>
+                    <li><a href="#driverList"><i class="fas fa-user"></i> Drivers</a></li>
+                    <li><a href="#guardList"><i class="fas fa-shield-alt"></i> Civil Guards</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <section id="aarmed_guard">
+            <h2><i class="fas fa-shield-alt"></i> Armed Guards</h2>
+          Armed Guard details will be dynamically added here -->
+            <!-- <div class="card">
+                <h3>Total Armed Guards: 10</h3>
+                <p>Available Guards: 5</p>
+               Add more armed guard details here -->
+                <!-- <button onclick="armed_guard()">Add New Armed Guard</button>
+            </div>
+        </section>
+        <section id="driverList">
+            <h2><i class="fas fa-user"></i> Drivers</h2>
+             Driver details will be dynamically added here -->
+            <!-- <div class="card">
+                <h3>Total Drivers: 8</h3>
+                <p>Available Drivers: 5</p>
+                 Add more driver details here -->
+                <!-- <button onclick="addNewDriver()">Add New Driver</button>
+            </div>
+        </section>
+        <section id="guardList">
+            <h2><i class="fas fa-shield-alt"></i> Civil Guards</h2   -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+        integrity="sha512-q+7bCSUC+nEQ1PgIOTdCX6rD5vdaokA7NCd3gQpS5KVvwu9s5kxEjgCzXn3bOrUj8bMHT9HsMeN+37Sy4p4Zxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="fleet.css">
+    <title>Security Management System (SMS)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        main {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        aside {
+            background: linear-gradient(90deg, #007BFF 0%, #0056b3 100%);
+            padding: 20px;
+            border-radius: 6px;
+            color: white;
+            width: 20%;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav li {
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #ffeb3b; /* change color on hover */
+        }
+
+        section {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .card {
+            background: linear-gradient(90deg, #00adb3 0%, #ddcad7 100%);
+            border-radius: 6px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(202, 236, 9, 0.1);
+            transition: transform 0.3s;
+            height: 50%; /* Set height to 100% to make boxes equal size */
+            max-height: 300px; /* Set max-height to avoid overlapping */
+            overflow: auto; /* Add overflow for content exceeding max-height */
+        }
+
+        .card:hover {
+            transform: scale(1.02); /* add a subtle hover effect */
+        }
+
+        button {
+            background: linear-gradient(90deg, #003a73 0%, #00254e 100%);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #8b97a5 0%, #a2b0d1 100%);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Security Management System (SMS)</h1>
+    </header>
+    <main>
+        <aside>
+            <nav>
+                <ul>
+                    <li><a href="#security_officers"><i class="fas fa-shield-alt"></i>Security Officers</a></li>
+               
+                    <li><a href="#driverList"><i class="fas fa-user"></i>Drivers</a></li>
+                    <li><a href="#aarmed_guard" onclick="armed_guard()"><i class="fas fa-shield-alt"></i> Armed Guards</a></li>
+                    <li><a href="#driverList"><i class="fas fa-user"></i> Drivers</a></li>
+                    <li><a href="#guardList"><i class="fas fa-shield-alt"></i> Civil Guards</a></li>
+                    <li><a href="#guardList"><i class="fas fa-shield-alt"></i>Emergency Numbers</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <section id="aarmed_guard">
+            <h2><i class="fas fa-shield-alt"></i> Armed Guards</h2>
+            <!-- Armed Guard details will be dynamically added here -->
+            <div class="card">
+                <h3>Total Armed Guards: 10</h3>
+                <p>Available Guards: 5</p>
+                <!-- Add more armed guard details here -->
+                <button onclick="armed_guard()">Add New Armed Guard</button>
+            </div>
+        </section>
+        <section id="driverList">
+            <h2><i class="fas fa-user"></i> Drivers</h2>
+            <!-- Driver details will be dynamically added here -->
+            <div class="card">
+                <h3>Total Drivers: 8</h3>
+                <p>Available Drivers: 5</p>
+                <!-- Add more driver details here -->
+                <button onclick="addNewDriver()">Add New Driver</button>
+            </div>
+        </section>
+        <section id="guardList">
+            <h2><i class="fas fa-shield-alt"></i> Civil Guards</h2>
+            <!-- Civil Guard details will be dynamically added here -->
+            <div class="card">
+                <!-- Add Civil Guard details here -->
+                <button onclick="addNewCivilGuard()">Add New Civil Guard</button>
+            </div>
+        </section>
+    </main>
+</body>
+<script>
+    function armed_guard() {
+        window.location.href = "add_escort.html";
+    }
+    </script>
+    <script>
+        function armed_guard() {
+            window.location.href = "add_escort.html";
+        }
+        </script>
+
+
+<script>
+// Function to redirect to security_officer.html
+document.querySelector('a[href="#security_officers"]').addEventListener('click', function(event) {
+    event.preventDefault();
+    window.location.href = 'security_officer.html';
+});
+</script>
+
+</html>
+
+
+

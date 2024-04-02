@@ -1,0 +1,382 @@
+
+  <!-- <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Admin Quiz Form</title>
+  </head>
+  <body>
+    <h1>Admin Quiz Form</h1>
+    <form action="/add_question" method="post">
+      <label for="add_questions">Question:</label><br>
+      <input type="text" id="add_questions" name="add_questions"><br>
+
+      <label for="option1">Option 1:</label><br>
+      <input type="text" id="option1" name="option1"><br>
+
+      <label for="option2">Option 2:</label><br>
+      <input type="text" id="option2" name="option2"><br>
+
+      <label for="option3">Option 3:</label><br>
+      <input type="text" id="option3" name="option3"><br>
+
+      <label for="option4">Option 4:</label><br>
+      <input type="text" id="option4" name="option4"><br>
+
+      <label for="answer">Correct Answer:</label><br>
+      <input type="text" id="answer" name="answer"><br>
+
+      <label for="explanation">Explanation:</label><br>
+      <input type="text" id="explanation" name="explanation"><br><br>
+
+      <input type="submit" value="Submit">
+    </form>
+  </body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+ 
+<!DOCTYPE html>
+<html lang = "en">
+<head>
+	<meta charset = "UTF-8">
+	<link rel = "stylesheet" href="form2.css">
+	<title> Iso-Sec</title>
+</head>
+<body>
+
+ <form  class="my-form"> 
+	<div class="container">
+		<fieldset>
+			<legend></legend>	
+			<h1>Intelligon</h1>
+		</fieldset>
+
+	<h1>Quiz Data Upload</h1>
+</form>
+
+
+<div>
+
+	<form id="uploadForm" action="/" method="post" enctype="multipart/form-data">
+		<div>
+		   <label for="quizFile">Upload quiz file:</label>
+		   <br>
+		   <input type="file" id="quizFile" name="quizFile">
+		   <br>
+		   <input type="submit" value="Submit">
+		</div>
+	   </form>
+	   <br>
+	  
+
+
+	   <form id="upload-textbook" action="/upload-textbook" method="post" enctype="multipart/form-data">
+		<div>
+		  <label for="textbook">Upload Textbook File:</label><br>
+		  <input type="file" id="textbook" name="file"><br> <!-- Update the input name to "file" -->
+		    <br>
+		  <input type="submit" value="Submit">
+		</div>
+	
+	  </form>  
+	  <br>
+	<form id="generate-questions" action="/generate-questions" method="post">
+		<!-- <label for="textbook">Generate Questions:</label><br> -->
+		<div>
+		  <input type="submit" value="Generate Questions">
+		</div>
+	  </form>
+
+
+</div>
+<form id="paste-questions" action="/paste-questions" method="post">
+	<div>
+	  <h1>Quiz Data Copy and Paste</h1>
+	  <!-- <br>
+	  <ul>
+		<li>
+		  <select id="course_categories_paste" name="course_categories_paste">
+			<option selected disabled>-- Please Select A Course Category --</option>
+			<option value="CPO">Certified Protection Officer (CPO)</option>
+			<option value="CPP">Certified Protection Professional (CPP)</option>
+			<option value="On_Demand">On Demand</option>
+			<option value="Archived">Archived</option>
+		  </select>
+		</li>
+	  </ul>
+	  <br> -->
+  
+	  <textarea id="quizData" name="quizData"></textarea><br>
+	  <input type="submit" value="Submit">
+	</div>
+  </form>
+  
+  
+
+	<br>
+	<br>
+	<form action="/add_question_data" method="POST">  
+
+		  <ul>
+			<li>
+			   <select id="course_categories" name="course_categories">
+				<option selected disabled>-- Please Select A Course Category --</option>
+				<option value="CPO">Certified Protection Officer(CPO)</option>
+				<option value="CPP">Certified Protection Proffessional (CPP) </option>
+				<option value="On_Demand">On Demand</option>
+				<option value="Archived">Archived</option>   
+			  </select> 
+			<br>
+		<br>
+			<label for="question">Question:</label>
+
+		<input type="text" id="question" name="question" required>   
+		  	<br>
+			<label for="option1">Option A:</label>
+			<input type="text" id="optionA" name="optionA" required>
+			<br>
+			<label for="option2">Option B:</label>
+			<input type="text" id="optionB" name="optionB" required>
+			<br>
+			<label for="option3">Option C:</label>
+			<input type="text" id="optionC" name="optionC" required>
+			<br>
+			<label for="option4">Option D:</label>
+			<input type="text" id="optionD" name="optionD" required>
+
+			<br>
+			<label for="answer">Answer:</label>
+			<input type="text" id="answer" name="answer" required>
+			<br>
+			<label for="explanation">Explanation:</label>
+			<textarea id="explanation" name="explanation" required></textarea>
+			 <!-- <br>
+			<button type="submit">Submit</button>
+			<br>  -->
+			<br>
+			<div class="grid grid-2">
+				
+				<button class="btn-grid" type="submit" id="Submit" name="submit"> 
+					<span class="back">
+					<img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/162656/eraser-icon.svg" alt="">
+					</span>
+					<span class="front">Save</span>
+				</button> 
+				
+
+				<button class="btn-grid" type="reset" id="reset" name="reset"> 
+					<span class="back">
+					<img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/162656/eraser-icon.svg" alt="">
+					</span>
+					<span class="front">Delete</span>
+				</button>  
+		   </form> 
+		     
+<!-- backup -->
+
+<!-- 
+		  <!DOCTYPE html>
+		  <html lang = "en">
+		  <head>
+			  <meta charset = "UTF-8">
+			  <link rel = "stylesheet" href="form2.css">
+			  <title> Iso-Sec</title>
+		  </head>
+		  <body>
+		  
+		   <form  class="my-form"> 
+			  <div class="container">
+				  <fieldset>
+					  <legend></legend>	
+					  <h1>Intelligon</h1>
+				  </fieldset>
+		  
+			  <h1>Quiz Data Upload</h1>
+		  </form>
+			  <form id="uploadForm" action="/" method="post" enctype="multipart/form-data">
+			   <div>
+				  <label for="quizFile">Upload quiz file:</label><br>
+				  <input type="file" id="quizFile" name="quizFile">
+				  <input type="submit" value="Submit">
+			   </div>
+			   <br>
+			  </form>
+		  
+			  <h1>Quiz Data Copy and Paste</h1>
+			  <form id="pasteForm">
+				<label for="quizData">Quiz Data:</label><br>
+				<textarea id="quizData" name="quizData"></textarea><br>
+				<input type="submit" value="Submit">
+			  </form>
+		  
+				  <br>
+				  <form method="POST" action="/add_question_data">
+					  <label for="add_questions">Question:</label>
+					  <input type="text" id="add_questions" name="add_questions" required>
+						<br>
+					  <label for="option1">Option A:</label>
+					  <input type="text" id="optionA" name="optionA" required>
+					  <br>
+					  <label for="option2">Option B:</label>
+					  <input type="text" id="optionB" name="optionB" required>
+					  <br>
+					  <label for="option3">Option C:</label>
+					  <input type="text" id="optionC" name="optionC" required>
+					  <br>
+					  <label for="option4">Option D:</label>
+					  <input type="text" id="optionD" name="optionD" required>
+		  
+					
+					  <br>
+					  <label for="answer">Answer:</label>
+					  <input type="text" id="answer" name="answer" required>
+					  <br>
+					  <label for="explanation">Explanation:</label>
+					  <textarea id="explanation" name="explanation" required></textarea>
+					  <br>
+					  <button type="submit">Submit</button>
+					</form> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="form2.css">
+  <title>Iso-Sec</title>
+</head>
+
+<body>
+
+  <form class="my-form">
+    <div class="container">
+      <fieldset>
+        <legend></legend>
+        <h1>Intelligon</h1>
+      </fieldset>
+
+      <h1>Quiz Data Upload</h1>
+    </div>
+  </form>
+
+  <div>
+    <form id="uploadForm" action="/" method="post" enctype="multipart/form-data">
+      <div>
+        <label for="quizFile">Upload quiz file:</label>
+        <br>
+        <input type="file" id="quizFile" name="quizFile">
+        <br>
+        <input type="submit" value="Submit">
+      </div>
+    </form>
+    <br>
+    <br>
+    <form id="upload-textbook" action="/upload-textbook" method="post" enctype="multipart/form-data">
+      <div>
+        <label for="textbook">Upload Textbook File:</label><br>
+        <input type="file" id="textbook" name="file"><br>
+        <br>
+        <input type="submit" value="Submit">
+      </div>
+    </form>
+  </div>
+
+  <h1>Quiz Data Copy and Paste</h1>
+  <form id="pasteForm">
+    <label for="quizData">Quiz Data:</label><br>
+    <textarea id="quizData" name="quizData"></textarea><br>
+    <input type="submit" value="Submit">
+  </form>
+
+  <br>
+  <br>
+  <form action="/add_question_data" method="POST">
+
+    <ul>
+      <li>
+        <select id="course_categories" name="course_categories">
+          <option selected disabled>-- Please Select A Course Category --</option>
+          <option value="CPO">Certified Protection Officer(CPO)</option>
+          <option value="CPP">Certified Protection Proffessional (CPP)</option>
+          <option value="On_Demand">On Demand</option>
+          <option value="Archived">Archived</option>
+        </select>
+        <br>
+        <br>
+        <label for="question">Question:</label>
+        <input type="text" id="question" name="question" required>
+        <br>
+        <label for="option1">Option A:</label>
+        <input type="text" id="optionA" name="optionA" required>
+        <br>
+        <label for="option2">Option B:</label>
+        <input type="text" id="optionB" name="optionB" required>
+        <br>
+        <label for="option3">Option C:</label>
+        <input type="text" id="optionC" name="optionC" required>
+        <br>
+        <label for="option4">Option D:</label>
+        <input type="text" id="optionD" name="optionD" required>
+        <br>
+        <label for="answer">Answer:</label>
+        <input type="text" id="answer" name="answer" required>
+        <br>
+        <label for="explanation">Explanation:</label>
+        <textarea id="explanation" name="explanation" required></textarea>
+        <br>
+        <br>
+        <div class="grid grid-2">
+          <button class="btn-grid" type="submit" id="Submit" name="submit">
+            <span class="back">
+              <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/162656/eraser-icon.svg" alt="">
+            </span>
+            <span class="front">Save</span>
+          </button>
+
+          <button class="btn-grid" type="reset" id="reset" name="reset">
+            <span class="back">
+              <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/162656/eraser-icon.svg" alt="">
+            </span>
+            <span class="front">Delete</span>
+          </button>
+        </div>
+      </li>
+    </ul>
+  </form>
+
+  <div>
+    <button class="yellow-button" onclick="generateQuestions()">Generate Questions</button>
+  </div>
+
+  <script>
+    function generateQuestions() {
+      fetch('/generate-questions')
+        .then(response => response.json())
+        .then(data => {
+          console.log(data.questions);
+          // Process the generated questions here
+        })
+        .catch(error => {
+          console.error(error);
+          // Handle the error here
+        });
+    }
+  </script>
+
+</body>
+
+</html> -->
+

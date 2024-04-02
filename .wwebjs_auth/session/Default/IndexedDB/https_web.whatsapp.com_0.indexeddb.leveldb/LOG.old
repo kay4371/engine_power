@@ -1,0 +1,14 @@
+2023/12/16-15:21:55.201 3340 Reusing MANIFEST C:\Users\Administrator\OneDrive\Desktop\Development tools\playground\backupVisitor-Movement Management\Visitor-Movement Management6\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2023/12/16-15:21:55.201 3340 Recovering log #73
+2023/12/16-15:21:55.210 3340 Reusing old log C:\Users\Administrator\OneDrive\Desktop\Development tools\playground\backupVisitor-Movement Management\Visitor-Movement Management6\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000073.log 
+2023/12/16-15:21:55.211 3340 Delete type=2 #72
+2023/12/16-15:21:56.789 26b8 Level-0 table #78: started
+2023/12/16-15:21:56.886 26b8 Level-0 table #78: 25703 bytes OK
+2023/12/16-15:21:56.985 26b8 Delete type=0 #73
+2023/12/16-15:21:56.986 26b8 Manual compaction at level-0 from '\x00 \x00\x00\x00' @ 72057594037927935 : 1 .. '\x00!\x00\x00\x00' @ 0 : 0; will stop at '\x00!\x00\x00\x05' @ 26570 : 1
+2023/12/16-15:21:56.986 26b8 Compacting 1@0 + 1@1 files
+2023/12/16-15:21:57.105 26b8 Generated table #79@0: 3795 keys, 32339 bytes
+2023/12/16-15:21:57.105 26b8 Compacted 1@0 + 1@1 files => 32339 bytes
+2023/12/16-15:21:57.172 26b8 compacted to: files[ 0 1 1 0 0 0 0 ]
+2023/12/16-15:21:57.173 26b8 Delete type=2 #78
+2023/12/16-15:21:57.177 28a0 Manual compaction at level-0 from '\x00!\x00\x00\x05' @ 26570 : 1 .. '\x00!\x00\x00\x00' @ 0 : 0; will stop at (end)

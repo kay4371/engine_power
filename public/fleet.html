@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+        integrity="sha512-q+7bCSUC+nEQ1PgIOTdCX6rD5vdaokA7NCd3gQpS5KVvwu9s5kxEjgCzXn3bOrUj8bMHT9HsMeN+37Sy4p4Zxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="fleet.css">
+    <title>Fleet Management</title>
+</head>
+
+<body>
+    <header>
+        <h1>Fleet Management</h1>
+    </header>
+    <main>
+        <aside>
+            <nav>
+                <ul>
+                    <li><a href="#carList"><i class="fas fa-car"></i> Cars</a></li>
+                    <li><a href="#driverList"><i class="fas fa-user"></i> Drivers</a></li>
+                    <li><a href="#escortList"><i class="fas fa-shield-alt"></i> Escorts</a></li>
+                    <!-- Add more sections as needed -->
+                </ul>
+            </nav>
+        </aside>
+        <section id="carList">
+            <h2><i class="fas fa-car"></i> Available Cars</h2>
+            <!-- Car details will be dynamically added here -->
+            <div class="card">
+                <h3>Total Cars: 50</h3>
+                <p>Available Cars: 35</p>
+                <!-- Add more car details here -->
+                <button onclick="addNewCar()">Add New Car</button>
+            </div>
+        </section>
+        <section id="driverList">
+            <h2><i class="fas fa-user"></i> Available Drivers</h2>
+            <!-- Driver details will be dynamically added here -->
+            <div class="card">
+                <h3>Total Drivers: 20</h3>
+                <p>Available Drivers: 15</p>
+                <!-- Add more driver details here -->
+                <button onclick="addNewDriver()">Add New Driver</button>
+            </div>
+        </section>
+        <section id="escortList">
+            <h2><i class="fas fa-shield-alt"></i> Available Escorts</h2>
+            <!-- Escort details will be dynamically added here -->
+            <div class="card">
+                <h3>Total Escorts: 10</h3>
+                <p>Available Escorts: 5</p>
+                <!-- Add more escort details here -->
+                <button onclick="addNewEscort()">Add New Escort</button>
+            </div>
+        </section>
+    </main>
+    <script>
+        function addNewCar() {
+            // Add logic to add a new car
+            console.log("Adding new car");
+        }
+
+        function addNewDriver() {
+            // Add logic to add a new driver
+            console.log("Adding new driver");
+        }
+
+        function addNewEscort() {
+            // Add logic to add a new escort
+            console.log("Adding new escort");
+            
+        }
+
+
+
+    </script>
+</body>
+
+</html>

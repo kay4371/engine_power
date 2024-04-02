@@ -1,0 +1,3031 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+	
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.min.js"></script> 
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+
+	<meta charset="UTF-8">
+
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+	<link rel="stylesheet"
+		href="https://rawcdn.githack.com/Loopple/loopple-public-assets/ad60f16c8a16d1dcad75e176c00d7f9e69320cd4/argon-dashboard/css/nucleo/css/nucleo.css">
+	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="./assets_for access_control/css/theme.css">
+	<link rel="stylesheet" href="./assets_for access_control/css/style3.css">
+
+	<body>
+		<!-- <div id="welcomeMessage"></div> -->
+		
+		<div id="messages-container"style="display: none;"></div>
+		<script src="script.js"></script>
+
+
+		<div class="container"style="display: none;"> 
+			<!-- <div class="container"> -->
+			<div class="column">
+				<h2>All Updates</h2>
+				<ul id="allUpdates"></ul> 
+				
+			</div>
+	
+			<div id="flash-notification" class="flash-notification">
+				You have a new message
+			</div>
+			<ul id="realtimeUpdates"></ul>
+			</div>
+		</div>
+    <style>
+      /* CSS for the logout button */
+      #logoutBtn {
+          /* Maintain the button size */
+          width: auto;
+          height: auto;
+          padding: 10px 20px;
+          font-size: 16px;
+          border: none;
+          cursor: pointer;
+          /* Apply orange-blue gradient background */
+          background-image: linear-gradient(to right, #FFA500, #007FFF);
+          color: white; /* Text color */
+          border-radius: 20px; /* Stronger border radius */
+          transition: background-color 0.3s ease; /* Smooth transition on hover */
+      }
+  
+      /* Hover effect for the button */
+      #logoutBtn:hover {
+          /* Darken the button color on hover */
+          background-image: linear-gradient(to right, #FF8C00, #00688B);
+      }
+  </style>
+  
+<style>
+#messages-container {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    overflow-y: scroll;
+    max-height: 300px;
+}
+
+</style>
+
+	<style>
+        /* Define your CSS styles here */
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .column {
+            width: 48%; /* Adjust the width as needed */
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 5px;
+            overflow-y: scroll; /* Add scroll if content overflows */
+            max-height: 400px; /* Add a maximum height if needed */
+        }
+    </style>
+
+ <style>
+	/* Styling for the button */
+	.styled-button {
+	  background-color: #3498db; /* Blue color */
+	  color: #fff; /* White text color */
+	  border: none;
+	  border-radius: 5px; /* Curved edges */
+	  padding: 10px 20px;
+	  cursor: pointer;
+	  transition: background-color 0.3s, transform 0.3s; /* Add a transition for a subtle animation */
+	}
+	
+	/* Hover effect - Lighten the background color on hover */
+	.styled-button:hover {
+	  background-color: #2980b9; /* Slightly darker blue */
+	}
+	
+	/* Click effect - Scale down the button on click */
+	.styled-button:active {
+	  transform: scale(0.95);
+	}
+	</style>
+
+
+	<style>
+
+/* Add this CSS code to your stylesheet */
+
+
+.share-button {
+  transition: background-color 0.3s ease, color 0.3s ease; /* Add a transition effect for background-color and text color */
+}
+
+.share-button:hover {
+  background-color: #4CAF50; /* Change the background color on hover */
+  color: #fff; /* Change the text color on hover */
+}
+
+.share-button:active {
+  transform: scale(0.95); /* Add a scaling effect when the button is clicked */
+}
+
+/* Add this CSS code to your stylesheet */
+
+.preview-button {
+  transition: background-color 0.3s ease, color 0.3s ease; /* Add a transition effect for background-color and text color */
+}
+
+.preview-button:hover {
+  background-color: #4CAF50; /* Change the background color on hover */
+  color: #fff; /* Change the text color on hover */
+}
+
+.preview-button:active {
+  transform: scale(0.95); /* Add a scaling effect when the button is clicked */
+}
+		.tab-content {
+			display: none;
+		}
+
+		.table-container {
+			margin-top: 20px;
+		}
+
+		.table-container table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.table-container th,
+		.table-container td {
+			padding: 10px;
+			border: 1px solid #ccc;
+		}
+
+		.table-container th {
+			background-color: #f2f2f2;
+		}
+
+		.access-buttons {
+			display: flex;
+			justify-content: center;
+			margin-top: 10px;
+		}
+
+		.grant-access {
+			background-color: #5cb85c;
+			color: white;
+		}
+
+		.deny-access {
+			background-color: #d9534f;
+			color: white;
+		}
+
+		.history-container {
+			margin-top: 20px;
+		}
+
+		.history-container table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.history-container th,
+		.history-container td {
+			padding: 10px;
+			border: 1px solid #ccc;
+		}
+
+		.history-container th {
+			background-color: #f2f2f2;
+		}
+	</style>
+
+
+<style>
+
+/* You can add additional styles to the button as needed */
+
+	/* Your CSS styles here */
+	.overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.7);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 9999;
+	}
+
+	.gate-pass-content {
+		background-color: white;
+		padding: 20px;
+		border-radius: 5px;
+		box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+		text-align: center;
+	}
+
+	.close-button {
+		background-color: #ccc;
+		color: #333;
+		border: none;
+		padding: 5px 10px;
+		border-radius: 3px;
+		cursor: pointer;
+	}
+
+	.close-button:hover {
+		background-color: #999;
+		color: #fff;
+	}
+
+/* Define a CSS animation for left and right motion */
+@keyframes bell-motion {
+    0% { transform: translateX(0); }
+    50% { transform: translateX(-10px); }
+    100% { transform: translateX(0); }
+}
+
+/* Apply the animation to the bell icon */
+.bell-icon-animation {
+    animation: bell-motion 1s ease infinite;
+}
+
+/* Define a CSS class to change the color of the bell icon to green */
+.green-bell {
+    color: rgb(238, 119, 7) !important;
+}
+
+.red-bell {
+            color: rgb(9, 255, 0) !important; /* Use !important to override other styles if necessary */
+        }
+</style>
+<style>
+body2 {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 3px solid transparent;
+  border-radius: 50%;
+  border-top: 3px solid #058ed9;
+  border-bottom: 3px solid #f9627d;
+  animation: load 3s ease-in-out infinite alternate;
+}
+
+@keyframes load {
+  0% {
+    transform: translate(-50%, -50%) rotatez(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotatez(540deg);
+  }
+}
+
+</style>
+
+
+<div id="visitorList"style="display: none;"></div>
+</head>
+
+
+<body class="g-sidenav-show">
+	<!-- <script>
+        // Function to check if user is logged in
+        function checkLoggedIn() {
+            // Check if user is logged in (you'll need to implement this logic)
+            // const loggedIn = true; // Assuming you have a way to determine if the user is logged in
+			const loggedIn = false; // Assuming you have a way to determine if the user is logged in
+            // If user is not logged in, redirect to login page
+            if (!loggedIn) {
+                window.location.href = '/index.html';
+            } else {
+                // If user is logged in, show the main content
+                document.getElementById('main-content').style.display = 'block';
+                document.title = 'Receptionist Page'; // Update page title
+            }
+        }
+
+        // Call the function to check login status and load main content
+        checkLoggedIn();
+    </script
+	 -->
+
+	 <script>
+		// Function to check if user is logged in
+		function checkLoggedIn() {
+			// Make a request to the server to check login status
+			fetch('/check_login_status')
+				.then(response => {
+					if (response.ok) {
+						// If user is logged in, show the main content
+						document.getElementById('main-content').style.display = 'block';
+						document.title = 'Receptionist Page'; // Update page title
+					} else {
+						// If user is not logged in, redirect to login page
+						window.location.href = '/index.html';
+					}
+				})
+				.catch(error => {
+					console.error('Error checking login status:', error);
+					// Handle error if any
+				});
+		}
+	
+		// Call the function to check login status and load main content
+		checkLoggedIn();
+	</script>
+	
+
+
+
+
+	<div id="flash-notification" class="flash-notification"style="display: none;">
+		<!-- You have a new message -->
+	</div>
+	<ul id="realtimeUpdates"style="display: none;"></ul>
+
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+	<!-- Bootstrap JS and jQuery (ensure correct order) -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+
+
+<script>
+	const eventSource = new EventSource('/sse');
+
+	eventSource.onmessage = function (event) {
+		const message = JSON.parse(event.data);
+		console.log('Received SSE message:', message);
+
+		// Update the visitor list on the page
+		updateVisitorList(message);
+
+		// Trigger an alert to indicate message reception
+		alert('Received a new message!');
+	};
+
+	function updateVisitorList(message) {
+		const visitorList = document.getElementById('visitorList');
+		const listItem = document.createElement('li');
+
+		listItem.innerHTML = `
+			<strong>${message.visitorDetails.name}</strong> visited on ${message.visitorDetails.registrationDate}. 
+			Whom to see: ${message.visitorDetails.whomToSee}. Purpose of visit: ${message.visitorDetails.purposeOfVisit}
+		`;
+
+		visitorList.appendChild(listItem);
+	}
+</script>
+
+<script>
+    // For visitor counts
+    window.addEventListener('load', function() {
+       fetch('/get_visitor_counts')
+          .then(response => response.json())
+          .then(data => {
+             const { todayCount, weekCount, totalCount } = data;
+    
+             const visitorCountsPlaceholder = document.getElementById('visitorCountsPlaceholder');
+             visitorCountsPlaceholder.textContent = `${todayCount}/${weekCount}`;
+             
+             const totalVisitorCount = document.getElementById('totalVisitorCount');
+             totalVisitorCount.textContent = totalCount;
+          })
+          .catch(error => {
+             console.error('Error fetching visitor counts:', error);
+          });
+    });
+    
+    
+    // For movement counts
+    window.addEventListener('load', function () {
+       fetch('/get_movements_counts')
+          .then(response => response.json())
+          .then(data => {
+             const { todayCount, weekCount, totalCount } = data;
+    
+             const movementCountsSpan = document.getElementById('movementCountsPlaceholder');
+             movementCountsSpan.textContent = `${todayCount}/${weekCount}`;
+    
+             const totalMovementCount = document.getElementById('totalMovementCount');
+             totalMovementCount.textContent = totalCount;
+          })
+          .catch(error => {
+             console.error('Error fetching movement counts:', error);
+          });
+    });
+   
+   </script>
+
+
+
+ <script>
+function sharePDFViaEmail() {
+  const loaders = document.querySelectorAll("#loader");
+
+  loaders.forEach((loader, index) => {
+    loader.style.width = `${(index + 1) * 30}px`;
+    loader.style.height = `${(index + 1) * 30}px`;
+    loader.style.animationDelay = `${index * 75}ms`;
+  });
+
+  // Start animation when email is loading
+  const loadingAnimation = setInterval(() => {
+    loaders.forEach((loader, index) => {
+      loader.style.animationPlayState = "running";
+    });
+  }, 100);
+
+  // Simulate email loading for 2 seconds (you can adjust this duration)
+  setTimeout(() => {
+    clearInterval(loadingAnimation); // Stop the animation
+    sendEmail(); // Send the email
+  }, 2000); // Adjust the delay as needed
+
+  function sendEmail() {
+    const subject = 'Gate Pass';
+    const body = 'Please find the gate pass attached.';
+    const email = 'recipient@example.com'; // Replace with the recipient's email address
+    const pdfFileName = 'gate_pass.pdf'; // Replace with the PDF file name
+
+    const emailLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
+      body
+    )}&attachment=${encodeURIComponent(pdfFileName)}`;
+    window.location.href = emailLink;
+  }
+}
+
+
+
+function sharePDFViaWhatsApp() {
+  // Generate the PDF from the gate pass content using downloadGatePassAsPDF()
+
+  // After generating the PDF, you can share it via WhatsApp
+  const message = 'Please find the gate pass attached.';
+  const pdfFileName = 'gate_pass.pdf'; // Replace with the PDF file name
+
+  // You can create a link to the PDF file and share it via WhatsApp
+  const pdfLink = `https://example.com/path-to-pdf/${pdfFileName}`; // Replace with the actual link
+  const whatsappMessage = `${message}%0A%0A${pdfLink}`;
+
+  const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappMessage)}`;
+  window.open(whatsappLink, '_blank');
+}
+
+ window.addEventListener('load', function() {
+	fetch('/get_visitor_counts')
+	   .then(response => response.json())
+	   .then(data => {
+		  const { todayCount, weekCount, totalCount } = data;
+ 
+		  const visitorCountsPlaceholder = document.getElementById('visitorCountsPlaceholder');
+		  visitorCountsPlaceholder.textContent = `${todayCount}/${weekCount}`;
+		  
+		  const totalVisitorCount = document.getElementById('totalVisitorCount');
+		  totalVisitorCount.textContent = totalCount;
+	   })
+	   .catch(error => {
+		  console.error('Error fetching visitor counts:', error);
+	   });
+ });
+ 
+ // For movement counts
+ window.addEventListener('load', function () {
+	fetch('/get_movements_counts')
+	   .then(response => response.json())
+	   .then(data => {
+		  const { todayCount, weekCount, totalCount } = data;
+ 
+		  const movementCountsSpan = document.getElementById('movementCountsPlaceholder');
+		  movementCountsSpan.textContent = `${todayCount}/${weekCount}`;
+ 
+		  const totalMovementCount = document.getElementById('totalMovementCount');
+		  totalMovementCount.textContent = totalCount;
+	   })
+	   .catch(error => {
+		  console.error('Error fetching movement counts:', error);
+	   });
+ });
+</script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const bellIcon = document.getElementById('bellIcon');
+            const triggerButton = document.getElementById('triggerButton');
+
+            // Function to turn the bell icon green, play alert sound, and start animation
+            function triggerAnimationAndAlert() {
+                // Add the green color class
+                bellIcon.classList.add('green-bell');
+
+                // // Play alert sound (replace with your own sound file)
+                // // const alertSound = new Audio('path/to/alert-sound.mp3');
+				// const alertSound = new Audio('C:\Users\Administrator\OneDrive\Desktop\Development tools\playground\backupVisitor-Movement Management\Visitor-Movement Management4\public\assets\sound\water_droplet_5-165635.mp3');
+                // alertSound.play();
+
+                // Start the animation
+                bellIcon.classList.add('bell-icon-animation');
+            }
+
+            // Add a click event listener to the trigger button
+            triggerButton.addEventListener('click', triggerAnimationAndAlert);
+        });
+    </script>
+
+
+<nav class="sidenav navbar navbar-vertical fixed-left navbar-expand-xs navbar-light bg-white loopple-fixed-start"
+
+id="sidenav-main">
+    <div class="sidenav-header  align-items-center">
+        <a class="navbar-brand" href="javascript:void(0)">
+            <img src="assets/Mota-Engil.svg.png">
+
+            <!-- <img src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/brand/blue.png" class="navbar-brand-img" alt="..."> -->
+        </a>
+    </div>
+
+
+
+
+
+
+    <div class="navbar-inner">
+        <div class="collapse navbar-collapse" id="sidenav-collapse-main">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link active" href="javascript:">
+                        <i class="fas fa-desktop text-primary"></i>
+                        <span class="nav-link-text">The Receptionist M.E</span>
+                    </a>
+                </li>
+
+                <div id="visitorCounts"></div>
+
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showTab(2)" href="javascript:">
+                        <i class="fas fa-exchange-alt text-danger"></i>
+                        <span class="nav-link-text">Movements</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showTab(0)" href="javascript:">
+                        <i class="fas fa-users text-danger"></i>
+                        <span class="nav-link-text">Visitors</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showTab(1)" href="javascript:">
+                        <i class="fas fa-history text-danger"></i>
+                        <span class="nav-link-text">Visits History</span>
+                    </a>
+                </li>
+
+            
+                <a class="nav-link" id="fetchButton" href="javascript:">
+                    <i class="fas fa-history text-danger"></i>
+                    <span class="nav-link-text">Movements History</span>
+                </a>
+
+
+                
+                <!-- <li class="nav-item">
+                    <a class="nav-link" href="javascript:" onclick="showFormPage('newVisitorLink')">
+                        <i class="fas fa-history text-danger"></i>
+                        <span class="nav-link-text">New Visitor</span>
+                    </a>
+                </li> -->
+                <button id="logoutBtn">Logout</button>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+	<div class="main-content" id="panel">
+		<nav class="navbar navbar-top navbar-expand navbar-dark border-bottom bg-dark" id="navbarTop">
+			<div class="container-fluid">
+				<div class="collapse navbar-collapse" id="navbarSupportedContent">
+					<form class="navbar-search navbar-search-light form-inline mr-sm-3 mb-0" id="navbar-search-main">
+						<div class="form-group mb-0">
+							<!-- <div class="input-group input-group-alternative input-group-merge">
+								<div class="input-group-prepend">
+									<span class="input-group-text"><i class="fas fa-search"></i></span>
+								</div>
+								<input class="form-control" placeholder="Search" type="text">
+							</div> -->
+							<div class="form-group mb-0 ml-3">
+								<span class="text-white" style="font-weight: bold; font-size: 1.2em;">Visitor Management System</span>
+							  </div>
+						</div>
+						<button type="button" class="close" data-action="search-close" data-target="#navbar-search-main"
+							aria-label="Close">
+							<span aria-hidden="true">×</span>
+						</button>
+					</form>
+
+
+					<ul class="navbar-nav align-items-center  ml-md-auto ">
+						<li class="nav-item d-xl-none">
+							<div class="pr-3 sidenav-toggler sidenav-toggler-dark active" data-action="sidenav-pin"
+								data-target="#sidenav-main">
+								<div class="sidenav-toggler-inner">
+									<i class="sidenav-toggler-line"></i>
+									<i class="sidenav-toggler-line"></i>
+									<i class="sidenav-toggler-line"></i>
+								</div>
+							</div>
+						</li>
+						<li class="nav-item d-sm-none">
+							<a class="nav-link" href="#" data-action="search-show" data-target="#navbar-search-main">
+								<i class="ni ni-zoom-split-in"></i>
+							</a>
+						</li>
+
+			
+<li class="nav-item dropdown">
+	<a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+		aria-expanded="false">
+		<i class="fa fa-bell red-bell" id="bellIcon"></i>
+	</a>
+
+
+
+	<div class="dropdown-menu dropdown-menu-xl dropdown-menu-right py-0 overflow-hidden" id="notificationDropdown">
+		<!-- Existing dropdown content -->
+	  <!-- </div>
+	  
+	<div class="dropdown-menu dropdown-menu-xl  dropdown-menu-right  py-0 overflow-hidden"> -->
+		<div class="px-3 py-3">
+			<h6 class="text-sm text-muted m-0">You have <strong class="text-primary" id="notificationCount">0</strong> notifications.</h6>
+			<!-- <h6 class="text-sm text-muted m-0">You have <strong class="text-primary">13</strong> -->
+				<!-- notifications.</h6> -->
+		</div>
+		<div class="list-group list-group-flush">
+	
+		</div>
+		<a href="#!" class="dropdown-item text-center text-primary font-weight-bold py-3">Most Recent Updates
+			</a>
+	</div>
+
+
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+								aria-expanded="false">
+								<!-- <i class="fa fa-layer-group"></i> 
+								 <i class="fas fa-layer-group" id="layerGroupIcon" style="display: none;"></i> -->
+								<!-- <i class="fas fa-star" id="starIcon"></i>  -->
+								<i class="fas fa-layer-group" id="layerGroupIcon" style="color: rgb(74, 216, 8);"></i>
+								<i class="fas fa-star" id="starIcon" style="color: transparent; display: none;"></i>
+							</a>
+							<div
+								class="dropdown-menu dropdown-menu-lg dropdown-menu-dark bg-default  dropdown-menu-right ">
+								<div class="row shortcuts px-4">
+								</div>
+							</div>
+						</li>
+					</ul>
+
+					<!-- <h1>Welcome, <span id="userName"></span>!</h1>  -->
+
+					<ul class="navbar-nav align-items-center  ml-auto ml-md-0 ">
+						<li class="nav-item dropdown">
+							<a class="nav-link pr-0" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+								aria-expanded="false">
+								<div class="media align-items-center">
+									<span class="avatar avatar-sm rounded-circle">
+										<img alt="Image placeholder"
+											src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg">
+									</span>
+									<div class="media-body  ml-2  d-none d-lg-block">
+										<span class="mb-0 text-sm  font-weight-bold"><span id="userName"> </span>
+									</div>
+								</div>
+							</a>
+					
+						</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+
+
+		<div class="container-fluid pt-3">
+			<div class="row removable">
+				<div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-primary border-0" onclick="showTab(0)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0 text-white">Visitors</h5>
+
+									<span class="h2 font-weight-bold mb-0 text-white" id="visitorCountsPlaceholder">Loading...</span>
+								
+
+									<div class="progress progress-xs mt-3 mb-0">
+										<div class="progress-bar bg-success" role="progressbar" aria-valuenow="30"
+											aria-valuemin="0" aria-valuemax="100" style="width: 30%;"></div>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+										aria-haspopup="true" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i>
+									</button>
+									<div class="dropdown-menu dropdown-menu-right">
+										<a class="dropdown-item" href="#">Expected Visitors</a>
+										<a class="dropdown-item" href="#">History</a>
+										<a class="dropdown-item" href="#">Something else here</a>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+			
+                <div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-info border-0" onclick="showTab(2)">
+						<!-- Card body -->
+						<div class="card-body d-flex flex-column justify-content-between"> <!-- Apply flexbox styles here -->
+							<h5 class="card-title text-uppercase text-muted mb-0 text-white">Movements</h5>
+							<span class="h2 font-weight-bold mb-0 text-white" id="movementCountsPlaceholder">Loading...</span>
+							<div class="progress progress-xs mt-3 mb-0">
+								<div class="progress-bar bg-success" role="progressbar" aria-valuenow="50"
+									aria-valuemin="0" aria-valuemax="100" style="width: 50%;"></div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+				
+                <div class="col-xl-3 col-md-6">
+					<div class="card bg-gradient-danger border-0"  onclick="showFormPage()">
+					  <div class="card-body">
+						<div class="row">
+						  <div class="col">
+							<h5 class="card-title text-uppercase text-muted mb-0 text-white">New Visitor</h5>
+							<span class="h2 font-weight-bold mb-0 text-white">200/300</span>
+							<div class="progress progress-xs mt-3 mb-0">
+							  <div class="progress-bar bg-success" role="progressbar" aria-valuenow="80"
+								aria-valuemin="0" aria-valuemax="100" style="width: 80%;"></div>
+							</div>
+						  </div>
+						  <div class="col-auto">
+							<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+							  aria-haspopup="true" aria-expanded="false" onclick="showFormAndTable()">
+							  <i class="fas fa-ellipsis-h"></i>
+							</button>
+							<div class="dropdown-menu dropdown-menu-right">
+							  <a class="dropdown-item" href="#">Action</a>
+							  <a class="dropdown-item" href="#">Another action</a>
+							  <a class="dropdown-item" href="#">Something else here</a>
+							</div>
+						  </div>
+						</div>
+						<p class="mt-3 mb-0 text-sm">
+						  <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+						</p>
+					  </div>
+					</div>
+				  </div>
+				  
+
+			
+                
+				<div class="col-xl-3 col-md-6">
+					<!-- <div class="card bg-gradient-default border-0" onclick="showTab(2)"> -->
+						<div class="card bg-gradient-default border-0">
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0 text-white">Notifications</h5>
+									<span class="h2 font-weight-bold mb-0 text-white">50/62</span>
+									<div class="progress progress-xs mt-3 mb-0">
+										<div class="progress-bar bg-success" role="progressbar" aria-valuenow="90"
+											aria-valuemin="0" aria-valuemax="100" style="width: 90%;"></div>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown"
+										aria-haspopup="true" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i>
+									</button>
+									<div class="dropdown-menu dropdown-menu-right">
+										<a class="dropdown-item" href="#">Action</a>
+										<a class="dropdown-item" href="#">Another action</a>
+										<a class="dropdown-item" href="#">Something else here</a>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+
+            <div class="row removable">
+				<div class="col-xl-3 col-md-6">
+					<div class="card card-stats" onclick="showTab(1)">
+						<!-- Card body -->
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">Visits History</h5>
+									<span class="h2 font-weight-bold mb-0" id="totalVisitorCount">Loading...</span>
+
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-red text-white rounded-circle shadow">
+										<i class="fa fa-user"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% </span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div>
+
+                <div class="col-xl-3 col-md-6">
+					<div class="card card-stats" style="height: 82%;">
+						<button class="card-body card-stats-button" id="movementHistoryButton" style="border: none; background-color: transparent; padding: 0; cursor: pointer;">
+							<div class="row align-items-start" style="align-items: center; margin-left: 10px;">
+								<div class="col" style="text-align: left;">
+									<h5 class="card-title text-uppercase text-muted mb-0" style="font-size: 0.8rem; margin-bottom: 0; vertical-align: top;">Movement History</h5>
+									<span class="h2 font-weight-bold mb-0" id="totalMovementCount" style="font-size: 1rem; margin-top: 5px;">Loading...</span>
+									<p class="mt-1 mb-0 text-sm" style="display: inline-block; text-align: left; margin-top: 3px; margin-bottom: 0;">
+										<span class="text-success mr-1" style="font-size: 1rem;">
+											<i class="fa fa-arrow-up"></i> 3.48% </span>
+										<span class="text-nowrap" style="font-size: 0.875rem;">Since last month</span>
+									</p>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-orange text-white rounded-circle shadow">
+										<i class="fa fa-chart-pie"></i>
+									</div>
+								</div>
+							</div>
+						</button>
+					</div>
+				</div>
+	
+	
+				
+
+
+                <div class="col-xl-3 col-md-6">
+					<div class="card card-stats">
+				
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">New users</h5>
+									<span class="h2 font-weight-bold mb-0">2,356</span>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-orange text-white rounded-circle shadow">
+										<i class="fa fa-chart-pie"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% </span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div> 
+				
+
+
+
+
+
+				<div class="col-xl-3 col-md-6" id="escorts-tab">
+					<div class="card card-stats">
+						<div class="card-body">
+							<div class="row">
+								<div class="col">
+									<h5 class="card-title text-uppercase text-muted mb-0">Escorts</h5>
+									<span class="h2 font-weight-bold mb-0">37</span>
+								</div>
+								<div class="col-auto">
+									<div class="icon icon-shape bg-gradient-orange text-white rounded-circle shadow">
+										<i class="fa fa-chart-pie"></i>
+									</div>
+								</div>
+							</div>
+							<p class="mt-3 mb-0 text-sm">
+								<span class="text-success mr-2">
+									<i class="fa fa-arrow-up"></i> 3.48% 
+								</span>
+								<span class="text-nowrap">Since last month</span>
+							</p>
+						</div>
+					</div>
+				</div>
+				
+
+
+				<div class="tab-content" id="tab1Content">
+					<h2>Visits Details</h2>
+
+				<!-- Add this HTML element to display the gate pass -->
+					<!-- <div id="gatePassOverlay" style="display: none;"> -->
+						<!-- Your gate pass content here -->
+					<!-- </div> -->
+	
+					<div class="table-container">
+						<table>
+							<thead>
+								<tr>
+									<th>Name</th>
+									<th>Whom to See</th>
+									<th>Address / Company</th>
+									<th>Purpose of Visit</th>
+									<th>Phone Number</th>
+									<th>Date</th>
+									<th>Time</th>
+									<th>Access</th>
+								</tr>
+							</thead>
+							<tbody id="visitorTableBody1"></tbody>
+						</table>
+					</div>
+				</div>
+
+
+
+				<div class="tab-content" id="tab2Content">
+					<h2>Visits History</h2>
+					<div class="table-container">
+						<table>
+							<thead>
+									<tr>
+										<th>Name</th>
+										<th>Whom to See</th>
+										<th>Address / Company</th>
+										<th>Purpose of Visit</th>
+										<th>Phone Number</th>
+										<th>Access</th>
+										<th>Date</th>
+									</tr>
+							</thead>
+							<tbody id="visitorTableBody2"></tbody>
+						</table>
+					</div>
+				</div>
+
+				<div class="tab-content" id="tab3Content">
+					<h2>Movement Details</h2>
+					<div class="table-container">
+						<table>
+							<thead>
+								<tr>
+									<th style="text-align: left;">Driver's Name</th>
+									<th style="text-align: left;">Armed Guard</th>
+									<th style="text-align: left;">Time Out</th>
+									<th style="text-align: left;">Vehicle Number</th>
+									<th style="text-align: left;">Destination</th>
+									<th style="text-align: left;">Passenger</th>
+									<th style="text-align: left;">Gate Pass</th>
+								</tr>
+							</thead>
+							<tbody id="driverTableBody"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+
+			<div class="tab-content" id="tab4Content">
+				<h2>Movements History</h2>
+				<div class="table-container">
+					<table>
+						<thead>
+							<tr>
+								<th>Driver's Name</th>
+								<th>Armed Guard</th>
+								<th>Time Out</th>
+								<th>Vehicle Number</th>
+								<th>Destination</th>
+								<th>Passenger</th>
+							</tr>
+						</thead>
+						<tbody id="movementHistoryTableBody"></tbody>
+					</table>
+				</div>
+			</div>
+            <style>
+
+                .tab-content table {
+                    width: 100%;
+                    table-layout: fixed;
+                }
+
+                .tab-content th {
+                    background: linear-gradient(to bottom, #003399, #66ccff);
+                    color: white;
+                }
+
+                .tab-content td,
+                .tab-content th {
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }
+
+                .preview-button,
+                .print-button,
+                .share-button {
+                    display: block;
+                    width: 100%;
+                    padding: 6px 12px;
+                    border: none;
+                    border-radius: 4px;
+                    margin-bottom: 5px;
+                    cursor: pointer;
+                }
+
+                .preview-button {
+                    background-color: #5cb85c;
+                    color: white;
+                }
+
+                .print-button {
+                    background-color: #337ab7;
+                    color: white;
+                }
+
+                .share-button {
+                    background-color: #d9534f;
+                    color: white;
+                }
+            </style>
+
+			<div id="loadingMessage" style="display: none;">Please wait while we process...</div>
+
+			<button id="triggerButton" class="styled-button" style="display: none">Back Home</button>
+
+
+		<div id="loader"></div>
+		<div id="loader"></div>
+		<div id="loader"></div>
+		<div id="loader"></div>
+		<div id="loader"></div>
+		<div id="loader"></div>
+		<div id="loader"></div> 
+
+			<span></span> <span></span> <span></span>
+		</div>
+		
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		const bellIcon = document.getElementById('bellIcon');
+		const flashNotification = document.getElementById('flash-notification');
+		const realtimeUpdatesList = document.getElementById('realtimeUpdates');
+		const eventSource = new EventSource('/sse');
+		const notificationDropdown = document.getElementById('notificationDropdown'); // Dropdown container
+	
+		// Function to show an alert when the bell icon is clicked
+		function showAlertOnClick() {
+			// Remove the 'red-bell' class and add the 'green-bell' class
+			bellIcon.classList.remove('red-bell');
+			bellIcon.classList.add('green-bell');
+			// Play the alert sound (replace with your own sound file)
+			const alertSound = new Audio('assets/sound/achive-sound-132273.mp3');
+			alertSound.play();
+			// Start the animation
+			bellIcon.classList.add('bell-icon-animation');
+			
+			// Add your existing logic for the bell icon click here
+			// ...
+	
+			// Event listener for the bell icon click
+			document.getElementById('bellIcon').addEventListener('click', () => {
+				// Reset the bell icon to its green state and stop the animation
+				const bellIcon = document.getElementById('bellIcon');
+				bellIcon.classList.remove('red-bell');
+				bellIcon.classList.remove('bell-icon-animation');
+				bellIcon.classList.remove('green-bell');
+				bellIcon.classList.add('red-bell');
+	
+				// Add any additional logic for the bell icon click here
+				// ...
+			});
+		}
+	
+		eventSource.onmessage = (event) => {
+			console.log('Received SSE message:', event.data);
+	
+			// Trigger the animation and alert
+			showAlertOnClick();
+	
+			// Display the flash notification when data is received
+			flashNotification.style.display = 'block';
+	
+			// Hide the flash notification after a delay (e.g., 3 seconds)
+			setTimeout(() => {
+				flashNotification.style.display = 'none';
+			}, 3000);
+	
+			// Display the received data in the list
+			// const newEntry = JSON.parse(event.data);
+			// console.log(newEntry);
+	
+			// const listItem = document.createElement('li');
+			// listItem.innerHTML = `
+			// 	<strong>${newEntry.visitorDetails.name}</strong> visited on ${newEntry.visitorDetails.registrationDate}. 
+			// 	Whom to see: ${newEntry.visitorDetails.whomToSee}. Purpose of visit: ${newEntry.visitorDetails.purposeOfVisit}
+			// `;
+			// realtimeUpdatesList.appendChild(listItem);
+	// Display the received data in the list
+	
+			const newEntry = JSON.parse(event.data);
+			console.log(newEntry);
+
+			const listItem = document.createElement('li');
+			listItem.innerHTML = `
+			<strong>${newEntry.visitorName}</strong> visited on ${newEntry.registrationDate}. 
+				Whom to see: ${newEntry.whomToSee}. Purpose of visit: ${newEntry.purposeOfVisit}
+			`;
+			realtimeUpdatesList.appendChild(listItem);
+
+			// Create a new list item for the dropdown menu
+			const dropdownItem = document.createElement('a');
+			dropdownItem.classList.add('list-group-item', 'list-group-item-action');
+			dropdownItem.innerHTML = `
+			<div class="row align-items-center">
+            <div class="col-auto">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="col ml--2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0 text-sm">${newEntry.visitorName || 'Anonymous'}</h4>
+                    </div>
+                    <div class="text-right text-muted">
+                        <small>${newEntry.purposeOfVisit || 'New Visitor'}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+	
+			// Add the new list item to the dropdown menu
+	
+    // Add the new list item to the dropdown menu
+    notificationDropdown.appendChild(dropdownItem);
+
+    // Optionally, you can limit the number of notifications displayed by removing the oldest ones
+    const maxNotifications = 10; // Adjust this number as needed
+    if (notificationDropdown.children.length > maxNotifications) {
+        notificationDropdown.removeChild(notificationDropdown.firstElementChild);
+    }
+
+    const notificationCountElement = document.getElementById('notificationCount');
+    const notificationCount = notificationDropdown.children.length;
+    notificationCountElement.textContent = notificationCount;
+};
+
+	
+		// Add a click event listener to the bell icon
+		bellIcon.addEventListener('click', showAlertOnClick);
+	});
+</script>
+
+
+
+		<script>
+			// Get references to the icons and button
+			const layerGroupIcon = document.getElementById('layerGroupIcon');
+			const starIcon = document.getElementById('starIcon');
+			const triggerButton = document.getElementById('triggerButton');
+		  
+			// Add a click event listener to the button
+			triggerButton.addEventListener('click', () => {
+			  // Change the color of the layer icon to red
+			  layerGroupIcon.style.color = 'red';
+		  
+			  // Make the star icon green and visible
+			  starIcon.style.color = 'green';
+			  starIcon.style.display = 'inline'; // Set display to inline for visibility
+		  
+			  // You can add additional animation or alerts here
+			//   alert('Animation triggered!');
+			});
+		  </script>
+				<style>
+					.tab-content table {
+						width: 100%;
+						table-layout: fixed;
+					}
+
+					.tab-content th {
+						background: linear-gradient(to bottom, #003399, #66ccff);
+						color: white;
+					}
+
+					.tab-content td,
+					.tab-content th {
+						padding: 8px;
+						border: 1px solid #ddd;
+						text-align: left;
+					}
+
+					.preview-button,
+					.print-button,
+					.share-button {
+						display: block;
+						width: 100%;
+						padding: 6px 12px;
+						border: none;
+						border-radius: 4px;
+						margin-bottom: 5px;
+						cursor: pointer;
+					}
+
+					.preview-button {
+						background-color: #5cb85c;
+						color: white;
+					}
+
+					.print-button {
+						background-color: #337ab7;
+						color: white;
+					}
+
+					.share-button {
+						background-color: #d9534f;
+						color: white;
+					}
+				</style>
+
+<style>
+    /* Your CSS styles here */
+
+    /* Styles for Share button */
+    .gate-pass-content .share-button {
+        background: linear-gradient(to left, #003399, #000); /* Blue to Black */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 3px;
+        cursor: pointer;
+        flex: 1; /* Take up available space */
+        margin-right: 10px; /* Add some spacing between buttons */
+    }
+
+    /* Styles for Download button */
+    .gate-pass-content .download-button {
+        background: linear-gradient(to right, #250124, #024252); /* Yellow to Black */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 3px;
+        cursor: pointer;
+        flex: 1; /* Take up available space */
+    }
+
+    /* Styles for Close button */
+    .gate-pass-content .close-button {
+        background: linear-gradient(to bottom, #d9534f, #333); /* Red to Black */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 3px;
+        cursor: pointer;
+        width: 100%; /* Make the button span the full width */
+    }
+
+    .gate-pass-content .close-button:hover {
+        background: linear-gradient(to bottom, #999, #fff); /* Light Gray to White */
+        color: #333;
+    }
+
+    /* Container for Share and Download buttons */
+    .gate-pass-options {
+        display: flex;
+        margin-top: 10px; /* Add some spacing between the buttons and the close button */
+    }
+</style>
+</script>
+<script>
+   
+// Define a variable to store the selected row's data
+let selectedRowData = null;
+
+// Function to set the selected row's data
+function setSelectedRowData(rowData) {
+    selectedRowData = rowData;
+}
+
+
+
+// Add event listener to the "Preview Gate Pass" button to set the selected row's data
+document.addEventListener('click', function (e) {
+    if (e.target && e.target.className == 'preview-button') {
+        const rowElement = e.target.closest('tr');
+        const driverName = rowElement.querySelector('td:first-child').textContent;
+        const armedGuard = rowElement.querySelector('td:nth-child(2)').textContent;
+        const passenger = rowElement.querySelector('td:nth-child(6)').textContent;
+        const destination = rowElement.querySelector('td:nth-child(5)').textContent;
+        // const vehicleNumber = rowElement.querySelector('td:nth-child(3)').textContent;
+		const vehicleNumber = rowElement.querySelector('td:nth-child(4)').textContent; // Corrected index for vehicle number
+        const hrAuthorization = 'authorizer';
+        setSelectedRowData({ driverName, armedGuard, passenger, destination, vehicleNumber, hrAuthorization });
+    }
+});
+
+function showAlert1(){
+	alert("Work In Progress")
+}
+
+function generateReferenceID() {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let refID = '';
+  const charactersLength = characters.length;
+
+  // Generate the reference ID
+  for (let i = 0; i < 4; i++) {
+    refID += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+
+  // List of adjectives and animal names
+  const adjectives = ['red', 'green', 'blue', 'black', 'white'];
+  const animals = ['Lion', 'Tiger', 'Bear', 'Lion', 'Tiger', 'Bear', 'Owl', 'Fox', 'Elephant', 'Giraffe', 'Zebra', 'Kangaroo', 'Penguin'];
+
+  // Randomly select an adjective and an animal name
+  const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+
+  // Generate the password
+  const password = `${randomAdjective} ${randomAnimal}`;
+
+  return `REF ID: ${refID},      PASSWORD: "${password}"`;
+}
+
+// Example usage:
+const generatedID = generateReferenceID();
+console.log(generatedID);
+
+
+</script>
+
+
+ <script>
+
+
+document.getElementById('movementHistoryButton').addEventListener('click', () => {
+    // Show the loading message
+    const loadingMessage = document.getElementById('loadingMessage');
+    loadingMessage.style.display = 'block';
+
+    // Fetch data
+    fetch('/get_movement_history')
+        .then(response => response.json())
+        .then(movementHistory => {
+            // Populate the "Movement History" tab table
+            const movementHistoryTableBody = document.getElementById('movementHistoryTableBody');
+            movementHistoryTableBody.innerHTML = '';
+
+            movementHistory.forEach(historyEntry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${historyEntry.driver_name}</td>
+                    <td>${historyEntry.armed_guard}</td>
+                    <td>${historyEntry.time_out}</td>
+                    <td>${historyEntry.vehicle_number}</td>
+                    <td>${historyEntry.target_location}</td>
+                    <td>${historyEntry.passenger}</td>
+                `;
+                movementHistoryTableBody.appendChild(row);
+            });
+
+            // Hide the loading message
+            loadingMessage.style.display = 'none';
+
+            // Now, show the desired tab
+            showTab(3);
+
+            // Show the button at the bottom
+            const triggerButton = document.getElementById('triggerButton');
+            triggerButton.style.display = 'block';
+        })
+        .catch(error => {
+            console.error(error);
+            // Handle error
+
+            // Hide the loading message in case of an error
+            loadingMessage.style.display = 'none';
+        });
+});
+
+
+
+
+   document.getElementById('fetchButton').addEventListener('click', () => {
+        fetch('/get_movement_history')
+            .then(response => response.json())
+            .then(movementHistory => {
+                // Do something with the movementHistory data
+                console.log(movementHistory);
+            })
+            .catch(error => {
+                console.error(error);
+                // Handle error
+            });
+    });
+					const tabs = document.querySelectorAll('.tab');
+					const tabContents = document.querySelectorAll('.tab-content');
+
+					tabs.forEach((tab, index) => {
+						tab.addEventListener('click', () => {
+							showTab(index);
+						});
+					});
+
+
+			
+function showFormPage() {
+    // Redirect to the e-learning page
+    window.location.href = 'receptionist_newVisitor_entry.html';
+}
+
+// Modify the showTab() function to hide previous tab's content and display new tab's content
+function showTab(tabIndex) {
+						tabContents.forEach(content => {
+							content.style.display = 'none';
+						});
+
+						tabContents[tabIndex].style.display = 'block';
+
+						if (tabIndex === 2) {
+							// Fetch and populate the drivers details table
+							fetch('/get_driver_details')
+							// fetch('/get_driver_details')
+								.then(response => response.json())
+								.then(driverDetails => {
+									const driverTableBody = document.getElementById('driverTableBody');
+									driverTableBody.innerHTML = '';
+
+									driverDetails.forEach(driver => {
+										const row = document.createElement('tr');
+									
+										const timeOut = new Date(driver.time_out);
+										const timeIn = new Date(driver.time_in);
+										const formattedTimeOut = `${timeOut.getHours()}.${timeOut.getMinutes().toString().padStart(2, '0')}${timeOut.getHours() >= 12 ? 'pm' : 'am'} ${timeOut.getDate()}/${timeOut.getMonth() + 1}/${timeOut.getFullYear()}`;
+										const formattedTimeIn = `${timeIn.getHours()}.${timeIn.getMinutes().toString().padStart(2, '0')}${timeIn.getHours() >= 12 ? 'pm' : 'am'} ${timeIn.getDate()}/${timeIn.getMonth() + 1}/${timeIn.getFullYear()}`;
+		
+										const rowHTML = `
+							<td style="text-align: left;">${driver.driver_name}</td>
+							<td style="text-align: left;">${driver.armed_guard}</td>
+							<td style="text-align: left;">${formattedTimeOut}</td>
+							<td style="text-align: left;">${driver.vehicle_number}</td>
+							<td style="text-align: left;">${driver.target_location}</td>
+							<td style="text-align: left;">${driver.passenger}</td>
+							<td style="text-align: left;">
+								<button class="share-button" data-driver-id="${driver.driver_id}" onclick="authorizeDriver('${driver.driver_id}')">Authorize</button>
+
+							<button class="preview-button" data-driver-id="123" onclick="previewGatePass('123')">Preview Gate Pass</button>
+							<div id="smallGatePassOverlay" class="overlay" style="display: none;">
+
+								<div class="gate-pass-content smaller-form">
+									<h2>Gate Pass</h2>
+									<p><strong>Driver's Name:</strong> <span id="driverNameSmall"></span></p>
+									<p><strong>Destination:</strong> <span id="destinationSmall"></span></p>
+									<p><strong>Time Out:</strong> <span id="timeOutSmall"></span></p>
+									<p><strong>Vehicle Number:</strong> <span id="vehicleNumberSmall"></span></p>
+									<p><strong>Passenger:</strong> <span id="passengerSmall"></span></p>
+
+									<!-- Add the buttons for download, share, and close here -->
+									<div class="gate-pass-options">
+										<button class="share-button" onclick="sharePDFViaEmail()">Share via Email</button>
+										<button class="share-button" onclick="sharePDFViaWhatsApp()">Share via WhatsApp</button>
+										<button class="download-button" onclick="downloadGatePassAsPDF()">Download as PDF</button>
+									
+									</div>
+									 <button class="close-button" onclick="closeSmallGatePassOverlay()">Close</button>
+								</div>
+							</div>
+							<button class="print-button" onclick="notify()">Notify Return</button>
+							</td> `;
+
+
+										row.innerHTML = rowHTML;
+										driverTableBody.appendChild(row);
+									});
+								})
+								.catch(error => {
+									console.error(error);
+								});
+						}
+
+						tabContents[tabIndex].style.display = 'block';
+
+						if (tabIndex === 1) { // Check if it's the "History" tab
+							// Fetch and populate the visitor history table
+							fetch('/get_visitor_history') // Replace with the appropriate endpoint
+								.then(response => response.json())
+								.then(visitorHistory => {
+									const historyTableBody = document.getElementById('visitorTableBody2');
+									historyTableBody.innerHTML = '';
+
+									visitorHistory.forEach(visitor => {
+										const row = document.createElement('tr');
+										row.innerHTML = `
+										<td>${visitor.name}</td>
+										<td>${visitor.whomToSee}</td>
+										<td>${visitor.address}</td>
+										<td>${visitor.purposeOfVisit}</td>
+										<td>${visitor.phoneNumber}</td>
+										<td>${visitor.accessStatus}</td>
+										<td>${visitor.date}</td>
+									`;
+
+										historyTableBody.appendChild(row);
+									});
+								})
+								.catch(error => {
+									console.error(error);
+								});
+						}
+
+						if (tabIndex === 0) {
+							// Fetch and populate the expected visitors table
+							fetch('/get_expected_visitors')
+								.then(response => response.json())
+								.then(expectedVisitors => {
+									const visitorTableBody = document.getElementById('visitorTableBody1');
+									visitorTableBody.innerHTML = '';
+
+									expectedVisitors.forEach(visitor => {
+										const row = document.createElement('tr');
+										const currentDate = new Date().toLocaleDateString();
+										const currentTime = new Date().toLocaleTimeString();
+										const rowHTML = `
+							<td>${visitor.name}</td>
+							<td>${visitor.whomToSee}</td>
+							<td>${visitor.address}</td>
+							<td>${visitor.purposeOfVisit}</td>
+							<td>${visitor.phoneNumber}</td>
+							<td>${currentDate}</td>
+							<td>${currentTime}</td>
+							<td class="access-buttons">
+							  <button class="grant-access" onclick="grantAccess('${visitor.name}', '${visitor.whomToSee}', '${visitor.address}', '${visitor.purposeOfVisit}', '${visitor.phoneNumber}')">
+								Grant Access
+							  </button>
+							  <button class="deny-access" onclick="denyAccess('${visitor.name}', '${visitor.whomToSee}', '${visitor.address}', '${visitor.purposeOfVisit}', '${visitor.phoneNumber}')">
+								Deny Access
+							  </button>
+							</td>
+						  `;
+										row.innerHTML = rowHTML;
+										visitorTableBody.appendChild(row);
+									});
+								})
+								.catch(error => {
+									console.error(error);
+								});
+						}
+					}
+
+		if (tabIndex === 3) { // Check if it's the "Movement History" tab
+
+        fetch('/get_movement_history') // Replace with the appropriate endpoint
+            .then(response => response.json())
+            .then(movementHistory => {
+                const movementHistoryTableBody = document.getElementById('movementHistoryTableBody');
+                movementHistoryTableBody.innerHTML = '';
+
+                movementHistory.forEach(historyEntry => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${historyEntry.driver_name}</td>
+                        <td>${historyEntry.armed_guard}</td>
+                        <td>${historyEntry.time_out}</td>
+                        <td>${historyEntry.vehicle_number}</td>
+                        <td>${historyEntry.target_location}</td>
+                        <td>${historyEntry.passenger}</td>
+                        <td>
+
+							<button class="preview-button" data-driver-id="${historyEntry.id}" onclick="previewGatePass('${historyEntry.id}')">Preview Gate Pass</button>
+                            <button class="print-button" onclick="printGatePass('${historyEntry.id}')">Print Gate Pass</button>
+                            <button class="share-button" data-driver-id="${historyEntry.id}" onclick="authorizeDriver('${historyEntry.id}')">Authorize</button>
+                        </td>
+                    `;
+                    movementHistoryTableBody.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error(error);
+            });
+    }
+				
+					function grantAccess(name, whomToSee, address, purposeOfVisit, phoneNumber) {
+						const currentDate = new Date().toLocaleDateString();
+						const currentTime = new Date().toLocaleTimeString();
+
+						const row = document.createElement('tr');
+						const formattedDate = `${currentDate}`;
+						const formattedTime = `${currentTime}`;
+
+						row.innerHTML = `
+					<td>${name}</td>
+					<td>${whomToSee}</td>
+					<td>${address}</td>
+					<td>${purposeOfVisit}</td>
+					<td>${phoneNumber}</td>
+					<td>${formattedDate}</td>
+					<td>${formattedTime}</td>
+					<td class="access-buttons">
+					  <button class="grant-access" onclick="grantAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Grant Access
+					  </button>
+					  <button class="deny-access" onclick="denyAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Deny Access
+					  </button>
+					</td>
+				  `;
+
+						const historyTableBody = document.getElementById('visitorTableBody2');
+						historyTableBody.appendChild(row);
+
+						// Remove the row from the visitor table
+						const grantAccessButtons = document.getElementsByClassName('grant-access');
+
+						for (let i = 0; i < grantAccessButtons.length; i++) {
+							if (grantAccessButtons[i].innerText === 'Grant Access' && grantAccessButtons[i].parentNode.parentNode.contains(event.target)) {
+								grantAccessButtons[i].parentNode.parentNode.remove();
+								break;
+							}
+						}
+
+						sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, 'Granted', currentDate, currentTime);
+					}
+
+					function denyAccess(name, whomToSee, address, purposeOfVisit, phoneNumber) {
+						const currentDate = new Date().toLocaleDateString();
+						const currentTime = new Date().toLocaleTimeString();
+
+						const row = document.createElement('tr');
+						const formattedDate = `${currentDate}`;
+						const formattedTime = `${currentTime}`;
+
+						row.innerHTML = `
+					<td>${name}</td>
+					<td>${whomToSee}</td>
+					<td>${address}</td>
+					<td>${purposeOfVisit}</td>
+					<td>${phoneNumber}</td>
+					<td>${formattedDate}</td>
+					<td>${formattedTime}</td>
+					<td class="access-buttons">
+					  <button class="grant-access" onclick="grantAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Grant Access
+					  </button>
+					  <button class="deny-access" onclick="denyAccess('${name}', '${whomToSee}', '${address}', '${purposeOfVisit}', '${phoneNumber}')">
+						Deny Access
+					  </button>
+					</td>
+				  `;
+
+						const historyTableBody = document.getElementById('visitorTableBody2');
+						historyTableBody.appendChild(row);
+
+						// Remove the row from the visitor table
+						const denyAccessButtons = document.getElementsByClassName('deny-access');
+
+						for (let i = 0; i < denyAccessButtons.length; i++) {
+							if (denyAccessButtons[i].innerText === 'Deny Access' && denyAccessButtons[i].parentNode.parentNode.contains(event.target)) {
+								denyAccessButtons[i].parentNode.parentNode.remove();
+								break;
+							}
+						}
+
+						// sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, 'Denied', currentDate, currentTime);
+						sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, 'Denied', currentDate, currentTime);
+					}
+
+					function sendToMongoDB(name, whomToSee, address, purposeOfVisit, phoneNumber, accessStatus, date, time) {
+						const data = {
+							name: name,
+							whomToSee: whomToSee,
+							address: address,
+							purposeOfVisit: purposeOfVisit,
+							phoneNumber: phoneNumber,
+							accessStatus: accessStatus,
+							date: date,
+							time: time
+						};
+
+						fetch('/addVisitorHistory', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(data),
+						})
+							.then(response => response.json())
+							.then(data => {
+								console.log('Data added to history:', data);
+								// You can perform additional actions if needed
+							})
+							.catch(error => {
+								console.error('Error adding data to history:', error);
+								// Handle error if necessary
+							});
+
+
+// // Function to close the small gate pass overlay
+// function closeSmallGatePassOverlay() {
+//     document.getElementById('smallGatePassOverlay').style.display = 'none';
+// }
+// function printGatePass(){
+// alert("Feature will be added soon...")
+// alert("Download")
+// }
+// function downloadGatePassAsPDF() {
+// 	alert("oraise")
+//     // Implement your PDF download logic here
+//     // You can use libraries like pdfmake or jsPDF to generate and download PDFs
+//     // Example with pdfmake:
+
+// 	alert("Download")
+//     const driverName = document.getElementById('driverNameSmall').textContent;
+//     const destination = document.getElementById('destinationSmall').textContent;
+//     const timeOut = document.getElementById('timeOutSmall').textContent;
+//     const vehicleNumber = document.getElementById('vehicleNumberSmall').textContent;
+//     const passenger = document.getElementById('passengerSmall').textContent;
+
+//     const pdfContent = `Driver's Name: ${driverName}\nDestination: ${destination}\nTime Out: ${timeOut}\nVehicle Number: ${vehicleNumber}\nPassenger: ${passenger}`;
+
+//     const docDefinition = {
+//         content: pdfContent,
+//     };
+
+//     pdfMake.createPdf(docDefinition).download('gate_pass.pdf');
+// }
+
+
+
+// Function to share the gate pass via email
+function sharePDFViaEmail() {
+    // Implement your email sharing logic here
+    // You can open a mailto: link with the PDF content as the body
+    const driverName = document.getElementById('driverNameSmall').textContent;
+    const destination = document.getElementById('destinationSmall').textContent;
+    const timeOut = document.getElementById('timeOutSmall').textContent;
+    const vehicleNumber = document.getElementById('vehicleNumberSmall').textContent;
+    const passenger = document.getElementById('passengerSmall').textContent;
+
+    const emailSubject = 'Gate Pass';
+    const emailBody = `Driver's Name: ${driverName}\nDestination: ${destination}\nTime Out: ${timeOut}\nVehicle Number: ${vehicleNumber}\nPassenger: ${passenger}`;
+
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+    window.location.href = mailtoLink;
+}
+
+// Function to share the gate pass via WhatsApp
+function sharePDFViaWhatsApp() {
+    // Implement your WhatsApp sharing logic here
+    // You can open a WhatsApp message with the PDF content as the text
+    const driverName = document.getElementById('driverNameSmall').textContent;
+    const destination = document.getElementById('destinationSmall').textContent;
+    const timeOut = document.getElementById('timeOutSmall').textContent;
+    const vehicleNumber = document.getElementById('vehicleNumberSmall').textContent;
+    const passenger = document.getElementById('passengerSmall').textContent;
+
+    const whatsappText = `Driver's Name: ${driverName}\nDestination: ${destination}\nTime Out: ${timeOut}\nVehicle Number: ${vehicleNumber}\nPassenger: ${passenger}`;
+
+    const whatsappLink = `whatsapp://send?text=${encodeURIComponent(whatsappText)}`;
+
+    window.location.href = whatsappLink;
+}
+function printGatePass(){
+alert("Feature will be added soon...")
+alert("Download")
+}
+// function downloadGatePassAsPDF() {
+// 	alert("oraise")
+//     // Implement your PDF download logic here
+//     // You can use libraries like pdfmake or jsPDF to generate and download PDFs
+//     // Example with pdfmake:
+
+// 	alert("Download")
+//     const driverName = document.getElementById('driverNameSmall').textContent;
+//     const destination = document.getElementById('destinationSmall').textContent;
+//     const timeOut = document.getElementById('timeOutSmall').textContent;
+//     const vehicleNumber = document.getElementById('vehicleNumberSmall').textContent;
+//     const passenger = document.getElementById('passengerSmall').textContent;
+
+//     const pdfContent = `Driver's Name: ${driverName}\nDestination: ${destination}\nTime Out: ${timeOut}\nVehicle Number: ${vehicleNumber}\nPassenger: ${passenger}`;
+
+//     const docDefinition = {
+//         content: pdfContent,
+//     };
+
+//     pdfMake.createPdf(docDefinition).download('gate_pass.pdf');
+// }
+
+
+// Function to fetch total visitor count
+async function fetchTotalVisitorCount() {
+    try {
+        const response = await fetch('/get_total_visitor_count');
+        const totalCount = await response.json();
+        document.getElementById('totalVisitorCount').textContent = totalCount;
+    } catch (error) {
+        console.error('Error fetching total visitor count:', error);
+    }
+}
+
+// Function to fetch today's visitor count
+async function fetchTodayVisitorCount() {
+    try {
+        const response = await fetch('/get_today_visitor_count');
+        const todayCount = await response.json();
+        document.getElementById('todayVisitorCount').textContent = todayCount;
+    } catch (error) {
+        console.error('Error fetching today\'s visitor count:', error);
+    }
+}
+
+// Attach event listener to the button
+const fetchCountsButton = document.getElementById('fetchCountsButton');
+fetchCountsButton.addEventListener('click', () => {
+    fetchTotalVisitorCount();
+    fetchTodayVisitorCount();
+});
+
+}
+
+// function authorizeDriver(driverId) {
+	
+//   // Fetch the driver details from the "driverTableBody" using the driverId
+//   const driverTableBody = document.getElementById('driverTableBody');
+ 
+
+//   const driverRow = Array.from(driverTableBody.children).find(row => {
+//     const button = row.querySelector('.share-button');
+//     return button && button.dataset.driverId === driverId;
+//   });
+// //   console.log(driverTableBody);
+// // alert(driverTableBody)
+//   if (!driverRow) {
+//     console.error('Driver details not found.');
+//     return;
+//   }
+
+//   // Extract the data from the row
+//   const driverName = driverRow.querySelector('td:nth-child(1)').innerText;
+//   const armedGuard = driverRow.querySelector('td:nth-child(2)').innerText;
+//   const timeOut = driverRow.querySelector('td:nth-child(3)').innerText;
+//   const vehicle_number = driverRow.querySelector('td:nth-child(4)').innerText;
+//   const destination = driverRow.querySelector('td:nth-child(5)').innerText;
+//   const passenger = driverRow.querySelector('td:nth-child(6)').innerText;
+// //   alert(passenger)
+//   // Create the driver data object
+//   const driverData = {
+//     driver_name: driverName,
+//     armed_guard: armedGuard,
+//     target_location: destination,
+//     passenger: passenger,
+//     vehicle_number: vehicle_number,
+//     time_out: timeOut,
+//   };
+
+//   // Log the extracted data to the browser console
+//   console.log('Driver Data:', driverData);
+
+//   // The rest of your code to send the driverData to the server...
+
+//   //Send the driver data to the server
+//   fetch('/movement_history', {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/json',
+//     },
+//     body: JSON.stringify(driverData),
+//   })
+//     .then(response => response.json())
+//     .then(data => {
+//       console.log(data); // Check the response from the server
+// 	  alert("Movement Authorized")
+//     })
+//     .catch(error => {
+//       console.error('Error sending data:', error);
+
+// 	});
+	
+//   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function authorizeDriver(driverId) {
+  // Fetch the driver details from the "driverTableBody" using the driverId
+  const driverTableBody = document.getElementById('driverTableBody');
+  const driverRow = Array.from(driverTableBody.children).find(row => {
+    const button = row.querySelector('.share-button');
+    return button && button.dataset.driverId === driverId;
+  });
+
+  if (!driverRow) {
+    console.error('Driver details not found.');
+    return;
+  }
+  // Extract the data from the row
+  const driverName = driverRow.querySelector('td:nth-child(1)').innerText;
+  const armedGuard = driverRow.querySelector('td:nth-child(2)').innerText;
+  const timeOut = driverRow.querySelector('td:nth-child(3)').innerText;
+  const vehicle_number = driverRow.querySelector('td:nth-child(4)').innerText;
+  const destination = driverRow.querySelector('td:nth-child(5)').innerText;
+  const passenger = driverRow.querySelector('td:nth-child(6)').innerText;
+
+  // Create the driver data object
+  const driverData = {
+    driver_name: driverName,
+    armed_guard: armedGuard,
+    target_location: destination,
+    passenger: passenger,
+    vehicle_number: vehicle_number,
+    time_out: timeOut,
+  };
+
+  // Log the extracted data to the browser console
+  console.log('Driver Data:', driverData);
+
+  // Send the driver data to the server for movement history
+  fetch('/movement_history', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(driverData),
+  })
+    .then(response => response.json())
+    .then(data => {
+		
+      console.log('Movement History Response:', data);
+      // Alert or handle response as needed
+    })
+    .catch(error => {
+      console.error('Error sending data to /movement_history:', error);
+    });
+
+  // Send the driver data to the server for authorization
+  fetch('/authorize_driver', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(driverData),
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Authorization Response:', data);
+      alert("Movement Authorized ");
+
+      // Notify HR unit with a message using SSE
+      sseClients.forEach(client => {
+        const message = {
+          type: 'authorization',
+          driverName: driverData.driver_name,
+          timeOut: driverData.time_out,
+          destination: driverData.target_location,
+          passenger: driverData.passenger,
+		  source: 'security', // Add a source identifier
+        };
+        client.write(`data: ${JSON.stringify(message)}\n\n`);
+      });
+
+	  downloadGatePassAsPDF(driverData)()
+   
+    })
+    .catch(error => {
+      console.error('Error sending data to /authorize_driver:', error);
+    });
+}
+
+// Function to download the gate pass PDF
+// function downloadGatePassAsPDF(driverData) {
+// 	alert("uuuuuu")
+//   const pdfContent = `Driver's Name: ${driverData.driver_name}\nDestination: ${driverData.target_location}\nTime Out: ${driverData.time_out}\nVehicle Number: ${driverData.vehicle_number}\nPassenger: ${driverData.passenger}`;
+
+//   const docDefinition = {
+//     content: pdfContent,
+//   };
+
+//   pdfMake.createPdf(docDefinition).download('gate_pass.pdf');
+// }
+
+
+
+// Function to generate and download the PDF with the selected row's data
+function downloadGatePassAsPDF(driverData) {
+	
+    if (!selectedRowData) {
+        alert('Please select a row to generate the PDF.');
+        return;
+    }
+
+    const currentDate = new Date();
+    const formattedDate = currentDate.getDate() + ' ' + currentDate.toLocaleDateString('en-US', { month: 'long' }) + ' ' + currentDate.getFullYear();
+    const formattedTime = currentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+    // Create a new HTML element for the gate pass design
+    const gatePassHTML = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Gate Pass</title>
+            <style>
+                /* Add your CSS styles for the gate pass here */
+                body {
+                    font-family: Calibri, sans-serif;
+                    background: linear-gradient(90deg, #0073e6, #FFA500);
+                    margin: 0;
+                    padding: 0;
+                }
+
+                .container_gatePass {
+                    border: 2px solid #000;
+                    padding: 20px;
+                    margin: 20px;
+                }
+
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+
+                .logo {
+                    display: flex;
+                    align-items: flex-end;
+                }
+
+
+				/* Red Seal Styles */
+				/* Red Seal Styles */
+				/* Red Seal Styles */
+    .red-seal {
+        position: absolute;
+        bottom: 50px;
+        right: 50px;
+        width: 150px;
+        height: 150px;
+        background-color: red;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        clip-path: polygon(
+            50% 0%,
+            61.8% 35.4%,
+            68.6% 57.3%,
+            79.1% 91%,
+            50% 70.1%,
+            20.9% 91%,
+            31.4% 57.3%,
+            38.2% 35.4%
+        );
+        transform: rotate(-45deg);
+    }
+
+    .seal-text {
+        color: white;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 14px;
+        margin-top: -8px;
+    }
+
+
+
+                .blue-square {
+                    width: 50px;
+                    height: 50px;
+                    background-color: #0073e6;
+					margin-left: 45px
+                }
+
+                .orange-square {
+                    width: 50px;
+                    height: 50px;
+                    background-color: #FFA500;
+                    margin-left: -100px;
+                    margin-bottom: -50px;
+                }
+
+				.line {
+        height: 6px; /* Increase height for a thicker line */
+        width: 110px; /* Adjust width to match the "MOTA-ENGIL" text */
+        background-color: orange; /* Change color to gray */
+        margin: 10px auto; /* Adjust margin here to move the line up or down */
+    }
+	       h2, h3 {
+                    font-family: Calibri, sans-serif;
+					
+                }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+
+                table, th, td {
+                    border: 1px solid #000;
+                }
+
+                th, td {
+                    padding: 10px;
+                    text-align: left;
+                    font-size: 16px;
+                }
+
+				.mota {
+    display: inline-block;
+    position: absolute;
+    top: 2px;   /* Add the unit (e.g., px) */
+    left: 97px;   /* Add the unit (e.g., px) */
+}
+p2 {
+    font-size: 24px; /* Adjust the font size as needed */
+    font-weight: bold;
+    font-style: italic; /* Optional: Add italic style for emphasis */
+    color: #333; /* Optional: Set a specific color */
+    text-align: center; /* Optional: Center the text */
+    text-transform: uppercase; /* Optional: Convert the text to uppercase */
+}
+
+
+            </style>
+        </head>
+        <body>
+            <div class="container_gatePass ">
+                <div class="header">
+                    <div class="logo">
+                        <div class="blue-square"></div>
+                        <div class="orange-square"></div>
+                    </div>
+					<div class="mota">
+                    <h2>MOTA-ENGIL</h2>
+                    <div class="line"></div>
+                    <h3>NIGERIA</h3>
+					</div>
+                    <p2>Gate Pass</p2>
+                </div>
+
+                <!-- Table for Gate Pass Data -->
+                <table>
+                    <tr>
+                        <th>Reference ID</th>
+                        <td>${generateReferenceID()}</td>
+                    </tr>
+                    <tr>
+                        <th>Date</th>
+                        <td>${formattedDate}</td>
+                    </tr>
+                    <tr>
+                        <th>Driver's Name</th>
+                        <td>${selectedRowData.driverName}</td>
+                    </tr>
+                    <tr>
+                        <th>Armed Guard</th>
+                        <td>${selectedRowData.armedGuard}</td>
+                    </tr>
+                    <tr>
+                        <th>Passenger</th>
+                        <td>${selectedRowData.passenger}</td>
+                    </tr>
+                    <tr>
+                        <th>Destination</th>
+                        <td>${selectedRowData.destination}</td>
+                    </tr>
+                    <tr>
+                        <th>Vehicle Number</th>
+                        <td>${selectedRowData.vehicleNumber}</td>
+                    </tr>
+                    <tr>
+                        <th>HR Authorization</th>
+                        <td>${selectedRowData.hrAuthorization}</td>
+                    </tr>
+                    <tr>
+                        <th>Authorizer's Signature</th>
+                        <td>_______________________</td>
+
+						<div class="red-seal">
+                        <div class="seal-text">Authorized</div>
+                    </div>
+                    </tr
+                </table>
+            </div>
+        </body>
+        </html>
+    `;
+
+
+
+
+
+// const gatePassHTML = `
+//     <!DOCTYPE html>
+//     <html lang="en">
+//     <head>
+//         <meta charset="UTF-8">
+//         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//         <title>Gate Pass</title>
+//         <style>
+//             /* Add your CSS styles for the gate pass here */
+//             body {
+//                 font-family: Calibri, sans-serif;
+//                 background: linear-gradient(90deg, #0073e6, #FFA500);
+//                 margin: 0;
+//                 padding: 0;
+//             }
+
+//             .gate-pass-container {
+//                 border: 2px solid #000;
+//                 padding: 20px;
+//                 margin: 20px;
+//             }
+
+//             .gate-pass-header {
+//                 text-align: center;
+//                 margin-bottom: 20px;
+//             }
+
+//             .gate-pass-logo {
+//                 display: flex;
+//                 align-items: flex-end;
+//             }
+
+//             /* Red Seal Styles */
+//             .gate-pass-red-seal {
+//                 position: absolute;
+//                 bottom: 50px;
+//                 right: 50px;
+//                 width: 150px;
+//                 height: 150px;
+//                 background-color: red;
+//                 border-radius: 50%;
+//                 border: 3px solid #fff;
+//                 text-align: center;
+//                 display: flex;
+//                 align-items: center;
+//                 justify-content: center;
+//                 clip-path: polygon(
+//                     50% 0%,
+//                     61.8% 35.4%,
+//                     68.6% 57.3%,
+//                     79.1% 91%,
+//                     50% 70.1%,
+//                     20.9% 91%,
+//                     31.4% 57.3%,
+//                     38.2% 35.4%
+//                 );
+//                 transform: rotate(-45deg);
+//             }
+
+//             .gate-pass-seal-text {
+//                 color: white;
+//                 font-weight: bold;
+//                 text-transform: uppercase;
+//                 font-size: 14px;
+//                 margin-top: -8px;
+//             }
+
+//             .gate-pass-blue-square {
+//                 width: 50px;
+//                 height: 50px;
+//                 background-color: #0073e6;
+//             }
+
+//             .gate-pass-orange-square {
+//                 width: 50px;
+//                 height: 50px;
+//                 background-color: #FFA500;
+//                 margin-left: -3px;
+//                 margin-bottom: -50px;
+//             }
+
+//             .gate-pass-line {
+//                 height: 4px;
+//                 width: 110px;
+//                 background-color: gray;
+//                 margin: 10px auto;
+//             }
+
+//             h2, h3 {
+//                 font-family: Calibri, sans-serif;
+//             }
+
+//             .gate-pass-table {
+//                 width: 100%;
+//                 border-collapse: collapse;
+//             }
+
+//             .gate-pass-table, .gate-pass-th, .gate-pass-td {
+//                 border: 1px solid #000;
+//             }
+
+//             .gate-pass-th, .gate-pass-td {
+//                 padding: 10px;
+//                 text-align: left;
+//                 font-size: 16px;
+//             }
+//         </style>
+//     </head>
+//     <body>
+//         <div class="gate-pass-container">
+//             <div class="gate-pass-header">
+//                 <div class="gate-pass-logo">
+//                     <div class="gate-pass-blue-square"></div>
+//                     <div class="gate-pass-orange-square"></div>
+//                 </div>
+//                 <h2>MOTA-ENGIL</h2>
+//                 <div class="gate-pass-line"></div>
+//                 <h3>NIGERIA</h3>
+//                 <p>Gate Pass</p>
+//             </div>
+
+//             <!-- Table for Gate Pass Data -->
+//             <table class="gate-pass-table">
+//                 <tr>
+//                     <th>Reference ID</th>
+//                     <td>${generateReferenceID()}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Date</th>
+//                     <td>${formattedDate}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Driver's Name</th>
+//                     <td>${selectedRowData.driverName}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Armed Guard</th>
+//                     <td>${selectedRowData.armedGuard}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Passenger</th>
+//                     <td>${selectedRowData.passenger}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Destination</th>
+//                     <td>${selectedRowData.destination}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Vehicle Number</th>
+//                     <td>${selectedRowData.vehicleNumber}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>HR Authorization</th>
+//                     <td>${selectedRowData.hrAuthorization}</td>
+//                 </tr>
+//                 <tr>
+//                     <th>Authorizer's Signature</th>
+//                     <td>_______________________</td>
+
+//                     <div class="gate-pass-red-seal">
+//                         <div class="gate-pass-seal-text">Authorized</div>
+//                     </div>
+//                 </tr>
+//             </table>
+//         </div>
+//     </body>
+//     </html>
+// `;
+    var opt = {
+        margin: 0.5,
+        filename: `Mota-Engil-NG_Gate_pass_${formattedDate.replace(/ /g, '_')}_${formattedTime.replace(/[: ]/g, '')}`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 1 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape', precision: '12' }
+    };
+
+    // Generate the PDF from the gate pass HTML
+    html2pdf().set(opt).from(gatePassHTML).save();
+}
+
+  // Function to save the driver details to the "movementHistory" database
+  function saveToMovementHistoryDB(driverData) {
+    // Implement this function to send the driver data to the "movementHistory" database
+    // Similar to the existing function sendToDriversHistoryDB()
+  }
+
+  // Function to remove the data of the row from the "movement_details" table
+  function deleteRowFromMovementDB(driverId) {
+    // Implement this function to remove the driver data from the "movement_details" table
+    // Similar to the existing function deleteDriver()
+  }
+
+  // Function to fetch the ticket link from the "sw3" database using driverData
+  function fetchTicketLink(driverData) {
+    // Implement this function to fetch the ticket link from the "sw3" database
+    // You can use the driverData to fetch the relevant ticket link
+    // Return a Promise that resolves with the ticket link
+  }
+
+  document.addEventListener("DOMContentLoaded", async function () {
+    const historyCountElement = document.getElementById('history-count');
+
+    // Fetch the initial count from the server and update the placeholder
+    const response = await fetch('/movement_history');
+    const countString = await response.text();
+    historyCountElement.textContent = countString;
+  });
+
+ // Define the function that fetches and updates visitor counts
+ function fetchAndDisplayCounts() {
+        fetch('/get_total_visitor_count')
+            .then(response => response.json())
+            .then(totalCount => {
+                fetch('/get_today_visitor_count')
+                    .then(response => response.json())
+                    .then(todayCount => {
+                        // Log the counts to the console
+                        console.log('Total Count:', totalCount);
+                        console.log('Today Count:', todayCount);
+
+                        // Display alert with the counts
+                        alert(`Today Count: ${todayCount}\nTotal Count: ${totalCount}`);
+                        
+                        const visitorCountsElement = document.getElementById('visitorCounts');
+                        visitorCountsElement.textContent = `${todayCount}/${totalCount}`;
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        // Handle error
+                    });
+            })
+            .catch(error => {
+                console.error(error);
+                // Handle error
+            });
+    }
+
+    // Attach the function to be triggered when the button is clicked
+    document.getElementById('fetchButton').addEventListener('click', fetchAndDisplayCounts);
+
+
+
+    // Function to show the gate pass overlay
+    function showGatePassOverlay() {
+        const gatePassOverlay = document.getElementById('gatePassOverlay');
+        gatePassOverlay.style.display = 'block';
+    }
+
+    // Function to hide the gate pass overlay
+    function hideGatePassOverlay() {
+        const gatePassOverlay = document.getElementById('gatePassOverlay');
+        gatePassOverlay.style.display = 'none';
+    }
+
+  
+function previewGatePass(driverId) {
+
+	document.addEventListener('click', function (e) {
+    if (e.target && e.target.className == 'preview-button') {
+        const rowElement = e.target.closest('tr');
+        const driverName = rowElement.querySelector('td:first-child').textContent;
+        const destination = rowElement.querySelector('td:nth-child(5)').textContent;
+        const timeOut = rowElement.querySelector('td:nth-child(3)').textContent;
+        const vehicleNumber = rowElement.querySelector('td:nth-child(4)').textContent;
+        const passenger = rowElement.querySelector('td:nth-child(6)').textContent;
+        
+        // Set the data in the smaller overlay
+        document.getElementById('driverNameSmall').textContent = driverName;
+        document.getElementById('destinationSmall').textContent = destination;
+        document.getElementById('timeOutSmall').textContent = timeOut;
+        document.getElementById('vehicleNumberSmall').textContent = vehicleNumber;
+        document.getElementById('passengerSmall').textContent = passenger;
+        
+        // Toggle the display of the smaller overlay
+        toggleSmallGatePassOverlay();
+    }
+});
+
+// Function to toggle the display of the smaller overlay
+function toggleSmallGatePassOverlay() {
+    const smallOverlay = document.getElementById('smallGatePassOverlay');
+    if (smallOverlay.style.display === 'block') {
+        smallOverlay.style.display = 'none';
+    } else {
+        smallOverlay.style.display = 'block';
+    }
+}
+
+// function closeSmallGatePassOverlay() {
+// 	document.getElementById('closeSmallGatePassButton').addEventListener('click', closeSmallGatePassOverlay);	
+//     alert('Close button clicked'); // Add this line for debugging
+//     document.getElementById('smallGatePassOverlay').style.display = 'none';
+// }
+
+}
+    // Function to save the gate pass
+    function saveGatePass() {
+        // Implement your logic to save the gate pass here
+        // You can send the gate pass data to the server or save it locally
+        // Once saved, you can hide the gate pass overlay
+        hideGatePassOverlay();
+    }
+
+    // Function to share the gate pass
+    function shareGatePass() {
+        // Implement your logic to share the gate pass here
+        // You can provide options to share via email, messaging apps, or other methods
+    }
+
+    // Function to close the gate pass overlay
+    // function closeGatePassOverlay() {
+    //     // Hide the gate pass overlay when the close button is clicked
+    //     hideGatePassOverlay();
+    // }
+
+
+// Function to save the gate pass (you can implement this)
+function saveGatePass() {
+  // Retrieve data from the gate pass template, including the "Movement authorized by" input
+  const driverName = document.getElementById('driverName').textContent;
+  const armedGuard = document.getElementById('armedGuard').textContent;
+  const timeOut = document.getElementById('timeOut').textContent;
+  const vehicleNumber = document.getElementById('vehicleNumber').textContent;
+  const destination = document.getElementById('destination').textContent;
+  const passenger = document.getElementById('passenger').textContent;
+  const authorizedBy = document.getElementById('authorizedBy').value;
+
+  // Create a gate pass object with the data
+  const gatePassData = {
+    driver_name: driverName,
+    armed_guard: armedGuard,
+    time_out: timeOut,
+    vehicle_number: vehicleNumber,
+    target_location: destination,
+    passenger: passenger,
+    authorized_by: authorizedBy, // Add the "Movement authorized by" field
+  };
+
+  // Implement your code to save the gate pass data (e.g., send it to the server or store it)
+  // ...
+
+  // Hide the gate pass template after saving
+  const gatePassTemplate = document.getElementById('gatePassTemplate');
+  gatePassTemplate.style.display = 'none';
+}
+
+// Function to share the gate pass (you can implement this)
+function shareGatePass() {
+  // Retrieve data from the gate pass template, including the "Movement authorized by" input
+  const authorizedBy = document.getElementById('authorizedBy').value;
+
+  // Implement your code to share the gate pass (e.g., send it via email or messaging)
+  // ...
+
+  // Hide the gate pass template after sharing
+  const gatePassTemplate = document.getElementById('gatePassTemplate');
+  gatePassTemplate.style.display = 'none';
+
+}
+
+</script>
+</footer>
+</div>
+
+<script>
+	function closeSmallGatePassOverlay() {
+	  const smallGatePassOverlay = document.getElementById('smallGatePassOverlay');
+	  smallGatePassOverlay.style.display = 'none';
+	}	
+</script>
+
+
+	<script>
+  const flashNotification = document.getElementById('flash-notification');
+  const realtimeUpdatesList = document.getElementById('realtimeUpdates');
+  const eventSourceDriver = new EventSource('/events');
+  const notificationDropdown = document.getElementById('notificationDropdown');
+  const messagesContainer = document.getElementById('messages-container');
+
+  // Function to trigger the animation and alert
+  function triggerAnimationAndAlert() {
+    const bellIcon = document.getElementById('bellIcon');
+
+    // Remove the 'red-bell' class and add the 'green-bell' class
+    bellIcon.classList.remove('red-bell');
+    bellIcon.classList.add('green-bell');
+
+    // Play the alert sound (replace with your own sound file)
+    const alertSound = new Audio('assets/sound/achive-sound-132273.mp3');
+    alertSound.play();
+
+    // Start the animation
+    bellIcon.classList.add('bell-icon-animation');
+
+    // Event listener for the bell icon click
+    document.getElementById('bellIcon').addEventListener('click', () => {
+      // Reset the bell icon to its green state and stop the animation
+      const bellIcon = document.getElementById('bellIcon');
+      bellIcon.classList.remove('red-bell');
+      bellIcon.classList.remove('bell-icon-animation');
+      bellIcon.classList.remove('green-bell');
+      bellIcon.classList.add('red-bell');
+    });
+  }
+
+  // EventSource for Driver Events
+  eventSourceDriver.onmessage = (event) => {
+    console.log('Received data:', event.data); // Debugging line
+
+    // Trigger the animation and alert
+    triggerAnimationAndAlert();
+
+    // Display the flash notification when data is received
+    flashNotification.style.display = 'block';
+
+    // Hide the flash notification after a delay (e.g., 3 seconds)
+    setTimeout(() => {
+      flashNotification.style.display = 'none';
+    }, 3000);
+
+    // Display the received data in the list
+    const newEntry = JSON.parse(event.data);
+    const listItem = document.createElement('li');
+    listItem.textContent = `Driver Name: ${newEntry.driver_name}, Passenger: ${newEntry.passenger}, Time Out: ${newEntry.time_out}`;
+    realtimeUpdatesList.appendChild(listItem);
+
+    // Create a new list item for the dropdown menu
+    const dropdownItem = document.createElement('a');
+    dropdownItem.classList.add('list-group-item', 'list-group-item-action');
+    dropdownItem.innerHTML = `
+      <div class="row align-items-center">
+        <div class="col-auto">
+          <img alt="Image placeholder" src="${newEntry.imageSrc || 'default-image.jpg'}" class="avatar rounded-circle">
+        </div>
+        <div class="col ml--2">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h4 class="mb-0 text-sm">${newEntry.driver_name || 'Anonymous'}</h4>
+            </div>
+            <div class="text-right text-muted">
+              <small>${newEntry.time_out && 'New Movement'}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add the new list item to the dropdown menu
+    notificationDropdown.appendChild(dropdownItem);
+
+    // Optionally, limit the number of notifications displayed by removing the oldest ones
+    const maxNotifications = 10; // Adjust this number as needed
+    if (notificationDropdown.children.length > maxNotifications) {
+      notificationDropdown.removeChild(notificationDropdown.firstElementChild);
+    }
+
+    const notificationCountElement = document.getElementById('notificationCount');
+    const notificationCount = notificationDropdown.children.length - 3; // Subtract 3
+    notificationCountElement.textContent = notificationCount;
+  };
+
+  // EventSource for Visitor Uploads
+  function handleSSEMessage(event) {
+    const message = JSON.parse(event.data);
+
+    // Assuming the message structure includes a 'type' and 'visitorDetails'
+    if (message.type === 'visitor_upload') {
+      const visitorDetails = message.visitorDetails;
+      const formattedMessage = `<p>${visitorDetails.name} visited for ${visitorDetails.purposeOfVisit}</p>`;
+      messagesContainer.innerHTML += formattedMessage;
+    }
+  }
+
+  function connectToSSE() {
+    const eventSourceVisitor = new EventSource('/sse_visitor_upload');
+    eventSourceVisitor.addEventListener('message', handleSSEMessage);
+  }
+
+  connectToSSE();
+
+</script>
+
+<!-- Add this script after your existing script -->
+<script>
+	// Function to trigger animation and alert
+	function triggerAnimationAndAlertForMessage() {
+    const bellIcon = document.getElementById('bellIcon');
+
+    // Remove the 'red-bell' class and add the 'green-bell' class
+    bellIcon.classList.remove('red-bell');
+    bellIcon.classList.add('green-bell');
+
+    // Play the alert sound (replace with your own sound file)
+    const alertSound = new Audio('assets/sound/achive-sound-132273.mp3');
+    alertSound.play();
+
+    // Start the animation
+    bellIcon.classList.add('bell-icon-animation');
+  }
+
+  // Observer to watch for changes in messagesContainer
+  const messagesContainerObserver = new MutationObserver(() => {
+    const messages = messagesContainer.children;
+
+    if (messages.length > 0) {
+      // Trigger animation and alert for messages
+      triggerAnimationAndAlertForMessage();
+
+      // Display the received data in the dropdown menu with the same design as newEntry
+      const messageContent = messages[messages.length - 1].innerHTML;
+      const dropdownItem = document.createElement('a');
+      dropdownItem.classList.add('list-group-item', 'list-group-item-action');
+
+      dropdownItem.innerHTML = `
+        <div class="row align-items-center">
+			<div class="col-auto">
+ 			 <i class="fas fa-comment text-primary" style="font-size: 24px;"></i> 
+			</div>
+
+          <div class="col ml--2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h4 class="mb-0 text-sm" style="color: green;">${messageContent}</h4> 
+
+              </div>
+              <div class="text-right text-muted">
+                <small>New Visitor</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Add the new list item to the dropdown menu
+      const notificationDropdown = document.getElementById('notificationDropdown');
+      notificationDropdown.appendChild(dropdownItem);
+
+      // Optionally, limit the number of notifications displayed by removing the oldest ones
+      const maxNotifications = 10; // Adjust this number as needed
+      if (notificationDropdown.children.length > maxNotifications) {
+        notificationDropdown.removeChild(notificationDropdown.firstElementChild);
+      }
+
+      const notificationCountElement = document.getElementById('notificationCount');
+      const notificationCount = notificationDropdown.children.length - 3; // Subtract 3
+      notificationCountElement.textContent = notificationCount;
+    }
+  });
+
+  // Configure and start the observer
+  const observerConfig = { childList: true };
+  messagesContainerObserver.observe(messagesContainer, observerConfig);
+  </script>
+  
+
+   <script>
+	// Function to handle SSE events
+	function handleEvent(event) {
+	  const data = JSON.parse(event.data);
+	  console.log('Received SSE message:', data);
+  
+	  // Update the UI with the new visitor details
+	  const visitorList = document.getElementById('visitorList');
+	  const listItem = document.createElement('li');
+	  listItem.textContent = `New Visitor: ${data.visitorName}, Date: ${data.registrationDate}, Whom to See: ${data.whomToSee}, Purpose: ${data.purposeOfVisit}`;
+	  visitorList.appendChild(listItem);
+	}
+  
+	// Create an EventSource to listen for SSE events
+	const eventSource = new EventSource('/sse');
+  
+	// Attach the event handler
+	eventSource.addEventListener('message', handleEvent);
+  </script>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+  // Retrieve the user's session ID from the server-side rendered HTML or another secure method
+  const userSessionId = '<%= userSessionId %>';
+
+  // Make an asynchronous request to fetch the user's name using the session ID
+  fetch('/registered_user_name', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId: userSessionId }),
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Update the HTML content with the user's full name
+    document.getElementById('userName').textContent = data.fullName;
+
+    // Store the user's first name in sessionStorage for persistence
+    sessionStorage.setItem('userFirstName', data.firstName);
+  })
+  .catch(error => console.error('Error fetching user name:', error));
+});
+
+// Retrieve user's name from sessionStorage
+const userFirstName = sessionStorage.getItem('userFirstName');
+
+// Display welcome message with user's first name
+document.getElementById('welcomeMessage').innerHTML = `Welcome ${userFirstName || 'Guest'}!`;
+
+  </script>
+<script>
+	// Find the logout button by its id
+// const logoutBtn = document.getElementById('logoutBtn');
+
+// Add event listener to the logout button
+// logoutBtn.addEventListener('click', () => {
+//     // Make a request to the server to logout
+//     fetch('/logout', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json'
+//         }
+//     })
+//     .then(response => {
+//         if (response.ok) {
+//             // Redirect to the login page after successful logout
+//             window.location.href = '/index.html';
+//         } else {
+//             // Handle logout error if any
+//             console.error('Logout failed:', response.statusText);
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Logout error:', error);
+//         // Handle logout error if any
+//     });
+// });
+</script>
+<!-- <script>
+        // Find the logout button by its id
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Add event listener to the logout button
+        logoutBtn.addEventListener('click', () => {
+
+			console.log("GGgggggggggggggg")
+            // Make a request to the server to logout
+            fetch('/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Redirect to the login page after successful logout
+                    window.location.href = '/index.html';
+                } else {
+                    // Handle logout error if any
+                    console.error('Logout failed:', response.statusText);
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                // Handle logout error if any
+            });
+        });
+    </script> -->
+
+	<!-- <script>
+        // Find the logout button by its id
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Add event listener to the logout button
+        logoutBtn.addEventListener('click', () => {
+            // Alert to debug
+            alert('Logout button clicked');
+            
+            // Make a request to the server to logout
+            fetch('/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Redirect to the login page after successful logout
+                    window.location.href = '/index.html';
+                } else {
+                    // Handle logout error if any
+                    console.error('Logout failed:', response.statusText);
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                // Handle logout error if any
+            });
+        });
+    </script> -->
+
+
+    <script>
+        // Find the logout button by its id
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Add event listener to the logout button
+        logoutBtn.addEventListener('click', () => {
+            // Alert to debug
+            alert('Do you really want to logout?');
+            
+            // Make a request to the server to logout
+            fetch('/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Redirect to the login page after successful logout
+                    window.location.href = '/index.html';
+                } else {
+                    // Handle logout error if any
+                    console.error('Logout failed:', response.statusText);
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                // Handle logout error if any
+            });
+        });
+    </script>
+</body>
+</html>
+
+</script>
+ </body>
+</html> 
+
+

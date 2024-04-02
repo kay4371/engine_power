@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>create Account</title>
+  </head>
+  
+  <body>
+    <div class="wrapper">
+      <h2>Registration</h2>
+      <form id="registrationForm">
+        <div class="input-box">
+          <input type="text" id="name" placeholder="Enter your name" required>
+        </div>
+        <div class="input-box">
+          <input type="text" id="email" placeholder="Enter your email" required>
+        </div>
+        <div class="input-box">
+          <input type="text" id="phoneNumber" placeholder="Enter your phone number" required>
+        </div>
+        <div class="input-box">
+          <select id="role" required>
+            <option value="" selected disabled>Select your role</option>
+            <option value="receptionist">Receptionist</option>
+            <option value="security">Security</option>
+            <option value="transport">Transport</option>
+            <!-- Add more roles as needed -->
+          </select>
+        </div>
+        <div class="input-box">
+          <input type="password" id="password" placeholder="Create password" required>
+        </div>
+        <div class="input-box">
+          <input type="password" id="confirmPassword" placeholder="Confirm password" required>
+        </div>
+        <div class="input-box">
+          <input type="text" id="verificationCode" placeholder="Enter verification code" required>
+        </div>
+        <div class="input-box button">
+          <input type="button" value="Get Verification Code" onclick="getVerificationCode()">
+        </div>
+        <div class="input-box button">
+          <input type="button" value="Register Now" onclick="registerNow()">
+        </div>
+        <div class="text">
+          <h3>Already have an account? <a href="index.html">Login now</a></h3>
+        </div>
+      </form>
+    </div>
+  
+    <script>
+    function getVerificationCode() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const roleElement = document.getElementById("role");
+  const role = roleElement.options[roleElement.selectedIndex].value;
+  const password = document.getElementById("password").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+  let phoneNumber = document.getElementById("phoneNumber").value;
+
+  // Clean and normalize the phone number
+  phoneNumber = cleanedPhoneNumber(phoneNumber);
+
+  // Validate the normalized phone number format
+  if (!isValidPhoneNumberFormat(phoneNumber)) {
+    alert('Invalid phone number format. Please enter a valid number in the format 07034995589.');
+    return;
+  }
+
+  const requestData = {
+    name,
+    email,
+    role,
+    password,
+    confirmPassword,
+    phoneNumber,
+  };
+
+  // Assume you have an API endpoint to generate and send the verification code
+  fetch('/generateVerificationCode', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestData),
+  })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+      // Redirect to index.html after successful registration
+      if (data.message === 'Registration successful') {
+        window.location.href = '/index.html';
+      }
+    })
+
+    .catch(error => {
+      console.error('Error:', error);
+    });
+}
+
+function registerNow() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  let phoneNumber = document.getElementById("phoneNumber").value;
+  const roleElement = document.getElementById("role");
+  const role = roleElement.options[roleElement.selectedIndex].value;
+  const password = document.getElementById("password").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+  const verificationCode = document.getElementById("verificationCode").value;
+
+  // Clean and normalize the phone number
+  phoneNumber = cleanedPhoneNumber(phoneNumber);
+
+  // Validate the normalized phone number format
+  if (!isValidPhoneNumberFormat(phoneNumber)) {
+    alert('Invalid phone number format. Please enter a valid number in the format 07034567436.');
+    return;
+  }
+
+  // Send registration data to the server
+  fetch('/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ phoneNumber, selectedRole: role, verificationCode, name, email, password, confirmPassword }),
+  })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+    
+      // Redirect to index.html after successful registration
+      if (data.message === 'Registration successful') {
+        window.location.href = '/index.html';
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+}
+
+
+function cleanedPhoneNumber(phoneNumber) {
+  // Remove non-numeric characters
+  const cleanedNumber = phoneNumber.replace(/\D/g, '');
+
+  // Ensure the cleaned number starts with +234
+  return cleanedNumber.startsWith('0') ? `+234${cleanedNumber.slice(1)}` : `+234${cleanedNumber}`;
+}
+
+function isValidPhoneNumberFormat(phoneNumber) {
+  // Validate that the phone number has the format +2347035517578
+  const phoneNumberRegex = /^\+234\d{10}$/;
+  return phoneNumberRegex.test(phoneNumber);
+}
+
+
+      </script>
+    </body>
+  
+  </html>
+  
+
+
+
+
+

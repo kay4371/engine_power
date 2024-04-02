@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style2.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin</title>
+    <style>
+        select {
+            margin-top: 10px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #3b18bd;
+            color: #f0ebe3;
+        }
+        
+        button {
+            color: #c2f4f5;
+            background-color: #7712eb;
+            font-size: 15px;
+            border: 1px solid #1d04a8;
+            width: 100%;
+            height: 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            color: #2d63c8;
+            background-color: #ffffff;
+        }
+
+        .or-text {
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px; /* Adjust margin-top as needed */
+            font-size: 15px; /* Adjust font-size as needed */
+            color: #8f8b8b; /* Adjust color as needed */
+        }
+        /* Added style for the label */
+        /* Updated style for the label */
+        label[for="configuredRole"] {
+            font-weight: bold;
+            color: #8f8b8b; /* Set to grey */
+            display: block;
+            text-align: center; 
+            margin-top: 10px; /* Adjust margin-top as needed */
+        }
+
+    </style>
+</head>
+<body>
+
+
+
+
+
+
+<div class="container">
+    <form id="adminRegisterForm">
+      <div class="title">Admin Registration</div>
+      <div class="input-box underline">
+        <input type="text" id="phoneNumber" placeholder="Enter User's Phone Number" required>
+        <div class="underline"></div>
+      </div>
+      <div class="input-box">
+        <label for="configuredRole">Select Configured Role:</label>
+        <select name="configuredRole" id="configuredRole" required>
+          <option value="receptionist">Receptionist</option>
+          <option value="security">Security</option>
+          <option value="transport">Transport</option>
+          <option value="others">Others</option>
+        </select>
+      </div>
+      <div class="input-box button">
+        <button type="button" onclick="configureAccount()">Configure Account</button>
+      </div>
+      <div class="or-text">Or Delete Account</div>
+      <div style="width: 300px; display: flex; align-items: center;">
+        <div class="t" style="flex-grow: 1;">
+          <select name="deleteAccount" id="deleteAccount" style="width: calc(95% - 5px);">
+            <!-- Options for displaying accounts will be added dynamically through JavaScript -->
+          </select>
+        </div>
+        <input type="button" value="Delete Account" onclick="deleteAccount()" style="width: calc(90% - 10px); margin-right: 11px; color: white; background-color: rgb(3, 14, 8); border-radius: 5px; height: 40px;">
+      </div>
+    </form>
+  </div>
+
+
+
+    <script>
+    function configureAccount() {
+    const phoneNumber = document.getElementById("phoneNumber").value.toString();
+    const configuredRole = document.getElementById("configuredRole").value;
+    alert("Configure " + phoneNumber);
+
+    // Perform validation if needed
+
+    // Send the configuration data to the server
+    fetch('/configureUserAccount', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phoneNumber, configuredRole }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        // Optionally, redirect or perform other actions after successful configuration
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Handle errors
+    });
+}
+
+
+
+        function deleteAccount() {
+            const phoneNumber = document.getElementById("phoneNumber").value;
+            if (confirm("Are you sure you want to delete the account associated with " + phoneNumber + "?")) {
+                // Send delete request to the server
+                fetch('/deleteUserAccount', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phoneNumber }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    // Optionally, redirect or perform other actions after successful deletion
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Handle errors
+                });
+            }
+        }
+    </script>
+</div>
+
+
+
+ 
+
+<script>
+    const accounts = [
+      { phoneNumber: "Select Account" },
+      { phoneNumber: "123456789", role: "receptionist" },
+      { phoneNumber: "987654321", role: "security" },
+      // Add more accounts as needed
+    ];
+  
+    const deleteAccountDropdown = document.getElementById("deleteAccount");
+  
+    accounts.forEach(account => {
+      const option = document.createElement("option");
+      option.value = account.phoneNumber;
+      option.text = `${account.phoneNumber} (${account.role})`;
+      deleteAccountDropdown.add(option);
+    });
+  
+    function configureAccount() {
+      const phoneNumber = document.getElementById("phoneNumber").value;
+      const configuredRole = document.getElementById("configuredRole").value;
+  
+      fetch('/configureUserAccount', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phoneNumber, configuredRole }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert(data.message);
+        // Optionally, redirect or perform other actions after successful configuration
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        // Handle errors
+      });
+    }
+  
+    function deleteAccount() {
+      const selectedPhoneNumber = deleteAccountDropdown.value;
+  
+      if (selectedPhoneNumber === "Select Account") {
+        alert("Please select an account to delete.");
+        return;
+      }
+  
+      if (confirm("Are you sure you want to delete the account associated with " + selectedPhoneNumber + "?")) {
+        fetch('/deleteUserAccount', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phoneNumber: selectedPhoneNumber }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          // Optionally, redirect or perform other actions after successful deletion
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          // Handle errors
+        });
+      }
+    }
+  </script>
+</div>
+</body>
+</html>

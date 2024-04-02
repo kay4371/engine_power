@@ -1,0 +1,964 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Dashboard Builder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+    <link rel="stylesheet" href="https://rawcdn.githack.com/Loopple/loopple-public-assets/ad60f16c8a16d1dcad75e176c00d7f9e69320cd4/argon-dashboard/css/nucleo/css/nucleo.css">
+    <link rel="stylesheet" href="./assets/css/theme.css">
+    <link rel="stylesheet" href="./assets/css/loopple/loopple.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+
+<style>
+    /* Style for the table */
+    #driverDetailsTable {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        padding: 10px;
+    }
+    
+    #driverDetailsTable h2 {
+        margin-top: 0;
+        text-align: center;
+    }
+    
+    .table {
+        width: 100%;
+        margin-bottom: 1rem;
+        background-color: #fff;
+        border-collapse: collapse;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .table th, .table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .table th {
+        background-color: #f5f5f5;
+    }
+    
+    /* Style for edit and delete buttons */
+    .edit-button, .delete-button {
+        padding: 4px 8px;
+        margin-right: 4px;
+    }
+    
+    .edit-button {
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+    }
+    
+    .delete-button {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+    }
+    
+
+</style>
+
+    <style>
+/* Style for the form container */
+.form-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 20px;
+}
+
+/* Style for the form fields */
+.form-group {
+    margin-bottom: 20px;
+}
+
+/* Style for input fields */
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+/* Style for select fields */
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+/* Style for submit button */
+button[type="submit"] {
+    background-color: #001275;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 50%;
+}
+
+/* Style for "Back" button */
+.btn-back {
+    background-color: #5a0603;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    width: 50%;
+}
+
+/* Style for table container (if needed) */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Entry table styles (if needed) */
+.entry-table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid #ddd;
+}
+
+.entry-table th,
+.entry-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.entry-table th {
+    background: linear-gradient(to bottom, #007bff, #011588); /* Blue and white gradient */
+    color: white; /* Text color for the gradient background */
+}
+
+.entry-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+        /* Style for the button container */
+        .button-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 20px;
+        }
+/* Style for input fields */
+input[type="text"],
+input[type="datetime-local"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+/* Style for submit button */
+button[type="submit"] {
+    background-color: #001275;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+}
+
+/* Style for hr element */
+hr.my-4 {
+    border-color: #ddd;
+    margin: 20px 0;
+}
+
+        /* Style for the "Back" button */
+       /* Style for the "Back" button *
+      /* Style for the "Submit and Preview" button */
+.btn-submit {
+  background-color: #001275;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  width: 50%; /* Set the same width as the "Back" button */
+}
+
+/* Style for the "Back" button */
+.btn-back {
+  background-color: #5a0603;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  width: 50%; /* Set the same width as the "Submit and Preview" button */
+}
+
+        /* Your existing CSS styles */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+    
+        /* Entry table styles */
+        .entry-table {
+            border-collapse: collapse;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+    
+        .entry-table th,
+        .entry-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+    
+        .entry-table th {
+            background: linear-gradient(to bottom, #007bff, #011588); /* Blue and white gradient */
+            color: white; /* Text color for the gradient background */
+        }
+    
+        .entry-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+  
+/* Form container */
+
+    /* Add styles for the loading container */
+    .loading-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(255, 255, 255, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    /* Loading animation styles */
+    .jumping-dots-loader {
+        width: 100px;
+        height: 100px;
+        border-radius: 100%;
+        position: relative;
+        margin: 0 auto;
+    }
+    
+    .jumping-dots-loader span {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 100%;
+        background-color: rgba(241, 83, 110, 0.8);
+        margin: 35px 5px;
+    }
+    
+    .jumping-dots-loader span:nth-child(1) {
+        animation: bounce 1s ease-in-out infinite;
+    }
+    
+    .jumping-dots-loader span:nth-child(2) {
+        animation: bounce 1s ease-in-out 0.33s infinite;
+    }
+    
+    .jumping-dots-loader span:nth-child(3) {
+        animation: bounce 1s ease-in-out 0.66s infinite;
+    }
+    
+    @keyframes bounce {
+        0%, 75%, 100% {
+            transform: translateY(0);
+        }
+    
+        25% {
+            transform: translateY(-20px);
+        }
+        
+    }
+ </style>  
+
+
+</head>
+<body class="g-sidenav-show">
+    <nav class="sidenav navbar navbar-vertical fixed-left navbar-expand-xs navbar-light bg-white loopple-fixed-start" id="sidenav-main">
+        <div class="sidenav-header  align-items-center">
+            <a class="navbar-brand" href="javascript:void(0)">
+                <img src="https://loopple.s3.eu-west-3.amazonaws.com/images/6hrcq113GeocFfxSvZ8Lcz38JIFfMfuafaW6l1s5.png" class="navbar-brand-img" alt="...">
+            </a>
+        </div>
+        <div class="navbar-inner">
+            <div class="collapse navbar-collapse" id="sidenav-collapse-main">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="javascript:">
+                            <i class="fa fa-desktop text-primary"></i>
+                            <span class="nav-link-text">Vistors New Entry</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:" id="receptionistPortalLink">
+                            <i class="fa fa-lock text-danger"></i>
+                            <span class="nav-link-text">HR Department</span>
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="main-content" id="panel">
+        <nav class="navbar navbar-top navbar-expand navbar-dark border-bottom bg-dark" id="navbarTop">
+            <div class="container-fluid">
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <form class="navbar-search navbar-search-light form-inline mr-sm-3 mb-0" id="navbar-search-main">
+                        <div class="form-group mb-0">
+                            <div class="input-group input-group-alternative input-group-merge">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                </div>
+                                <input class="form-control" placeholder="Search" type="text">
+                            </div>
+                        </div>
+                        <button type="button" class="close" data-action="search-close" data-target="#navbar-search-main" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </form>
+                    <ul class="navbar-nav align-items-center  ml-md-auto ">
+                        <li class="nav-item d-xl-none">
+                            <div class="pr-3 sidenav-toggler sidenav-toggler-dark active" data-action="sidenav-pin" data-target="#sidenav-main">
+                                <div class="sidenav-toggler-inner">
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item d-sm-none">
+                            <a class="nav-link" href="#" data-action="search-show" data-target="#navbar-search-main">
+                                <i class="ni ni-zoom-split-in"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa fa-bell"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-xl  dropdown-menu-right  py-0 overflow-hidden">
+                                <div class="px-3 py-3">
+                                    <h6 class="text-sm text-muted m-0">You have <strong class="text-primary">13</strong> notifications.</h6>
+                                </div>
+                                <div class="list-group list-group-flush">
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-1.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-2.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-3.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>5 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Your posts have been liked a lot.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-4.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-5.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <a href="#!" class="dropdown-item text-center text-primary font-weight-bold py-3">View all</a>
+                            </div>
+                        </li>
+                  
+                    </ul>
+                    <ul class="navbar-nav align-items-center  ml-auto ml-md-0 ">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link pr-0" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <div class="media align-items-center">
+                                    <span class="avatar avatar-sm rounded-circle">
+                                        <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg">
+                                    </span>
+                                    <div class="media-body  ml-2  d-none d-lg-block">
+                                        <span class="mb-0 text-sm  font-weight-bold">John Snow</span>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu  dropdown-menu-right ">
+                                <div class="dropdown-header noti-title">
+                                    <h6 class="text-overflow m-0">Welcome!</h6>
+                                </div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-user"></i>
+                                    <span>My profile</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-tools"></i>
+                                    <span>Settings</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="far fa-calendar"></i>
+                                    <span>Activity</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-phone"></i>
+                                    <span>Support</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-sign-out-alt"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+
+      
+
+        <div class="container-fluid pt-3">
+            <div class="row removable">
+        
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-info border-0">
+                        <!-- Card body -->
+                      
+                    </div>
+                </div>
+              
+                
+                <script>
+                    function showAlert() {
+                        alert("Work in progress, You could recommend a feature to make the project more robust and useful");
+                    }
+                </script>
+                
+                <div class="col-xl-3 col-md-6">
+                    
+            </div>   
+
+
+            <div id="driverDetailsTable" style="display: none;">
+                <h2>Driver's Details</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Driver Name</th>
+                            <th>Driver Phone</th>
+                            <th>Primary Assignee</th>
+                            <th>Source Company</th>
+                            <th>Drivers Address</th>
+                            <th>Date Of Employment</th>
+                            <th>Action</th> 
+                        </tr>
+                    </thead>
+                    <tbody id="driverDetailsTableBody">
+                     
+                  </tbody>
+                </table>
+            </div> 
+</div> 
+
+
+            <!-- <div class="jumping-dots-loader" id="loadingAnimation">
+                <span></span> <span></span> <span></span>
+            </div> -->
+
+                <div class="card" id="profileForm">
+                    <div class="table-container">
+                        <table class="entry-table">
+                            <thead>
+                                <tr>
+                                    <th>Driver's Name</th>
+                                    <th>Phone Number</th>
+                                    <th>Primary Assignee(s)</th>
+                                    <th>Driver's Address</th>
+                                    <th>Source Company</th>
+                                    <th>Date of Employment</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="entryTableBody">
+                                <!-- Entries from the form will be dynamically added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Other card content and form here -->
+                
+                <grammarly-extension data-grammarly-shadow-root="true" class="dnXmp" style="position: absolute; top: 0px; left: 0px; pointer-events: none;"></grammarly-extension>
+                <grammarly-extension data-grammarly-shadow-root="true" class="dnXmp" style="position: absolute; top: 0px; left: 0px; pointer-events: none;"></grammarly-extension>
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-8">
+                          
+                        </div>
+                       
+                    </div>
+
+                </div>
+
+                <div class="card-body">
+                    <div class="card-body">
+                        <form id="addDriverForm" action="/receive_driver_details" method="post">
+                            <h6 class="heading-small text-muted mb-4">Add New Driver</h6>
+                            <div class="pl-lg-4">
+                          
+                            <!-- Additional Fields -->
+                            <div class="form-group">
+                                <label for="driver_name">Driver's Name:</label>
+                                <input type="text" id="driver_name" name="driver_name" required>
+                            </div>
+                         
+
+                            <div class="form-group">
+                                <label for="driver_phone">Driver's Phone Number:</label>
+                                <input type="tel" id="driver_phone" name="driver_phone" required>
+                            </div>
+                            
+
+                            <div class="form-group">
+                              <label for="passenger">Primary Assignee(s):</label>
+                              <input type="text" id="pAssignee" name="pAssignee" required>
+                            </div>
+                            <div class="form-group">
+                              <label for="driversAddress">Driver's Address:</label>
+                              <input type="text" id="driversAddress" name="driversAddress" required>
+                            </div>
+                           
+                            <div class="form-group">
+                              <label for="sourceCompany">Source Company:</label>
+                              <input type="text" id="sourceCompany" name="sourceCompany" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="dateofemployment">Date Of Employment:</label>
+                                <input type="date" id="dateofemployment" name="dateofemployment" required>
+                            </div>
+                            
+
+                              <!-- <div class="form-group">
+                                <label for="Vehicle_number">NIN:</label>
+                                <input type="text" id="nin" name="nin" required>
+                              </div> -->
+
+                          <hr class="my-4">
+                          <!-- Address -->
+                        </form>
+                      
+                </div>
+                <!-- <button id="submitButton" class="btn btn-primary">Submit and Preview</button> -->
+                
+                <div class="button-container">
+                    <button id="backButton" class="btn btn-back">
+                      <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button id="submitButton" class="btn btn-submit"> Preview and Submit </button>
+                  </div>
+
+            <div class="row removable">
+                <div class="col-xl-8">
+
+                </div>
+                <div class="col-xl-4">
+
+                </div>
+            </div>
+        </div>
+        <!-- Footer -->
+     
+   
+    <!-- <div class="loopple-alert loopple-alert-gradient-dark loopple-alert-dismissible loopple-fade loopple-position-fixed loopple-z-index-9999 loopple-bottom-2 loopple-mx-auto loopple-text-center loopple-right-0 loopple-left-0 loopple-w-50" role="alert"><strong>View and edit your project online</strong><a class="loopple-btn loopple-btn-white loopple-ml-2" href="https://www.loopple.com/builder/project-7TiSUEDkzjYMSdfSHABS3lugHnVzngQS5Nz" target="_blank">Editor</a><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span></button></div> -->
+    <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/jquery.min.js"></script>
+    <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/bootstrap.bundle.min.js"></script>
+    <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/js.cookie.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+    <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/chart.extension.js"></script>
+    <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/7bb803d2af2ab6d71d429b0cb459c24a4cd0fbb4/argon-dashboard/js/argon.min.js"></script>
+
+     
+
+<script>
+    // Function to show/hide the table
+    function showDriverDetailsTable() {
+        // Make the table visible
+        const driverDetailsTable = document.getElementById("driverDetailsTable");
+        driverDetailsTable.style.display = "block";
+
+        // Make the AJAX request to populate the table (you can call showAllDriverDetails() here)
+        showAllDriverDetails();
+    }
+
+
+ 
+
+    function showAllDriverDetails() {
+    function hideAllElements() {
+        const form = document.getElementById('addDriverForm');
+        const table = document.querySelector('#profileForm table');
+        const backButton = document.getElementById('backButton');
+        const submitButton = document.getElementById('submitButton');
+
+        if (form && table && backButton && submitButton) {
+            form.style.display = 'none';
+            table.style.display = 'none';
+            backButton.style.display = 'none';
+            submitButton.style.display = 'none';
+        } else {
+            // If any of the elements don't exist, show an alert
+            alert("Form, table, or buttons do not exist.");
+        }
+    }
+
+    hideAllElements(); // Hide elements
+
+    // Make an AJAX request to the /receive_driver_parameters endpoint
+    fetch('/receive_driver_parameters')
+        .then(response => response.json())
+        .then(data => {
+            // Handle the response data here
+            const driverDetailsTable = document.getElementById("driverDetailsTable");
+            const tableBody = driverDetailsTable.querySelector("tbody");
+
+            // Clear any existing table rows
+            tableBody.innerHTML = "";
+
+            // Iterate through the driver details and add them to the table
+            data.forEach(driver => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${driver.driver_name}</td>
+                    <td>${driver.driverPhone}</td>
+                    <td>${driver.pAssignee}</td>
+                    <td>${driver.sourceCompany}</td>
+                    <td>${driver.driversAddress}</td>
+                    <td>${driver.dateofemployment}</td>
+                    <td>
+                    <button class="btn btn-info btn-sm" onclick="editDriver('${driver._id}')">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteDriver('${driver._id}')">Delete</button>
+                    </td>
+
+                `;
+                tableBody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('An error occurred:', error);
+            // Handle errors, e.g., display an error message
+        });
+}
+</script> 
+
+
+
+
+<script>
+    function deleteDriver(driverId) {
+        // Make a request to delete the driver data based on the ID
+        alert("Deleting")
+        fetch(`/delete_driver/${driverId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                // If the deletion was successful, you might want to update the UI or perform any additional actions
+                // For example, removing the deleted driver's row from the table
+                const row = document.getElementById(`driver-${driverId}`);
+                if (row) {
+                    row.remove();
+                } else {
+                    // Handle if the row doesn't exist or any other action you want to take
+                    console.log('Driver row not found.');
+                }
+            } else {
+                // Handle the case where deletion was not successful
+                console.error('Deletion failed');
+            }
+        })
+        .catch(error => {
+            console.error('An error occurred:', error);
+            // Handle errors, e.g., display an error message
+        });
+    }
+    </script>          
+
+
+
+
+
+<script>
+    function showAlert() {
+        alert("Work in progress...");
+    }
+</script>
+<script>
+
+const backButton = document.getElementById('backButton');
+
+// Event listener for the "Back" button
+backButton.addEventListener('click', function () {
+    // Redirect to the security_portal.html page
+    window.location.href = 'drivers_details.html';
+});
+</script>
+
+<!-- <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var receptionistLink = document.getElementById("receptionistPortalLink");
+        
+        receptionistLink.addEventListener("click", function(event) {
+            event.preventDefault(); // Prevent the default behavior of the link
+            
+            // Redirect to the receptionist page
+            window.location.href = "hr_portal.html";
+        });
+    });
+    </script> -->
+    
+
+<script>
+    // Function to handle the Security Portal link click
+    function receptionist() {
+        // Redirect to the security_portal page
+        window.location.href = 'Receptionist.html';
+    }
+
+    // Get a reference to the link element
+    const securityPortalLink = document.getElementById('securityPortalLink');
+
+    // Attach the function to the click event of the link
+    securityPortalLink.addEventListener('click', security_portal);
+</script>
+
+<script> 
+document.addEventListener('DOMContentLoaded', function() {
+    const driverDetailsTableBody = document.getElementById('driverDetailsTableBody');
+    const driverDetailsTableHead = document.querySelector('#driverDetailsTable thead');
+    const newEntriesTab = document.getElementById('newEntriesTab');
+    const loadingAnimation = document.getElementById('loadingAnimation');
+    const profileForm = document.getElementById('profileForm');
+    const driverDetailsTable = document.getElementById('driverDetailsTable');
+
+    // loadingAnimation.style.display = 'none';
+    // profileForm.style.display = 'none';
+
+    // Function to clear the driver details table including the div
+    function clearDriverDetailsTable() {
+        if (driverDetailsTableBody.rows.length === 0) {
+            alert('No data to clear.');
+        } else {
+            driverDetailsTableBody.innerHTML = ''; // Clear the driver details table body
+            driverDetailsTableHead.innerHTML = ''; // Clear the header of the table
+        }
+    }
+
+    newEntriesTab.addEventListener('click', () => {
+        clearDriverDetailsTable();
+        loadingAnimation.style.display = 'block';
+        alert('Data Deleted.');
+
+        // Initially hide the profile form
+        profileForm.style.display = 'none';
+
+        // Simulate a delay of 3 seconds for the loading animation
+        setTimeout(() => {
+            loadingAnimation.style.display = 'none';
+            // Display the profile form after the loading period
+            profileForm.style.display = 'block';
+            alert("Jesus is lord4");
+        }, 3000);
+    });
+});
+
+</script> 
+
+
+<script>
+submitButton.addEventListener('click', async function (event) {
+    event.preventDefault(); // Prevent the form from submitting normally
+
+    // Get form values
+    const loadingAnimation = document.getElementById('loadingAnimation');
+    // loadingAnimation.style.display = 'block'; // Show loading animation
+    const nameofdriver = document.getElementById('driver_name').value;
+    const driverPhone = document.getElementById('driver_phone').value;
+    const pAssignee = document.getElementById('pAssignee').value;
+    const driversAddress = document.getElementById('driversAddress').value;
+    const sourceCompany = document.getElementById('sourceCompany').value;
+    const dateofemployment = document.getElementById('dateofemployment').value;
+
+    // Create new table row
+    newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td>${nameofdriver}</td>
+        <td>${driverPhone}</td>
+        <td>${pAssignee}</td>
+        <td>${driversAddress}</td>
+        <td>${sourceCompany}</td>
+        <td>${dateofemployment}</td>
+        <td>Pending</td>
+        <td>
+            <button class="btn btn-sm btn-success save-success">Save</button>
+            <button class="btn btn-sm btn-danger cancel">Cancel</button>
+        </td>
+    `;
+
+    // Append new row to table body
+    entryTableBody.appendChild(newRow);
+
+    // Clear form inputs
+    document.getElementById('driver_name').value = '';
+    document.getElementById('driver_phone').value = '';
+    document.getElementById('pAssignee').value = '';
+    document.getElementById('driversAddress').value = '';
+    document.getElementById('sourceCompany').value = '';
+    document.getElementById('dateofemployment').value = '';
+
+    // Add event listener to "Cancel" button in the newly added row
+    newRow.querySelector('.cancel').addEventListener('click', function () {
+        entryTableBody.removeChild(newRow);
+    });
+
+
+newRow.querySelector('.save-success').addEventListener('click', async function () {
+    const cells = newRow.getElementsByTagName('td');
+    const driver_name = cells[0].textContent;
+    const driverPhone = cells[1].textContent;
+    const pAssignee = cells[2].textContent;
+    const driversAddress = cells[3].textContent;
+    const sourceCompany = cells[4].textContent;
+    const dateofemployment = cells[5].textContent;
+
+try {
+        const response = await fetch('/send_driver_parameters', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                driver_name,
+                driverPhone, // Include driverPhone in the payload
+                driversAddress,
+                pAssignee,
+                sourceCompany,
+                dateofemployment,
+            }),
+        });
+
+  if (response.ok) {
+    alert('Driver Added to Database.');
+  } else {
+    console.error('Failed to save data to MongoDB.');
+  }
+} catch (error) {
+  console.error('An error occurred:', error);
+}
+});
+
+setTimeout(() => {
+        loadingAnimation.style.display = 'none'; // Hide loading animation after processing
+    }, 3000);
+
+});   
+</script>
+
+
