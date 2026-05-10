@@ -1,0 +1,265 @@
+/* * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  body {
+    display: grid;
+    height: 100vh;
+    width: 100%;
+    place-items: center;
+    background: linear-gradient(to right, #ff7c02 0%, #1129fc 100%);
+  }
+  
+  ::selection {
+    background: #ff80bf;
+  }
+  
+  .wrapper {
+    background: #ffffff;
+    max-width: 350px;
+    width: 100%;
+    padding: 50px 30px;
+    border-radius: 5px;
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.15);
+  }
+  
+  .wrapper h2 {
+    font-size: 30px;
+    font-weight: 600;
+    margin: 20px 0 10px 0;
+    position: relative;
+  }
+  
+  .wrapper h2:before {
+    content: '';
+    position: absolute;
+    height: 4px;
+    width: 33px;
+    left: 0px;
+    bottom: 3px;
+    border-radius: 5px;
+    background: linear-gradient(to right, #99004d 0%, #ff0080 100%);
+  }
+  
+  .input-box {
+    width: 100%;
+    margin-top: 25px;
+    position: relative;
+  }
+  
+  .input-box input {
+    width: 100%;
+    height: 100%;
+    outline: none;
+    font-size: 16px;
+    border: none;
+  }
+  
+  .input-box .underline::before {
+    content: '';
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    background: #ccc;
+    left: 0;
+    bottom: 0;
+  }
+  
+  .input-box .underline::after {
+    content: '';
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(to right, #99004d 0%, #ff0080 100%);
+    left: 0;
+    bottom: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: all 0.3s ease;
+  }
+  
+  .input-box input:focus ~ .underline::after,
+  .input-box input:valid ~ .underline::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  
+  .input-box .button {
+    margin: 40px 0 20px 0;
+  }
+  
+  .input-box input[type="button"] {
+    background: linear-gradient(to right, #99004d 0%, #ff0080 100%);
+    font-size: 17px;
+    color: #fff;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 200px;
+  }
+  
+  .input-box input[type="button"]:hover {
+    letter-spacing: 1px;
+    background: linear-gradient(to left, #99004d 0%, #ff0080 100%);
+  }
+  
+  .input-box select {
+    width: 290px;
+    background: linear-gradient(to right, #06b440, #000000);
+    color: #ece80c;
+  }
+  
+  .text h3 a {
+    text-decoration: none;
+    color: #99004d;
+  }
+  
+  .text h3 a:hover {
+    color: #ff0080;
+  }
+   */
+
+
+
+
+
+   * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  body {
+    display: grid;
+    height: 100vh;
+    width: 100%;
+    place-items: center;
+    background: linear-gradient(to right, #ff7c02 0%, #1129fc 100%);
+  }
+  
+  ::selection {
+    background: #ff80bf;
+  }
+  
+  .wrapper {
+    background: #ffffff;
+    max-width: 400px;
+    width: 100%;
+    padding: 20px 30px; /* Adjusted padding */
+    border-radius: 5px;
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.15);
+  }
+  
+  .wrapper h2 {
+    font-size: 30px;
+    font-weight: 600;
+    margin: 20px 0 10px 0;
+    position: relative;
+    color: #333;
+  }
+  
+  .wrapper h2:before {
+    content: '';
+    position: absolute;
+    height: 4px;
+    width: 33px;
+    left: 0px;
+    bottom: 3px;
+    border-radius: 5px;
+    background: linear-gradient(to right, #99004d 0%, #ff0080 100%);
+  }
+  
+  .input-box {
+    width: 100%;
+    margin-top: 15px; /* Adjusted margin top */
+    margin-bottom: 15px; /* Adjusted margin bottom */
+    position: relative;
+  }
+  
+  .input-box input {
+    width: 100%;
+    height: 100%;
+    outline: none;
+    font-size: 16px;
+    border: none;
+    padding: 12px;
+    border-radius: 5px;
+    background-color: #f4f4f4;
+  }
+  
+  .input-box .underline::before {
+    content: '';
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    background: #ccc;
+    left: 0;
+    bottom: 0;
+  }
+  
+  .input-box .underline::after {
+    content: '';
+    position: absolute;
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(to right, #99004d 0%, #ff0080 100%);
+    left: 0;
+    bottom: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: all 0.3s ease;
+  }
+  
+  .input-box input:focus ~ .underline::after,
+  .input-box input:valid ~ .underline::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  
+  .input-box .button {
+    margin: 20px 0; /* Adjusted margin */
+  }
+  
+  .input-box input[type="button"] {
+    background: linear-gradient(to right, #99004d 0%, #ff0080 100%);
+    font-size: 17px;
+    color: #fff;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    padding: 12px;
+  }
+  
+  .input-box input[type="button"]:hover {
+    letter-spacing: 1px;
+    background: linear-gradient(to left, #99004d 0%, #ff0080 100%);
+  }
+  
+  .input-box select {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(to right, #06b440, #000000);
+    color: #ece80c;
+    border-radius: 5px;
+    outline: none;
+    border: none;
+  }
+  
+  .input-box select:focus {
+    background: linear-gradient(to right, #06b440, #06b440); /* Color when focused */
+  }
+  
+  .text h3 a {
+    text-decoration: none;
+    color: #99004d;
+  }
+  
+  .text h3 a:hover {
+    color: #ff0080;
+  }
+  

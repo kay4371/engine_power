@@ -1,0 +1,390 @@
+
+
+
+
+ <!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style2.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        .input-box.button {
+            width: 100%;
+            text-align: center;
+        }
+    
+        /* Continue Button */
+        .input-box.button input[type="button"] {
+            color: #c2f4f5;
+            background: linear-gradient(90deg, #00FF00, #000000); /* Green to Black gradient */
+            font-size: 15px;
+            border: 1px solid #2d63c8;
+            width: 100%;
+            height: 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s; /* Add a smooth transition for the transform property */
+        }
+    
+        .input-box.button input[type="button"]:hover {
+            color: #2d63c8;
+            background: #ffffff; /* Change the hover background color to white */
+        }
+    
+        .input-box.button input[type="button"]:active {
+            transform: scale(0.95); /* Apply a scale transformation on button click */
+        }
+    
+        /* Create Account Button */
+        .container button {
+            color: #c2f4f5;
+            background-color: #7712eb;
+            font-size: 15px;
+            border: 1px solid #2d63c8;
+            width: 100%;
+            height: 40px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    
+        .container button:hover {
+            color: #2d63c8;
+            background-color: #ffffff;
+        }
+        .powered-by-footer {
+    position: absolute; /* Sticks it at the bottom */
+    bottom: 10px; /* Adjust this as needed */
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 14px;
+    color: #777;
+    font-weight: bold;
+    width: 100%;
+}
+
+.suntrenia {
+    color: #777;/* Suntrenia brand color */
+}
+
+
+
+        .container {
+      position: relative;
+  }
+  
+  .container img {
+      position: absolute;
+      top: 50px; /* Adjust this value to move the logo down */
+      left: 50%; /* Adjust this value to horizontally center the logo */
+      transform: translateX(-50%);
+  }
+
+      /* Success Animation Styles */
+      .success-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease;
+      }
+      
+      .success-animation.show {
+        opacity: 1;
+        visibility: visible;
+      }
+      
+      .success-content {
+        background-color: white;
+        border-radius: 16px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        max-width: 300px;
+        width: 80%;
+        transform: scale(0.8);
+        transition: transform 0.3s ease;
+      }
+      
+      .success-animation.show .success-content {
+        transform: scale(1);
+      }
+      
+      .success-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        position: relative;
+      }
+      
+      .success-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background-color: #4CAF50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        animation: pulse 1.5s infinite;
+      }
+      
+      .checkmark {
+        width: 40px;
+        height: 20px;
+        border-left: 4px solid white;
+        border-bottom: 4px solid white;
+        transform: rotate(-45deg);
+        margin-top: -5px;
+      }
+      
+      .success-text {
+        font-size: 24px;
+        font-weight: bold;
+        color: #4CAF50;
+        margin-bottom: 10px;
+      }
+      
+      .user-name {
+        font-size: 18px;
+        color: #333;
+        margin-bottom: 10px;
+      }
+      
+      .redirect-text {
+        font-size: 14px;
+        color: #777;
+      }
+      
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+        }
+        70% {
+          transform: scale(1.05);
+          box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+        }
+      }
+
+    </style>
+  
+  
+
+</head>
+<body>
+  <div>
+
+    <main>
+      <!-- IntellJob logo: briefcase with tie (navy briefcase + light-blue tie) -->
+      <svg xmlns="http://www.w3.org/2000/svg"
+           width="400" height="200"
+           viewBox="0 0 120 80"
+           preserveAspectRatio="xMidYMid meet"
+           role="img"
+           aria-labelledby="logoTitle logoDesc"
+           focusable="false">
+        <title id="logoTitle">IntellJob logo — briefcase with tie</title>
+        <desc id="logoDesc">A stylized briefcase with a light-blue tie centered in front, representing professionalism and jobs.</desc>
+    
+        <style>
+          /* quick palette variables (change these) */
+          .briefcase { fill: #0D2744; }          /* deep navy briefcase - swap to #37474F or #455A64 */
+          .briefcase-outline { stroke: rgba(0,0,0,0.12); stroke-width: 0.8; fill: none; }
+          .tie { fill: #4FC3F7; }               /* light blue tie - swap to #6A1B9A (purple) or gradient */
+          .cut { fill: #ffffff; }               /* pockets / cutouts */
+          .subtle { fill: rgba(255,255,255,0.12); } /* optional highlight */
+        </style>
+    
+        <!-- Briefcase body -->
+        <rect x="10" y="20" rx="7" ry="7" width="100" height="50" class="briefcase"/>
+        <!-- Briefcase outline (subtle) -->
+        <rect x="10.8" y="20.8" rx="6.7" ry="6.7" width="98.4" height="48.4" class="briefcase-outline"/>
+    
+        <!-- Handle -->
+        <rect x="42" y="6" width="36" height="12" rx="3" class="briefcase"/>
+    
+        <!-- Pocket/slot accents -->
+        <rect x="28" y="36" width="18" height="4" rx="1" class="cut" />
+        <rect x="74" y="36" width="18" height="4" rx="1" class="cut" />
+    
+        <!-- Tie (placed after briefcase so it visually 'pops') -->
+        <g>
+          <!-- knot -->
+          <path class="tie" d="M53 24 L67 24 L62 30 L58 30 Z" />
+          <!-- blade -->
+          <path class="tie" d="M58 30 L62 30 L68.5 54.5 C69 56 67.8 57 66.5 57 L61 63 L59 63 L53.5 57 C52.2 57 51 56 51.5 54.5 L58 30 Z" />
+          <!-- optional subtle highlight -->
+          <path class="subtle" d="M59.6 32 L61.4 32 L65.5 52.4 C65.8 53.3 65.3 54 64.6 54.4 L61 57.4 L59.9 57.4 L56.5 54.4 C55.9 54.1 55.6 53.3 55.9 52.4 L59.6 32 Z"/>
+        </g>
+      </svg>
+    </main>
+    
+</div>
+
+
+<div class="container" style="position: relative; top: -50px;">
+
+    <form id="loginForm">
+      
+        <div class="title">Login</div>
+        <div class="input-box underline">
+          <input type="text" id="phoneNumber" placeholder="Enter Your Phone Number" required>
+          <div class="underline"></div>
+        </div>
+        <div class="input-box">
+          <input type="password" id="password" placeholder="Enter Your Password" required>
+          <div class="underline"></div>
+        </div>
+        <div class="input-box button">
+          <input type="button" value="Continue" onclick="loginFunction()">
+        </div>
+      </form>
+
+    <div>
+        <button type="submit" id="travels_advisory" onclick="gotoregister_myFunction()">Create Account</button>
+    </div>
+
+    <footer class="powered-by-footer">
+      <p>Powered by <span class="suntrenia">Suntrenia</span></p>
+  </footer>
+  
+  <!-- Success Animation Overlay -->
+  <div class="success-animation" id="successAnimation">
+    <div class="success-content">
+      <div class="success-icon">
+        <div class="success-circle">
+          <div class="checkmark"></div>
+        </div>
+      </div>
+      <div class="success-text">Welcome!</div>
+      <div class="user-name" id="welcomeUserName"></div>
+      <div class="redirect-text">Redirecting to dashboard...</div>
+    </div>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    fetch('/check-auth')
+        .then(response => response.json())
+        .then(data => {
+            if (data.authenticated) {
+              window.location.href = '/protected/intellijob_dashboard.html';
+
+            }
+        });
+    </script>
+  <script>
+    function gotoregister_myFunction() {
+        // Redirect to the create_account.html page or perform any other actions
+        window.location.href = "create_account.html";
+    }
+</script>
+
+  <script>
+    // Function to clean and format the phone number
+   // Function to clean and format the phone number
+function cleanAndFormatPhoneNumber(phoneNumber) {
+  if (typeof phoneNumber !== 'string') {
+    console.error('Invalid phoneNumber:', phoneNumber);
+    return phoneNumber;
+  }
+
+  // Remove non-digit characters and add country code if missing
+  const cleanedNumber = phoneNumber.replace(/\D/g, '');
+
+  // Check if the number starts with '0' and replace it with '+234'
+  if (cleanedNumber.startsWith('0')) {
+    const formattedNumber = `+234${cleanedNumber.slice(1)}`;
+    return formattedNumber;
+  }
+
+  // Check if the number starts with '234' and add '+' if missing
+  if (cleanedNumber.startsWith('234')) {
+    return `+${cleanedNumber}`;
+  }
+
+  // If the number doesn't start with '0' or '234', add '+234' as the prefix
+  return `+234${cleanedNumber}`;
+}
+
+// Function to show success animation
+function showSuccessAnimation(userName) {
+  const animation = document.getElementById('successAnimation');
+  const welcomeText = document.getElementById('welcomeUserName');
+  
+  // Set the user's name if available
+  if (userName) {
+    welcomeText.textContent = userName;
+  } else {
+    welcomeText.style.display = 'none';
+  }
+  
+  // Show the animation
+  animation.classList.add('show');
+  
+  // Redirect after 2 seconds (you can adjust this timing)
+  setTimeout(() => {
+    window.location.href = data.redirect;
+  }, 2000);
+}
+ 
+  function loginFunction() {
+  const phoneNumber = cleanAndFormatPhoneNumber(document.getElementById("phoneNumber").value);
+  const password = document.getElementById("password").value;
+
+  // Send login credentials to the server
+  fetch('/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ phoneNumber, password }),
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.token) {
+      // Store the token in localStorage or a secure storage method
+      localStorage.setItem('token', data.token);
+
+      // Store user's name in localStorage
+      localStorage.setItem('userName', data.userName);
+
+      // Show beautiful success animation instead of alert
+      showSuccessAnimation(data.userName);
+    } else {
+      // Display an alert if the message is about creating an account
+      if (data.message && data.message.includes('create an account')) {
+        alert(data.message);
+      } else {
+        // Handle other error messages (e.g., invalid credentials)
+        console.error('Error during login:', data.message);
+        alert('Login failed. Please check your credential or activate your account...');
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    // Handle errors
+  });
+}
+</script>
+
+
+</div>
+</body>
+</html>

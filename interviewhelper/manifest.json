@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Suntrenia AI Intervia Helper",
+  "version": "1.0.0",
+  "description": "AI-powered interview coaching assistant integrated with IntelliJob",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "cookies"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://your-domain.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://www.indeed.com/*",
+        "https://ng.indeed.com/*",
+        "https://www.glassdoor.com/*",
+        "https://www.monster.com/*",
+        "https://www.naukri.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Suntrenia AI Intervia Helper",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

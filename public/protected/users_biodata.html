@@ -1,0 +1,1595 @@
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- <title>Dashboard Builder</title> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+    <link rel="stylesheet" href="https://rawcdn.githack.com/Loopple/loopple-public-assets/ad60f16c8a16d1dcad75e176c00d7f9e69320cd4/argon-dashboard/css/nucleo/css/nucleo.css">
+    
+    <!-- ✅ Corrected: absolute paths -->
+    <link rel="stylesheet" href="/assets/css/theme.css">
+    <link rel="stylesheet" href="/assets/css/loopple/loopple.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+<style>/* General form section styles */
+.button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.btn-back, .btn-primary, .btn-submit {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-back {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-submit {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-back:hover { background-color: #5a6268; }
+.btn-primary:hover { background-color: #0056b3; }
+.btn-submit:hover { background-color: #218838; }
+   /* General form section styles */
+
+    /* Style for submit button */
+    .btn-submit {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        background-color: #0056b3;
+    }
+
+
+
+.form-section {
+    margin-bottom: 20px;
+}
+
+.section-heading {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Existing button styles */
+.button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.btn-back {
+    display: none;
+}
+
+#backButton {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-control {
+    margin-bottom: 10px;
+}
+
+.btn-submit {
+    display: none;
+}
+
+/* New styles for "Add" buttons */
+.btn-secondary {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #218838;
+}
+
+#certifications button,
+#memberships button,
+#languages button,
+#projectsContainer button {
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+#certifications button:hover,
+#memberships button:hover,
+#languages button:hover,
+#projectsContainer button:hover {
+    background-color: #138496;
+}
+
+/* Existing styles */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.entry-table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid #ddd;
+}
+
+.entry-table th,
+.entry-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.entry-table th {
+    background: linear-gradient(to bottom, #007bff, #011588);
+    color: white;
+}
+
+.entry-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.jumping-dots-loader {
+    width: 100px;
+    height: 100px;
+    border-radius: 100%;
+    position: relative;
+    margin: 0 auto;
+}
+
+.jumping-dots-loader span {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    background-color: rgba(241, 83, 110, 0.8);
+    margin: 35px 5px;
+}
+
+.jumping-dots-loader span:nth-child(1) {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+.jumping-dots-loader span:nth-child(2) {
+    animation: bounce 1s ease-in-out 0.33s infinite;
+}
+
+.jumping-dots-loader span:nth-child(3) {
+    animation: bounce 1s ease-in-out 0.66s infinite;
+}
+
+@keyframes bounce {
+    0%, 75%, 100% {
+        transform: translateY(0);
+    }
+    25% {
+        transform: translateY(-20px);
+    }
+}
+
+.certification-entry, .membership-entry, .language-entry, .project-entry {
+    margin-bottom: 15px;
+}
+
+.certification-entry input, .membership-entry input, .language-entry input, .project-entry input, .project-entry textarea {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.certification-entry input, .membership-entry input, .language-entry input {
+    height: 40px;
+}
+
+.certification-entry input::placeholder, .membership-entry input::placeholder, .language-entry input::placeholder, .project-entry input::placeholder, .project-entry textarea::placeholder {
+    color: #999;
+}
+
+ </style>  
+
+
+</head>
+<body class="g-sidenav-show">
+    <nav class="sidenav navbar navbar-vertical fixed-left navbar-expand-xs navbar-light bg-white loopple-fixed-start" id="sidenav-main">
+        <div class="sidenav-header  align-items-center">
+            <a class="navbar-brand" href="javascript:void(0)">
+                <img src="https://loopple.s3.eu-west-3.amazonaws.com/images/6hrcq113GeocFfxSvZ8Lcz38JIFfMfuafaW6l1s5.png" class="navbar-brand-img" alt="...">
+            </a>
+        </div>
+        <div class="navbar-inner">
+            <div class="collapse navbar-collapse" id="sidenav-collapse-main">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="javascript:">
+                            <i class="fa fa-desktop text-primary"></i>
+                            <span class="nav-link-text" style="font-size: 22px; font-weight: bold; font-family: 'Arial', sans-serif;">IntelliJob</span>
+                        </a>
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:" id="profileSettingsLink">
+                            <i class="fa fa-user text-success"></i>
+                            <span class="nav-link-text">My Profile</span>
+                        </a>
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:goBack()">
+                            <i class="fas fa-arrow-left text-primary"></i>
+                            <span class="nav-link-text">Back</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:goHome()">
+                            <i class="fas fa-home text-primary"></i>
+                            <span class="nav-link-text">Home</span>
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="main-content" id="panel">
+        <nav class="navbar navbar-top navbar-expand navbar-dark border-bottom bg-dark" id="navbarTop">
+            <div class="container-fluid">
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <form class="navbar-search navbar-search-light form-inline mr-sm-3 mb-0" id="navbar-search-main">
+                        <div class="form-group mb-0">
+                            <div class="input-group input-group-alternative input-group-merge">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                </div>
+                                <input class="form-control" placeholder="Search" type="text">
+                            </div>
+                        </div>
+                        <button type="button" class="close" data-action="search-close" data-target="#navbar-search-main" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </form>
+                    <ul class="navbar-nav align-items-center  ml-md-auto ">
+                        <li class="nav-item d-xl-none">
+                            <div class="pr-3 sidenav-toggler sidenav-toggler-dark active" data-action="sidenav-pin" data-target="#sidenav-main">
+                                <div class="sidenav-toggler-inner">
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item d-sm-none">
+                            <a class="nav-link" href="#" data-action="search-show" data-target="#navbar-search-main">
+                                <i class="ni ni-zoom-split-in"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa fa-bell"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-xl  dropdown-menu-right  py-0 overflow-hidden">
+                                <div class="px-3 py-3">
+                                    <h6 class="text-sm text-muted m-0">You have <strong class="text-primary">13</strong> notifications.</h6>
+                                </div>
+                                <div class="list-group list-group-flush">
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-1.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-2.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-3.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>5 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Your posts have been liked a lot.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-4.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-5.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <a href="#!" class="dropdown-item text-center text-primary font-weight-bold py-3">View all</a>
+                            </div>
+                        </li>
+                  
+                    </ul>
+                    <ul class="navbar-nav align-items-center  ml-auto ml-md-0 ">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link pr-0" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <div class="media align-items-center">
+                                    <span class="avatar avatar-sm rounded-circle">
+                                        <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg">
+                                    </span>
+                                    <div class="media-body  ml-2  d-none d-lg-block">
+                                        <span class="mb-0 text-sm  font-weight-bold">John Snow</span>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu  dropdown-menu-right ">
+                                <div class="dropdown-header noti-title">
+                                    <h6 class="text-overflow m-0">Welcome!</h6>
+                                </div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-user"></i>
+                                    <span>My profile</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-tools"></i>
+                                    <span>Settings</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="far fa-calendar"></i>
+                                    <span>Activity</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-phone"></i>
+                                    <span>Support</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-sign-out-alt"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid pt-3">
+            <div class="row removable">
+                <div class="col-xl-3 col-md-6" id="newEntriesTab">
+                    <div class="card bg-gradient-primary border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Manage Biodata</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">8/24</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" style="width: 30%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#" id="managePhotograph">Manage Photograph</a>
+                                        <a class="dropdown-item" href="#">Add Biodata</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-info border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Nothing Here!</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">123/267</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100" style="width: 50%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#">Action</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-danger border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Nothing Here!</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">200/300</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100" style="width: 80%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#">Action</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-default border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Notifications</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">50/62</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100" style="width: 90%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#">Action</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div class="jumping-dots-loader" id="loadingAnimation">
+                <span></span> <span></span> <span></span>
+            </div>
+
+            <div class="card" id="profileForm">
+                <div class="table-container">
+                    <table class="entry-table">
+                        <thead>
+                            <tr>
+                                <th> </th>
+                                <th> </th>
+                                <th> </th>
+                                <th> </th>
+                                <th> </th>
+                                <th> </th>
+                                <th> </th>
+                            </tr>
+                        </thead>
+                        <tbody id="entryTableBody">
+                            <!-- Entries from the form will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-header">
+                    <div class="row align-items-center"></div>
+                </div>
+                <div class="card-body">
+                    <form id="cvForm" enctype="multipart/form-data" >
+                        <h6 class="heading-small text-muted mb-4">User CV Biodata Form</h6>
+                        <div id="section-1" class="form-section">
+                            <h6 class="section-heading">1 of 3: Biodata</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="input-username">Name</label>
+                                            <input type="text" id="input-username" name="name" class="form-control" placeholder="First Name then Surname e.g Kayode Fakorede" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="jobTitle">Job Title</label>
+                                            <input type="text" id="jobTitle" name="jobTitle" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="dateOfBirth">Date of Birth</label>
+                                            <input type="date" id="dateOfBirth" name="dateOfBirth" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="phone_number">Phone Number</label>
+                                            <input type="tel" id="phone_number" name="phone_number" class="form-control" placeholder="e.g 08034567890" pattern="[0-9]{11}" title="Please enter a valid phone number (11 digits)" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                        <div id="section-2" class="form-section" style="display: none;">
+                            <h6 class="section-heading">2 of 3: Contact Information</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="address">Address</label>
+                                            <input type="text" id="address" name="address" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="email">Email</label>
+                                            <input type="email" id="email" name="email" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="skills">Skills (comma separated)</label>
+                                            <textarea id="skills" name="skills" class="form-control" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="summary">Summary</label>
+                                            <textarea id="summary" name="summary" class="form-control" required></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                        <div id="section-3" class="form-section" style="display: none;">
+                            <h6 class="section-heading">3 of 3: Experience and Education</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div id="workExperienceContainer">
+                                            <h5>Work Experience</h5>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="workExperienceTitle[]" placeholder="Job Title" required>
+                                                <input type="text" class="form-control" name="workExperienceCompany[]" placeholder="Company" required>
+                                                <input type="text" class="form-control" name="workExperienceDuration[]" placeholder="Duration" required>
+                                                <textarea class="form-control" name="workExperienceDescription[]" placeholder="Description" required></textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="addWorkExperience" class="btn btn-secondary">Add Work Experience</button>
+                
+                                        <div id="educationContainer">
+                                            <h5>Education</h5>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="educationSchool[]" placeholder="School" required>
+                                                <input type="text" class="form-control" name="educationDegree[]" placeholder="Degree" required>
+                                                <input type="text" class="form-control" name="educationDuration[]" placeholder="Duration" required>
+                                                <textarea class="form-control" name="educationDescription[]" placeholder="Description" required></textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="addEducation" class="btn btn-secondary">Add Education</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                        
+                        <div id="section-4" class="form-section" style="display: none;">
+                            <h6 class="section-heading">4 of 4: Additional Information</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+
+                                    
+                                        <div id="certificationContainer">
+                                            <button type="button" onclick="addCertifications()">Add Certification</button>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="certificationName[]" placeholder="Certification Name" required>
+                                                <input type="text" class="form-control" name="institution[]" placeholder="Institution" required>
+                                                <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+                                            </div>
+                                            
+                                        </div>
+                              
+                        
+                                        <div id="professionalBodyContainer">
+                                            <button type="button" onclick="addProfessionalBody()">Add Professional Membership</button>
+                                            <div class="form-group">
+                                           
+                                                    <input type="text" class="form-control" name="membershipName[]" placeholder="Membership Name" required>
+                                                    <input type="text" class="form-control" name="role[]" placeholder="Role" required>
+                                                    <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+                                            
+                                            </div>
+                                           
+                                        </div>
+                                 
+
+                                    
+                                        <div id="languagesContainer">
+                                            <button type="button" onclick="addLanguage()">Add Language</button>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="languagesTitle[]" placeholder="Language Name" required>
+                                                <input type="text" class="form-control" name="languageProficiency[]" placeholder="Language Proficiency" required>
+                                            </div>
+                                        </div>
+                                        
+                                            <!-- Custom Field Container -->
+                                            <div id="customFieldContainer">
+                                                <h5>Custom Fields</h5>
+                                                <button type="button" onclick="addCustomField()" class="btn btn-secondary">Add Custom Field</button>
+                                                <div class="form-group">
+                                                    <input type="text" class="form-control" name="customFieldTitle[]" placeholder="Custom Field Title" maxlength="30" required>
+                                                    <input type="text" class="form-control" name="customFieldValue[]" placeholder="Custom Field Value" required>
+                                                </div>
+                                            </div>
+
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="gender">Gender</label>
+                                            <select id="gender" name="gender" class="form-control" required>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+
+
+                                        <div id="projectsContainer">
+                                            <h5>Projects</h5>
+                                            <div class="form-group project-entry">
+                                                <input type="text" class="form-control" name="projectsTitle[]" placeholder="Project Title" required>
+                                                <input type="text" class="form-control" name="projectsPeriod[]" placeholder="Period" required>
+                                                <textarea class="form-control" name="projectsDescription[]" placeholder="Description" required></textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="addProjects" class="btn btn-secondary">Add Project</button> 
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upload CV Option -->
+                        <div class="form-group">
+                            <label class="form-control-label" for="uploadCv">Upload Existing CV</label>
+                            <input type="file" id="uploadCv" name="uploadCv" class="form-control">
+                        </div>
+
+
+
+                        <hr class="my-4">
+
+                    </form>
+
+                </div>
+            <!-- Add this after the form closing tag and before the script tags -->
+                <div class="button-container">
+                    <button id="backButton" class="btn btn-back">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button id="nextButton" class="btn btn-primary">Next</button>
+                    <button id="submitButton" class="btn btn-submit" style="display: none;">Preview and Submit</button>
+                </div>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/jquery.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/bootstrap.bundle.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/js.cookie.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/chart.extension.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/7bb803d2af2ab6d71d429b0cb459c24a4cd0fbb4/argon-dashboard/js/argon.min.js"></script>
+                
+                <script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    // Add these variable declarations
+                    const backButton = document.getElementById('backButton');
+                    const nextButton = document.getElementById('nextButton');
+                    const submitButton = document.getElementById('submitButton');
+                    const sections = document.querySelectorAll('.form-section');
+                    let currentSectionIndex = 0;
+                
+                    function showSection(index) {
+                        sections.forEach((section, i) => {
+                            section.style.display = i === index ? 'block' : 'none';
+                        });
+                        if (index === sections.length - 1) {
+                            nextButton.style.display = 'none';
+                            submitButton.style.display = 'block';
+                        } else {
+                            nextButton.style.display = 'block';
+                            submitButton.style.display = 'none';
+                        }
+                    }
+                
+                    nextButton.addEventListener('click', function() {
+                        currentSectionIndex = Math.min(currentSectionIndex + 1, sections.length - 1);
+                        showSection(currentSectionIndex);
+                    });
+                
+                    showSection(currentSectionIndex);
+
+                    // Add this section navigation logic if not present
+                    document.addEventListener("DOMContentLoaded", function() {
+                        const sections = document.querySelectorAll('.form-section');
+                        let currentSectionIndex = 0;
+
+                        function showSection(index) {
+                            sections.forEach((section, i) => {
+                                section.style.display = i === index ? 'block' : 'none';
+                            });
+                            if (index === sections.length - 1) {
+                                nextButton.style.display = 'none';
+                                submitButton.style.display = 'block';
+                            } else {
+                                nextButton.style.display = 'block';
+                                submitButton.style.display = 'none';
+                            }
+                        }
+
+                        nextButton.addEventListener('click', function() {
+                            currentSectionIndex = Math.min(currentSectionIndex + 1, sections.length - 1);
+                            showSection(currentSectionIndex);
+                        });
+
+                        backButton.addEventListener('click', function() {
+                            currentSectionIndex = Math.max(currentSectionIndex - 1, 0);
+                            showSection(currentSectionIndex);
+                        });
+
+                        showSection(currentSectionIndex);
+                    });
+
+                });
+
+
+                </script>
+
+<script>
+   
+   // Enhanced form submission logic
+cvForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+        alert('Please fill all required fields correctly.');
+        return;
+    }
+
+    const formData = new FormData(cvForm);
+    
+    try {
+        // Show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = 'Submitting...';
+
+        const response = await fetch('/submit-cv', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert('CV submitted successfully!');
+            // Redirect or show success message
+            window.location.href = '/protected/intellijob_dashboard.html';
+        } else {
+            throw new Error('Submission failed');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error submitting CV. Please try again.');
+    } finally {
+        // Reset button state
+        submitButton.disabled = false;
+        submitButton.innerHTML = 'Preview and Submit';
+    }
+});
+
+// Form validation function
+function validateForm() {
+    const requiredFields = cvForm.querySelectorAll('[required]');
+    let isValid = true;
+
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            isValid = false;
+            field.style.borderColor = 'red';
+        } else {
+            field.style.borderColor = '';
+        }
+    });
+
+    // Additional validation for specific fields
+    const phoneInput = document.getElementById('phone_number');
+    if (phoneInput && !/^\d{11}$/.test(phoneInput.value)) {
+        isValid = false;
+        phoneInput.style.borderColor = 'red';
+    }
+
+    const emailInput = document.getElementById('email');
+    if (emailInput && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value)) {
+        isValid = false;
+        emailInput.style.borderColor = 'red';
+    }
+
+    return isValid;
+}
+
+</script>
+<script>
+    // Add these helper functions for CV generation
+function generateSkillsHTML(skillsData) {
+    if (!skillsData || !Array.isArray(skillsData)) return '';
+    return skillsData.map(skill => `<li>${skill}</li>`).join('');
+}
+
+function generateSummaryHTML(summaryData) {
+    return summaryData ? `<p>${summaryData}</p>` : '';
+}
+
+function generateExperienceHTML(experienceData) {
+    if (!experienceData || !Array.isArray(experienceData)) return '';
+    return experienceData.map(exp => `
+        <div class="experience-item">
+            <h3>${exp.title || ''}</h3>
+            <p><strong>${exp.company || ''}</strong> | ${exp.duration || ''}</p>
+            <p>${exp.description || ''}</p>
+        </div>
+    `).join('');
+}
+
+function generateEducationHTML(educationData) {
+    if (!educationData || !Array.isArray(educationData)) return '';
+    return educationData.map(edu => `
+        <div class="education-item">
+            <h3>${edu.school || ''}</h3>
+            <p><strong>${edu.degree || ''}</strong> | ${edu.duration || ''}</p>
+            <p>${edu.description || ''}</p>
+        </div>
+    `).join('');
+}
+
+function generateLanguageList(languages) {
+    if (!languages || !Array.isArray(languages)) return '';
+    return languages.map(lang => `<li>${lang.name || ''} - ${lang.proficiency || ''}</li>`).join('');
+}
+
+function generateProjectsHTML(projectsData) {
+    if (!projectsData || !Array.isArray(projectsData)) return '';
+    return projectsData.map(project => `
+        <div class="project-item">
+            <h3>${project.title || ''}</h3>
+            <p><strong>Period:</strong> ${project.period || ''}</p>
+            <p>${project.description || ''}</p>
+        </div>
+    `).join('');
+}
+
+function generateCertificationsHTML(certificationsData) {
+    if (!certificationsData || !Array.isArray(certificationsData)) return '';
+    return certificationsData.map(cert => `
+        <div class="certification-item">
+            <h3>${cert.name || ''}</h3>
+            <p><strong>Institution:</strong> ${cert.institution || ''}</p>
+            <p><strong>Year:</strong> ${cert.year || ''}</p>
+        </div>
+    `).join('');
+}
+
+function generateProfessionalBodiesHTML(professionalBodiesData) {
+    if (!professionalBodiesData || !Array.isArray(professionalBodiesData)) return '';
+    return professionalBodiesData.map(body => `
+        <div class="professional-body-item">
+            <h3>${body.name || ''}</h3>
+            <p><strong>Role:</strong> ${body.role || ''}</p>
+            <p><strong>Year:</strong> ${body.year || ''}</p>
+        </div>
+    `).join('');
+}
+</script>
+
+
+                <script>
+                    const backButton = document.getElementById('backButton');
+                
+                    // Event listener for the "Back" button
+                    backButton.addEventListener('click', function () {
+                        // Redirect to the security_portal.html page
+                        window.location.href = 'receptionist.html';
+                    });
+                </script>
+                
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        var receptionistLink = document.getElementById("receptionistPortalLink");
+                        
+                        receptionistLink.addEventListener("click", function(event) {
+                            event.preventDefault(); // Prevent the default behavior of the link
+                            
+                            // Redirect to the receptionist page
+                            window.location.href = "receptionist.html";
+                        });
+                    });
+                </script>
+                
+                <script>
+                    // Function to handle the Security Portal link click
+                    function receptionist() {
+                        // Redirect to the security_portal page
+                        window.location.href = 'Receptionist.html';
+                    }
+                
+                    // Get a reference to the link element
+                    const securityPortalLink = document.getElementById('securityPortalLink');
+                
+                    // Attach the function to the click event of the link
+                    securityPortalLink.addEventListener('click', security_portal);
+                </script>
+                
+                <script>
+                    const submitButton = document.getElementById('submitButton');
+                    const entryTableBody = document.getElementById('entryTableBody');
+                    const loadingAnimation = document.getElementById('loadingAnimation');
+                    const profileForm = document.getElementById('profileForm');
+                
+                    loadingAnimation.style.display = 'none';
+                  
+                
+                    newEntriesTab.addEventListener('click', () => {
+                        loadingAnimation.style.display = 'block';
+                        profileForm.style.display = 'none';
+                
+                        // Simulate a delay of 3 seconds for the loading animation
+                        setTimeout(() => {
+                            loadingAnimation.style.display = 'none';
+                            profileForm.style.display = 'block';
+                        }, 3000);
+                    });
+
+
+                    newEntriesTab.addEventListener('click', () => {
+                        window.location.href = '/upload-image.html'
+                        });
+                      
+</script>  
+
+<script>
+    function addLanguage() {
+        const container = document.getElementById('languagesContainer');
+        const newEntry = document.createElement('div');
+        newEntry.classList.add('form-group');
+        newEntry.innerHTML = `
+            <input type="text" class="form-control" name="languagesTitle[]" placeholder="Language Name" required>
+            <input type="text" class="form-control" name="languageProficiency[]" placeholder="Language Proficiency" required>
+        `;
+        container.appendChild(newEntry);
+    }
+</script>
+
+<script>           
+    const addProjectsButton = document.getElementById('addProjects');
+    const addCertificationsButton = document.getElementById('addCertifications');
+    const addProfessionalBodiesButton = document.getElementById('addProfessionalBodies');
+    const projectsContainer = document.getElementById('projectsContainer');
+    const certificationsContainer = document.getElementById('certificationContainer');
+    const professionalBodiesContainer = document.getElementById('professionalBodyContainer');
+
+    addCertificationsButton.addEventListener('click', function () {
+        const certificationsGroup = document.createElement('div');
+        certificationsGroup.className = 'form-group';
+        certificationsGroup.innerHTML = `
+            <input type="text" class="form-control" name="certificationName[]" placeholder="Certification Name" required>
+            <input type="text" class="form-control" name="institution[]" placeholder="Institution" required>
+            <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+        `;
+        certificationsContainer.appendChild(certificationsGroup);
+    });
+
+    addProfessionalBodiesButton.addEventListener('click', function () {
+        const professionalBodiesGroup = document.createElement('div');
+        professionalBodiesGroup.className = 'form-group';
+        professionalBodiesGroup.innerHTML = `
+            <input type="text" class="form-control" name="membershipName[]" placeholder="Membership Name" required>
+            <input type="text" class="form-control" name="role[]" placeholder="Role" required>
+            <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+        `;
+        professionalBodiesContainer.appendChild(professionalBodiesGroup);
+    });
+ </script>
+
+                    <script>
+        function addCertifications() {
+    const container = document.getElementById('certificationContainer');
+    const newEntry = document.createElement('div');
+    newEntry.classList.add('form-group');
+    newEntry.innerHTML = `
+        <input type="text" class="form-control" name="certificationName[]" placeholder="Certification Name" required>
+        <input type="text" class="form-control" name="institution[]" placeholder="Institution" required>
+        <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+    `;
+    container.appendChild(newEntry);
+}
+
+
+
+function addProfessionalBody() {
+    const container = document.getElementById('professionalBodyContainer');
+    const newEntry = document.createElement('div');
+    newEntry.classList.add('form-group');
+    newEntry.innerHTML = `
+        <input type="text" class="form-control" name="membershipName[]" placeholder="Membership Name" required>
+        <input type="text" class="form-control" name="role[]" placeholder="Role" required>
+        <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+    `;
+    container.appendChild(newEntry);
+}
+
+</script>
+     <script>
+               document.addEventListener("DOMContentLoaded", function () {
+                    const backButton = document.getElementById('backButton');
+                    const addWorkExperienceButton = document.getElementById('addWorkExperience');
+                    const addEducationButton = document.getElementById('addEducation');
+                    const addProjectsButton = document.getElementById('addProjects'); // Added this line
+                    const addLanguagesButton = document.getElementById('addLanguages'); // Added this line
+                    const workExperienceContainer = document.getElementById('workExperienceContainer');
+                    const educationContainer = document.getElementById('educationContainer');
+                    const projectsContainer = document.getElementById('projectsContainer'); // Added this line
+                    const languagesContainer = document.getElementById('languagesContainer'); // Added this line
+                    const submitButton = document.getElementById('submitButton');
+                    const cvForm = document.getElementById('cvForm');
+
+                    backButton.addEventListener('click', function () {
+                        window.location.href = 'receptionist.html';
+                    });
+                                
+                    addWorkExperienceButton.addEventListener('click', function () {
+                        const workExperienceGroup = document.createElement('div');
+                        workExperienceGroup.className = 'form-group';
+                        workExperienceGroup.innerHTML = `
+                            <input type="text" class="form-control" name="workExperienceTitle[]" placeholder="Job Title" required>
+                            <input type="text" class="form-control" name="workExperienceCompany[]" placeholder="Company" required>
+                            <input type="text" class="form-control" name="workExperienceDuration[]" placeholder="Duration" required>
+                            <textarea class="form-control" name="workExperienceDescription[]" placeholder="Description" required></textarea>
+                        `;
+                        workExperienceContainer.appendChild(workExperienceGroup);
+                    });
+                                
+                    addEducationButton.addEventListener('click', function () {
+                        const educationGroup = document.createElement('div');
+                        educationGroup.className = 'form-group';
+                        educationGroup.innerHTML = `
+                            <input type="text" class="form-control" name="educationSchool[]" placeholder="School" required>
+                            <input type="text" class="form-control" name="educationDegree[]" placeholder="Degree" required>
+                            <input type="text" class="form-control" name="educationDuration[]" placeholder="Duration" required>
+                            <textarea class="form-control" name="educationDescription[]" placeholder="Description" required></textarea>
+                        `;
+                        educationContainer.appendChild(educationGroup);
+                    });
+                
+                    addProjectsButton.addEventListener('click', function () {
+                        const projectGroup = document.createElement('div');
+                        projectGroup.className = 'form-group project-entry';
+                        projectGroup.innerHTML = `
+                            <input type="text" class="form-control" name="projectsTitle[]" placeholder="Project Title" required>
+                            <input type="text" class="form-control" name="projectsPeriod[]" placeholder="Period" required>
+                            <textarea class="form-control" name="projectsDescription[]" placeholder="Description" required></textarea>
+                        `;
+                        projectsContainer.appendChild(projectGroup);
+                    });
+                
+                    cvForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const formData = new FormData(cvForm);
+                    const data = Object.fromEntries(formData.entries());
+
+                    // Ensure phone number is included in data
+                    data.phone_number = formData.get('phone_number');
+
+                    // Convert comma separated skills to array
+                    data.skills = data.skills.split(',').map(skill => skill.trim());
+
+                    // Collect work experience entries
+                    data.workExperience = [];
+                    const workExperienceTitles = formData.getAll('workExperienceTitle[]');
+                    const workExperienceCompanies = formData.getAll('workExperienceCompany[]');
+                    const workExperienceDurations = formData.getAll('workExperienceDuration[]');
+                    const workExperienceDescriptions = formData.getAll('workExperienceDescription[]');
+
+                    for (let i = 0; i < workExperienceTitles.length; i++) {
+                        data.workExperience.push({
+                            title: workExperienceTitles[i],
+                            company: workExperienceCompanies[i],
+                            duration: workExperienceDurations[i],
+                            description: workExperienceDescriptions[i]
+                        });
+                    }
+                                    // Collect education entries
+                        data.education = [];
+                        const educationSchools = formData.getAll('educationSchool[]');
+                        const educationDegrees = formData.getAll('educationDegree[]');
+                        const educationDurations = formData.getAll('educationDuration[]');
+                        const educationDescriptions = formData.getAll('educationDescription[]');
+                
+                        for (let i = 0; i < educationSchools.length; i++) {
+                            data.education.push({
+                                school: educationSchools[i],
+                                degree: educationDegrees[i],
+                                duration: educationDurations[i],
+                                description: educationDescriptions[i]
+                            });
+                        }
+                
+                       // Collect project entries
+                        data.projects = [];
+                        const projectTitles = formData.getAll('projectsTitle[]');
+                        const projectPeriods = formData.getAll('projectsPeriod[]');
+                        const projectDescriptions = formData.getAll('projectsDescription[]');
+
+                        for (let i = 0; i < projectTitles.length; i++) {
+                            data.projects.push({
+                                title: projectTitles[i],
+                                period: projectPeriods[i],
+                                description: projectDescriptions[i]
+                            });
+                        }
+                            
+                                  // Collect certifications entries
+                                data.certifications = [];
+                                const certificationNames = formData.getAll('certificationName[]');
+                                const institutions = formData.getAll('institution[]');
+                                const certificationYears = formData.getAll('year[]');
+
+                                for (let i = 0; i < certificationNames.length; i++) {
+                                    data.certifications.push({
+                                        name: certificationNames[i],
+                                        institution: institutions[i],
+                                        year: certificationYears[i]
+                                    });
+                                }
+
+                                                            // Collect professional bodies entries
+                                    data.professionalBodies = [];
+                                    const membershipNames = formData.getAll('membershipName[]');
+                                    const roles = formData.getAll('role[]');
+                                    const membershipYears = formData.getAll('year[]');
+
+                                    for (let i = 0; i < membershipNames.length; i++) {
+                                        data.professionalBodies.push({
+                                            name: membershipNames[i],
+                                            role: roles[i],
+                                            year: membershipYears[i]
+                                        });
+                                    }  
+                                    
+                                    data.languages = [];
+            const languageNames = formData.getAll('languagesTitle[]');
+            const languageProficiencies = formData.getAll('languageProficiency[]');
+
+            for (let i = 0; i < languageNames.length; i++) {
+                data.languages.push({
+                    name: languageNames[i],
+                    proficiency: languageProficiencies[i]
+                });
+            }
+            
+            // Get subscription level
+                        data.subscription = formData.get('subscription');
+                
+                        try {
+                            const response = await fetch('/submit-cv', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            });
+                            if (response.ok) {
+                                alert('CV submitted successfully');
+                            } else {
+                                alert('Error submitting CV');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('Error submitting CV');
+                        }
+                    });
+                
+                    submitButton.addEventListener('click', function () {
+                        cvForm.dispatchEvent(new Event('submit'));
+                    });
+    
+                        const fetchData = async () => {
+                        try {
+                            const response = await fetch('/fetch-cv-data');
+                            const data = await response.json();
+
+                            data.forEach(user => {
+                                const name = user.name;
+                                const jobTitle = user.jobTitle;
+                                const dateOfBirth = user.dateOfBirth;
+                                const address = user.address;
+                                const phone_number = user.phone_number;
+                                const email = user.email; // Add email field if needed
+                                const linkedin = user.linkedin;
+                                const languages = user.languages;
+                                const educationData = user.education;
+                                const summaryData = user.summary;
+                                const experienceData = user.workExperience;
+                                const skillsData = user.skills;
+                                const projectsData = user.projects; // Add projects data
+                                const certificationsData = user.certifications; // Add certifications data
+                                const professionalBodiesData = user.professionalBodies; // Add professional bodies data
+
+                                const skillsHTML = generateSkillsHTML(skillsData);
+                                const summaryHTML = generateSummaryHTML(summaryData);
+                                const experienceHTML = generateExperienceHTML(experienceData);
+                                const educationHTML = generateEducationHTML(educationData);
+                                const languagesHTML = generateLanguageList(languages);
+                                const projectsHTML = generateProjectsHTML(projectsData); // Generate HTML for projects
+                                const certificationsHTML = generateCertificationsHTML(certificationsData); // Generate HTML for certifications
+                                const professionalBodiesHTML = generateProfessionalBodiesHTML(professionalBodiesData); // Generate HTML for professional bodies
+
+                                    const premium_CV = `
+                                    <!DOCTYPE html>
+                                    <html lang="en">
+                                    <head>
+                                        <!-- Your existing template code... -->
+                                    </head>
+                                    <body>
+                                        <div class="container">
+                                            <div class="sidebar">
+                                                <img src="https://via.placeholder.com/100" alt="${name}">
+                                                <h1>${name}</h1>
+                                                <p>${jobTitle}</p>
+                                                <div class="contact">
+                                                    <h3>${address}</h3>
+                                                    <p>${email}</p>
+                                                    <p>${phone_number}</p>
+                                                    <p>${linkedin.join(', ')}</p>
+                                                </div>
+                                                <div class="skills" id="skillsContainer">
+                                                    <h3>Skills</h3>
+                                                    <ul id="skillsList">
+                                                        ${skillsHTML}
+                                                    </ul>
+                                                </div>
+                                                <div class="languages">
+                                                    <h3>Languages</h3>
+                                                    <ul id="Languages">
+                                                        ${languagesHTML}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <div class="main">
+                                                <div class="summary section">
+                                                    <h2>SUMMARY</h2>
+                                                    ${summaryHTML}
+                                                </div>
+                                                <div class="experience section">
+                                                    <h2>EXPERIENCE</h2>
+                                                    ${experienceHTML}
+                                                </div>
+                                                <div class="projects section">
+                                                    <!-- Your existing projects code... -->
+                                                </div>
+                                                <div class="education section">
+                                                    <h2>EDUCATION</h2>
+                                                    ${educationHTML}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </body>
+                                    </html>
+                                    `;
+                
+                                    document.body.innerHTML = premium_CV;
+                                });
+                            } catch (error) {
+                                console.error('Error fetching CV data:', error);
+                            }
+                        };
+                
+                        fetchData();
+                    });
+                </script>
+                
+                        <script>
+                            // Add error handling for network requests
+                        function handleApiError(error) {
+                            console.error('API Error:', error);
+                            if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                                alert('Network error. Please check your internet connection.');
+                            } else {
+                                alert('An unexpected error occurred. Please try again.');
+                            }
+                        }
+
+                        // Add retry logic for failed requests
+                        async function fetchWithRetry(url, options, retries = 3) {
+                            try {
+                                const response = await fetch(url, options);
+                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                return response;
+                            } catch (error) {
+                                if (retries > 0) {
+                                    console.log(`Retrying... ${retries} attempts left`);
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                    return fetchWithRetry(url, options, retries - 1);
+                                }
+                                throw error;
+                            }
+                        }
+                        </script>
+
+                        <script>
+                            // JavaScript for initial page
+
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const uploadPhotoButton = document.getElementById('uploadPhotoButton');
+                                
+                                uploadPhotoButton.addEventListener('click', function() {
+                                    // Redirect to image upload page
+                                    window.location.href = '/upload-image.html'; // Replace with your image upload page URL
+                                });
+                            });
+                        </script> 
+
+                        <script>
+                            // JavaScript for navigating to the upload photograph page
+
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const managePhotographLink = document.getElementById('managePhotograph');
+
+                        managePhotographLink.addEventListener('click', function (event) {
+                            event.preventDefault();
+                            window.location.href = 'upload_photograph.html';
+                        });
+                    });
+
+                    // JavaScript for navigating to the upload photograph page and handling image upload
+
+                    document.addEventListener('DOMContentLoaded', function () {
+                        // Navigation logic
+                        const managePhotographLink = document.getElementById('managePhotograph');
+
+                        managePhotographLink.addEventListener('click', function (event) {
+                            event.preventDefault();
+                            window.location.href = 'upload-image.html';
+                        });
+
+                        // Image upload logic
+                        const submitImageBtn = document.getElementById('submitImage');
+                        const imageUploadForm = document.getElementById('cvForm'); // Reference the correct form
+
+                        submitImageBtn.addEventListener('click', function (event) {
+                            event.preventDefault();
+
+                            // Perform image upload and save to database logic here
+                            const formData = new FormData(imageUploadForm);
+
+                            fetch('/upload', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => {
+                                // Try to parse JSON response
+                                return response.json().catch(() => {
+                                    throw new Error("Invalid JSON response");
+                                });
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    alert('Image uploaded successfully!');
+                                
+                                    // window.location.href = '/protected/intellijob_dashboard.html';
+                                    window.location.href = "/protected/users_biodata.html"
+                            
+                                } else {
+                                    // Handle upload failure
+                                    alert('Image upload failed. Please try again.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('An error occurred. Please try again.');
+                            });
+                        });
+
+                        // Image preview functionality
+                        const profileImageInput = document.getElementById('profileImage');
+                        const imagePreview = document.getElementById('imagePreview');
+                        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+
+                        profileImageInput.addEventListener('change', function () {
+                            const file = profileImageInput.files[0];
+                            if (file) {
+                                const reader = new FileReader();
+
+                                reader.onload = function (e) {
+                                    imagePreview.src = e.target.result;
+                                    imagePreview.style.display = 'block';
+                                }
+
+                                reader.readAsDataURL(file);
+                            } else {
+                                imagePreview.src = '';
+                                imagePreview.style.display = 'none';
+                            }
+                        });
+
+                        // Enable submit button once image is selected
+                        profileImageInput.addEventListener('input', function () {
+                            submitImageBtn.disabled = false;
+                        });
+                    });
+                    </script>
+
+                    <script>
+                        function addCustomField() {
+                            const container = document.getElementById('customFieldContainer');
+                            const newField = document.createElement('div');
+                            newField.classList.add('form-group');
+                            newField.innerHTML = `
+                                <input type="text" class="form-control" name="customFieldTitle[]" placeholder="Custom Field Title" maxlength="30" required>
+                                <input type="text" class="form-control" name="customFieldValue[]" placeholder="Custom Field Value" required>
+                            `;
+                            container.appendChild(newField);
+                        }
+
+                        document.getElementById('nextButton').addEventListener('click', function () {
+                            // Your logic for the Next button
+                        });
+
+                        document.getElementById('backButton').addEventListener('click', function () {
+                            // Your logic for the Back button
+                        });
+                        </script>
+                <script>
+                document.getElementById("manageJobPreferencesTab").addEventListener("click", function() {
+                        window.location.href = 'job_preferences.html';
+                    });
+                </script>
+                <script>
+                    function goBack() {
+                        window.history.back(); // Navigates to the previous page
+                    }
+
+                    function goNext() {
+                        window.location.href = "/protected/users_biodata.html"; // Replace with the actual next page URL
+                    }
+
+                    function goHome() {
+                        window.location.href = '/protected/intellijob_dashboard.html';
+
+                    }
+                </script>

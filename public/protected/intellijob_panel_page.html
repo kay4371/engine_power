@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>IntelliJob</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/theme.css">
+  <style>
+    body{background:#0f172a;color:#f8fafc;font-family:Open Sans,Arial,sans-serif;margin:0;min-height:100vh}
+    .sun-page{min-height:100vh;padding:28px 16px;background:linear-gradient(180deg,#111827 0%,#0f172a 100%)}
+    .sun-wrap{width:100%;max-width:980px;margin:0 auto}
+    .sun-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .sun-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
+    .sun-brand i{color:#60a5fa}
+    .sun-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .sun-nav a,.sun-back{border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.7);color:#dbeafe;text-decoration:none;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:700}
+    .sun-nav a.active{background:#2563eb;border-color:#60a5fa;color:white}
+    .sun-panel{display:none;background:#1a1a2e;border:1px solid rgba(124,58,237,.25);border-radius:14px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+    .sun-panel.active{display:block}
+    .sun-panel-title{font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:14px}
+    .sun-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+    .sun-stat{background:#16213e;border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:14px}
+    .sun-stat-label{font-size:10px;color:#a0a0b0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .sun-stat-value{font-size:22px;font-weight:800;color:#7c3aed}
+    .sun-stat-value.green{color:#10b981}.sun-stat-value.red{color:#ef4444}.sun-stat-value.yellow{color:#f59e0b}
+    .sun-card{background:#16213e;border:1px solid rgba(124,58,237,.15);border-radius:12px;padding:18px;margin-bottom:14px}
+    .sun-card-title{font-size:13px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+    .sun-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+    .sun-toggle-row:last-child{border-bottom:none}
+    .sun-toggle-label{font-size:14px;font-weight:700;color:#f8fafc}
+    .sun-toggle-desc{font-size:12px;color:#a0a0b0;margin-top:3px;max-width:480px;line-height:1.45}
+    .sun-toggle{position:relative;width:42px;height:22px;flex-shrink:0}
+    .sun-toggle input{opacity:0;width:0;height:0}
+    .sun-slider{position:absolute;cursor:pointer;inset:0;background:#2d2d4d;border-radius:22px;transition:.2s}
+    .sun-slider:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s}
+    input:checked + .sun-slider{background:#7c3aed}
+    input:checked + .sun-slider:before{transform:translateX(20px)}
+    .sun-btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;transition:.2s}
+    .sun-btn-primary{background:#7c3aed;color:white}.sun-btn-primary:hover{background:#6d28d9}
+    .sun-btn-secondary{background:rgba(124,58,237,.15);color:#c4b5fd;border:1px solid rgba(124,58,237,.3)}
+    .sun-plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:8px}
+    .sun-plan-card{background:#0f3460;border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:16px;text-align:center;transition:.2s}
+    .sun-plan-card:hover{border-color:#7c3aed;transform:translateY(-2px)}
+    .sun-plan-card.featured{border-color:#7c3aed;background:rgba(124,58,237,.1)}
+    .sun-plan-name{font-size:15px;font-weight:800;color:#a78bfa;margin-bottom:4px}
+    .sun-plan-apps{font-size:12px;color:#a0a0b0;margin-bottom:10px}
+    .sun-plan-price{font-size:24px;font-weight:800;color:#f8fafc;margin-bottom:12px}
+    .sun-table{width:100%;border-collapse:collapse;font-size:13px}
+    .sun-table th{text-align:left;padding:8px 10px;color:#a0a0b0;border-bottom:1px solid rgba(124,58,237,.1);font-size:11px;text-transform:uppercase}
+    .sun-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:#f0f0f0;vertical-align:middle}
+    .sun-badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .sun-badge-green{background:rgba(16,185,129,.15);color:#10b981}.sun-badge-red{background:rgba(239,68,68,.15);color:#ef4444}.sun-badge-purple{background:rgba(124,58,237,.15);color:#c4b5fd}
+    .sun-alert{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}
+    .sun-alert-success{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:#10b981}
+    .sun-alert-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444}
+    @media(max-width:640px){.sun-topbar{align-items:flex-start;flex-direction:column}.sun-panel{padding:18px}.sun-toggle-row{align-items:flex-start;flex-direction:column}.sun-nav a,.sun-back{font-size:12px;padding:8px 10px}}
+  </style>
+</head>
+<body>
+  <div class="sun-page">
+    <div class="sun-wrap">
+      <div class="sun-topbar">
+        <div class="sun-brand"><i class="fa fa-desktop"></i> IntelliJob</div>
+        <div class="sun-nav">
+          <a href="intellijob_dashboard.html" class="sun-back"><i class="fas fa-arrow-left"></i> Dashboard</a>
+          <a href="#accountPanel" data-panel-link="accountPanel">My Account</a>
+          <a href="#topupPanel" data-panel-link="topupPanel">Top Up</a>
+          <a href="#appsPanel" data-panel-link="appsPanel">Applications</a>
+        </div>
+      </div>
+
+      <section id="accountPanel" class="sun-panel">
+        <div class="sun-panel-title">My Account</div>
+        <div id="accountAlert"></div>
+        <div class="sun-stats">
+          <div class="sun-stat"><div class="sun-stat-label">Plan</div><div class="sun-stat-value" id="sPlan">-</div></div>
+          <div class="sun-stat"><div class="sun-stat-label">Status</div><div class="sun-stat-value" id="sStatus">-</div></div>
+          <div class="sun-stat"><div class="sun-stat-label">Expires</div><div class="sun-stat-value" style="font-size:13px;padding-top:6px" id="sExpiry">-</div></div>
+          <div class="sun-stat"><div class="sun-stat-label">Apps Sent</div><div class="sun-stat-value green" id="sApps">-</div></div>
+          <div class="sun-stat"><div class="sun-stat-label">Mode</div><div class="sun-stat-value yellow" id="sMode">-</div></div>
+        </div>
+        <div class="sun-card">
+          <div class="sun-card-title">Application Mode</div>
+          <div class="sun-toggle-row">
+            <div>
+              <div class="sun-toggle-label">Auto Mode (Do Not Disturb)</div>
+              <div class="sun-toggle-desc">System applies automatically. WhatsApp summary sent at 9PM daily.</div>
+            </div>
+            <label class="sun-toggle">
+              <input type="checkbox" id="autoModeToggle">
+              <span class="sun-slider"></span>
+            </label>
+          </div>
+          <div class="sun-toggle-row">
+            <div>
+              <div class="sun-toggle-label">Consent Mode</div>
+              <div class="sun-toggle-desc">You approve each job via WhatsApp before it is sent.</div>
+            </div>
+            <span id="consentStatus" style="font-size:12px;font-weight:700;color:#10b981">Active</span>
+          </div>
+        </div>
+        <div class="sun-card">
+          <div class="sun-card-title">Gmail Authorization</div>
+          <div class="sun-toggle-row">
+            <div>
+              <div class="sun-toggle-label">Connect your Gmail</div>
+              <div class="sun-toggle-desc">Send from your own Gmail for a personal touch.</div>
+            </div>
+            <a href="/settings/email-authorization" class="sun-btn sun-btn-secondary">Manage</a>
+          </div>
+        </div>
+        <div class="sun-card">
+          <div class="sun-card-title">Subscription Details</div>
+          <table class="sun-table">
+            <tr><td style="color:#a0a0b0">Plan</td><td id="sdPlan">-</td></tr>
+            <tr><td style="color:#a0a0b0">Status</td><td id="sdStatus">-</td></tr>
+            <tr><td style="color:#a0a0b0">Expires</td><td id="sdExpiry">-</td></tr>
+            <tr><td style="color:#a0a0b0">Apps Sent</td><td id="sdApps">-</td></tr>
+            <tr><td style="color:#a0a0b0">Interview Helper</td><td id="sdHelper">-</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section id="topupPanel" class="sun-panel">
+        <div class="sun-panel-title">Top Up Subscription</div>
+        <div id="topupAlert"></div>
+        <p style="color:#a0a0b0;font-size:13px;margin-bottom:16px">Choose a plan. Payment via Paystack or Monnify.</p>
+        <div class="sun-plan-grid">
+          <div id="topup-plans-container"><p style="color:#a0a0b0;text-align:center;">Loading plans...</p></div>
+<script>
+async function loadTopupPlans() {
+  try {
+    const r = await fetch('/api/get-plan-config');
+    const data = await r.json();
+    if (!data.success) throw new Error('Failed');
+    const plans = data.plans;
+    const order = ['basic', 'standard', 'premium'];
+    const featured = { basic: false, standard: true, premium: false };
+    const container = document.getElementById('topup-plans-container');
+    container.innerHTML = order.map(key => {
+      const p = plans[key];
+      if (!p) return '';
+      return '<div class="sun-plan-card' + (featured[key] ? ' featured' : '') + '">'
+        + '<div class="sun-plan-name">' + p.name + '</div>'
+        + '<div class="sun-plan-apps">' + p.apps + ' applications &middot; ' + p.days + ' days</div>'
+        + '<div class="sun-plan-price">&#8358;' + Number(p.price).toLocaleString() + '</div>'
+        + '<button class="sun-btn sun-btn-' + (featured[key] ? 'primary' : 'secondary') + '" data-payment-plan="' + key + '" data-payment-gateway="paystack" style="width:100%">Pay with Paystack</button>'
+        + '<button class="sun-btn" data-payment-plan="' + key + '" data-payment-gateway="monnify" style="width:100%;margin-top:8px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3)">Pay with Monnify</button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('topup-plans-container').innerHTML = '<p style="color:#ef4444;">Failed to load plans. Please refresh.</p>';
+  }
+}
+loadTopupPlans();
+</script>
+
+        </div>
+      </section>
+
+      <section id="appsPanel" class="sun-panel">
+        <div class="sun-panel-title">My Applications</div>
+        <div class="sun-stats">
+          <div class="sun-stat"><div class="sun-stat-label">Total</div><div class="sun-stat-value green" id="apTotalSent">-</div></div>
+          <div class="sun-stat"><div class="sun-stat-label">Today</div><div class="sun-stat-value" id="apToday">-</div></div>
+          <div class="sun-stat"><div class="sun-stat-label">This Week</div><div class="sun-stat-value" id="apWeek">-</div></div>
+        </div>
+        <div class="sun-card">
+          <div class="sun-card-title">Recent Applications</div>
+          <div style="overflow-x:auto">
+            <table class="sun-table">
+              <thead><tr><th>Role</th><th>Applied At</th><th>Status</th></tr></thead>
+              <tbody id="recentAppsBody">
+                <tr><td colspan="3" style="color:#a0a0b0;text-align:center;padding:20px">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sun-card" id="autoLogCard" style="display:none">
+          <div class="sun-card-title">Today Auto-Applied</div>
+          <div style="overflow-x:auto">
+            <table class="sun-table">
+              <thead><tr><th>Role</th><th>Company</th><th>Applied At</th></tr></thead>
+              <tbody id="autoLogBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/auth-check.js"></script>
+  <script>
+    var panelIds = ['accountPanel', 'topupPanel', 'appsPanel'];
+
+    function byId(id) {
+      return document.getElementById(id);
+    }
+
+    function setText(id, value) {
+      var el = byId(id);
+      if (el) el.textContent = value;
+    }
+
+    function setClass(id, className) {
+      var el = byId(id);
+      if (el) el.className = className;
+    }
+
+    function setHtml(id, value) {
+      var el = byId(id);
+      if (el) el.innerHTML = value;
+    }
+
+    function showAlert(id, msg, type) {
+      var el = byId(id);
+      if (!el) return;
+      el.innerHTML = '<div class="sun-alert sun-alert-' + type + '">' + msg + '</div>';
+      setTimeout(function () { el.innerHTML = ''; }, 4000);
+    }
+
+    function activatePanel(panelId) {
+      if (panelIds.indexOf(panelId) === -1) panelId = 'accountPanel';
+      panelIds.forEach(function (id) {
+        var panel = byId(id);
+        if (panel) panel.classList.toggle('active', id === panelId);
+      });
+      document.querySelectorAll('[data-panel-link]').forEach(function (link) {
+        link.classList.toggle('active', link.getAttribute('data-panel-link') === panelId);
+      });
+      if (window.location.hash !== '#' + panelId && window.history && window.history.replaceState) {
+        window.history.replaceState(null, document.title, window.location.pathname + window.location.search + '#' + panelId);
+      }
+      if (panelId === 'accountPanel') loadAccountData();
+      if (panelId === 'appsPanel') loadAppsData();
+    }
+
+    async function loadAccountData() {
+      try {
+        var subRes = await fetch('/api/get-subscription-details');
+        var statusRes = await fetch('/api/get-user-status');
+        var sub = await subRes.json();
+        var status = await statusRes.json();
+        var plan = (sub.subscriptionData && sub.subscriptionData.subscriptionPlan) || 'None';
+        var expiry = (sub.subscriptionData && sub.subscriptionData.subscriptionExpires) || 'N/A';
+        var subStatus = (sub.subscriptionData && sub.subscriptionData.subscriptionStatus) || 'Expired';
+        var apps = status.successfulApplications || 0;
+        var autoMode = status.autoMode || false;
+
+        setText('sPlan', plan);
+        setText('sStatus', subStatus);
+        setClass('sStatus', 'sun-stat-value ' + (subStatus === 'Active' ? 'green' : 'red'));
+        setText('sExpiry', expiry);
+        setText('sApps', apps);
+        setText('sMode', autoMode ? 'Auto' : 'Consent');
+        setClass('sMode', 'sun-stat-value ' + (autoMode ? 'yellow' : 'green'));
+
+        var toggle = byId('autoModeToggle');
+        if (toggle) toggle.checked = autoMode;
+        var consent = byId('consentStatus');
+        if (consent) {
+          consent.textContent = autoMode ? 'Inactive' : 'Active';
+          consent.style.color = autoMode ? '#a0a0b0' : '#10b981';
+        }
+
+        setHtml('sdPlan', '<span class="sun-badge sun-badge-purple">' + plan + '</span>');
+        setHtml('sdStatus', '<span class="sun-badge ' + (subStatus === 'Active' ? 'sun-badge-green' : 'sun-badge-red') + '">' + subStatus + '</span>');
+        setText('sdExpiry', expiry);
+        setText('sdApps', apps);
+        setHtml('sdHelper', '<span class="sun-badge ' + (status.interviewHelper ? 'sun-badge-green' : 'sun-badge-red') + '">' + (status.interviewHelper ? 'Unlocked' : 'Locked') + '</span>');
+      } catch (e) {
+        console.error('loadAccountData:', e);
+      }
+    }
+
+    async function loadAppsData() {
+      try {
+        var res = await fetch('/api/get-user-apps');
+        var data = await res.json();
+        setText('apTotalSent', data.total || 0);
+        setText('apToday', data.today || 0);
+        setText('apWeek', data.week || 0);
+
+        var tbody = byId('recentAppsBody');
+        if (tbody) {
+          if (data.recent && data.recent.length > 0) {
+            tbody.innerHTML = data.recent.map(function (a) {
+              return '<tr><td>' + (a.role || a.title || '-') + '</td><td style="font-size:11px">' +
+                (a.processedAt ? new Date(a.processedAt).toLocaleString() : '-') +
+                '</td><td><span class="sun-badge sun-badge-green">Sent</span></td></tr>';
+            }).join('');
+          } else {
+            tbody.innerHTML = '<tr><td colspan="3" style="color:#a0a0b0;text-align:center;padding:20px">No applications yet</td></tr>';
+          }
+        }
+
+        var autoLogCard = byId('autoLogCard');
+        var autoLogBody = byId('autoLogBody');
+        if (autoLogCard && autoLogBody && data.autoLogs && data.autoLogs.length > 0) {
+          autoLogCard.style.display = 'block';
+          autoLogBody.innerHTML = data.autoLogs.map(function (a) {
+            return '<tr><td>' + (a.role || '-') + '</td><td>' + (a.company || '-') +
+              '</td><td style="font-size:11px">' + (a.appliedAt ? new Date(a.appliedAt).toLocaleString() : '-') + '</td></tr>';
+          }).join('');
+        }
+      } catch (e) {
+        console.error('loadAppsData:', e);
+      }
+    }
+
+    async function toggleAutoMode(checkbox) {
+      var mode = checkbox.checked;
+      try {
+        var res = await fetch('/user/toggle-automode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoMode: mode })
+        });
+        var data = await res.json();
+        if (data.success) {
+          setText('sMode', mode ? 'Auto' : 'Consent');
+          setClass('sMode', 'sun-stat-value ' + (mode ? 'yellow' : 'green'));
+          var consent = byId('consentStatus');
+          if (consent) {
+            consent.textContent = mode ? 'Inactive' : 'Active';
+            consent.style.color = mode ? '#a0a0b0' : '#10b981';
+          }
+          showAlert('accountAlert', 'Mode updated to ' + (mode ? 'Auto' : 'Consent'), 'success');
+        } else {
+          checkbox.checked = !mode;
+          showAlert('accountAlert', 'Failed to update mode', 'error');
+        }
+      } catch (e) {
+        checkbox.checked = !mode;
+        showAlert('accountAlert', 'Network error', 'error');
+      }
+    }
+
+    async function initiatePayment(plan, gateway) {
+      gateway = gateway || 'paystack';
+      showAlert('topupAlert', 'Initiating payment...', 'success');
+      try {
+        var endpoint = gateway === 'monnify' ? '/api/initiate-monnify-payment' : '/api/initiate-payment';
+        var res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: plan })
+        });
+        var data = await res.json();
+        if (data.success && data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+        } else {
+          showAlert('topupAlert', data.message || 'Could not initiate payment', 'error');
+        }
+      } catch (e) {
+        showAlert('topupAlert', 'Network error', 'error');
+      }
+    }
+
+    document.addEventListener('click', function (event) {
+      var panelLink = event.target.closest('[data-panel-link]');
+      if (panelLink) {
+        activatePanel(panelLink.getAttribute('data-panel-link'));
+        return;
+      }
+
+      var paymentButton = event.target.closest('[data-payment-plan]');
+      if (paymentButton) {
+        event.preventDefault();
+        initiatePayment(paymentButton.getAttribute('data-payment-plan'), paymentButton.getAttribute('data-payment-gateway') || 'paystack');
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var toggle = byId('autoModeToggle');
+      if (toggle) toggle.addEventListener('change', function () { toggleAutoMode(toggle); });
+      activatePanel(window.location.hash ? window.location.hash.slice(1) : 'accountPanel');
+    });
+
+    window.addEventListener('hashchange', function () {
+      activatePanel(window.location.hash ? window.location.hash.slice(1) : 'accountPanel');
+    });
+  </script>
+</body>
+</html>

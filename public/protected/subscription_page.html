@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Your Plan</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 30px 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 1000px;
+        }
+        h1 { margin-bottom: 8px; font-size: 1.8em; }
+        .subtitle { color: #666; margin-bottom: 24px; }
+        .plans {
+            display: flex;
+            justify-content: space-around;
+            align-items: stretch;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .plan {
+            background-color: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 24px 20px;
+            width: 30%;
+            min-width: 240px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .plan:hover { border-color: #4caf50; box-shadow: 0 4px 12px rgba(76,175,80,0.2); }
+        .plan.active { border-color: #4caf50; box-shadow: 0 0 14px rgba(76,175,80,0.4); }
+        .plan h2 { font-size: 1.4em; margin-bottom: 6px; }
+        .plan .highlight { font-size: 0.85em; color: #4caf50; font-weight: bold; margin-bottom: 4px; min-height: 18px; }
+        .plan .price { font-size: 1.9em; font-weight: bold; color: #333; margin: 10px 0; }
+        .plan .description { font-size: 0.88em; color: #666; margin: 14px 0; flex-grow: 1; line-height: 1.5; }
+        .plan .apps-badge { font-size: 0.82em; background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 14px; }
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #aaa; cursor: not-allowed; }
+        .loading { color: #888; font-size: 1em; padding: 40px 0; }
+        .error-msg { color: #e53935; padding: 20px; }
+        .confirmation { margin-top: 20px; font-size: 1.05em; color: #4caf50; min-height: 28px; }
+        .powered-by { margin-top: 24px; font-size: 0.85em; color: #aaa; }
+        .suntrenia { font-weight: bold; color: #5d4d5b; }
+        #paymentModal {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        #paymentModal.active { display: flex; }
+        .modal-box {
+            background: #fff; border-radius: 12px; padding: 30px;
+            max-width: 400px; width: 90%; text-align: center;
+        }
+        .modal-box h3 { margin-bottom: 16px; font-size: 1.2em; }
+        .modal-box p { color: #555; margin-bottom: 20px; font-size: 0.95em; }
+        .modal-buttons { display: flex; flex-direction: column; gap: 10px; }
+        .btn-paystack { background: #0ba4db; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 1em; cursor: pointer; }
+        .btn-monnify  { background: #6f42c1; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 1em; cursor: pointer; }
+        .btn-cancel   { background: none; border: 1px solid #ccc; border-radius: 8px; padding: 10px; font-size: 0.9em; cursor: pointer; color: #666; }
+        .btn-paystack:hover { background: #0990c4; }
+        .btn-monnify:hover  { background: #5a32a3; }
+        .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #ccc; border-top-color: #4caf50; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Choose Your Plan</h1>
+        <p class="subtitle">Switch plans or cancel anytime.</p>
+        <div class="plans" id="plansContainer">
+            <div class="loading">Loading plans...</div>
+        </div>
+        <div class="confirmation" id="confirmation"></div>
+        <p class="powered-by">Powered by <span class="suntrenia">Suntrenia</span></p>
+    </div>
+
+    <!-- Payment gateway selector modal -->
+    <div id="paymentModal">
+        <div class="modal-box">
+            <h3>Complete Payment</h3>
+            <p id="modalPlanSummary"></p>
+            <div class="modal-buttons">
+                <button class="btn-paystack" onclick="pay('paystack')">💳 Pay with Paystack</button>
+                <button class="btn-monnify"  onclick="pay('monnify')">🏦 Pay with Monnify</button>
+                <button class="btn-cancel"   onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let plansData = {};
+        let selectedPlan = null;
+
+        // Load plans from API on page load
+        async function loadPlans() {
+            const container = document.getElementById('plansContainer');
+            try {
+                const res = await fetch('/api/get-plan-config');
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || 'Failed to load plans');
+                plansData = data.plans;
+                renderPlans(data.plans);
+            } catch(e) {
+                container.innerHTML = '<div class="error-msg">Could not load plans. Please refresh the page.</div>';
+                console.error('Plan load error:', e);
+            }
+        }
+
+        function formatPrice(naira) {
+            return '₦' + naira.toLocaleString('en-NG') + '/month';
+        }
+
+        function renderPlans(plans) {
+            const container = document.getElementById('plansContainer');
+            const order = ['basic', 'standard', 'premium'];
+            container.innerHTML = '';
+            order.forEach(key => {
+                const plan = plans[key];
+                if (!plan || plan.active === false) return;
+                const div = document.createElement('div');
+                div.className = 'plan';
+                div.dataset.plan = key;
+                div.onclick = () => selectPlan(key, div);
+                div.innerHTML = `
+                    <div>
+                        <h2>${plan.name}</h2>
+                        <div class="highlight">${plan.highlight || '&nbsp;'}</div>
+                        <div class="price">${formatPrice(plan.price)}</div>
+                        <div class="apps-badge">Up to ${plan.applications} applications</div>
+                        <p class="description">${plan.description}</p>
+                    </div>
+                    <button onclick="event.stopPropagation(); selectPlan('${key}', this.closest('.plan'))">Select</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function selectPlan(planKey, el) {
+            document.querySelectorAll('.plan').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            selectedPlan = planKey;
+            const plan = plansData[planKey];
+            document.getElementById('modalPlanSummary').textContent =
+                plan.name + ' Plan — ' + formatPrice(plan.price) + ' (' + plan.durationDays + ' days)';
+            document.getElementById('paymentModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('paymentModal').classList.remove('active');
+        }
+
+        async function pay(gateway) {
+            if (!selectedPlan) return;
+            const confirmation = document.getElementById('confirmation');
+            confirmation.innerHTML = '<span class="spinner"></span>Initiating payment...';
+            closeModal();
+            try {
+                const endpoint = gateway === 'monnify' ? '/api/initiate-monnify-payment' : '/api/initiate-payment';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan: selectedPlan })
+                });
+                const data = await res.json();
+                if (data.success && data.paymentUrl) {
+                    confirmation.textContent = 'Redirecting to payment...';
+                    window.location.href = data.paymentUrl;
+                } else {
+                    confirmation.textContent = data.message || 'Could not initiate payment. Please try again.';
+                    confirmation.style.color = '#e53935';
+                }
+            } catch(e) {
+                confirmation.textContent = 'An error occurred. Please try again.';
+                confirmation.style.color = '#e53935';
+                console.error('Payment error:', e);
+            }
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('paymentModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        loadPlans();
+    </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suntrenia AI Intervia Helper</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div id="popup-container">
+        <!-- Access Check Loading -->
+        <div id="loading" class="screen">
+            <div class="loading-spinner"></div>
+            <p>Checking access...</p>
+        </div>
+
+        <!-- No Access Screen -->
+        <div id="no-access" class="screen hidden">
+            <div class="icon">🔒</div>
+            <h2>Access Required</h2>
+            <p>You need Interview Helper access to use this feature.</p>
+            <button id="upgrade-btn" class="btn btn-primary">Get Access</button>
+        </div>
+
+        <!-- Main Interface -->
+        <div id="main-interface" class="screen hidden">
+            <div class="header">
+                <h1>🎯 Suntrenia AI Intervia</h1>
+                <div class="status-indicator" id="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Ready</span>
+                </div>
+            </div>
+
+            <!-- Job Details Section -->
+            <div class="section">
+                <h3>📋 Job Details</h3>
+                <div id="job-details">
+                    <div class="job-field">
+                        <label>Job Title:</label>
+                        <input type="text" id="job-title" placeholder="Extracted from page">
+                    </div>
+                    <div class="job-field">
+                        <label>Company:</label>
+                        <input type="text" id="company" placeholder="Extracted from page">
+                    </div>
+                    <div class="job-field">
+                        <label>Description:</label>
+                        <textarea id="job-description" placeholder="Extracted from page" rows="3"></textarea>
+                    </div>
+                </div>
+                <button id="extract-job-btn" class="btn btn-secondary">Extract from Page</button>
+            </div>
+
+            <!-- CV Upload Section -->
+            <div class="section">
+                <h3>📄 Your CV</h3>
+                <div id="cv-section">
+                    <input type="file" id="cv-file" accept=".pdf,.doc,.docx" style="display: none;">
+                    <button id="upload-cv-btn" class="btn btn-secondary">Upload CV</button>
+                    <span id="cv-status">No CV uploaded</span>
+                </div>
+            </div>
+
+            <!-- Coaching Interface -->
+            <div class="section">
+                <h3>🎤 Interview Coaching</h3>
+                <div id="coaching-interface">
+                    <div class="recording-controls">
+                        <button id="start-recording" class="btn btn-primary">🎙️ Start Recording</button>
+                        <button id="stop-recording" class="btn btn-danger hidden">⏹️ Stop & Analyze</button>
+                        <div id="recording-indicator" class="hidden">
+                            <span class="recording-dot"></span>
+                            <span>Recording...</span>
+                        </div>
+                    </div>
+
+                    <div id="coach-response" class="coach-response hidden">
+                        <div class="response-header">
+                            <h4>AI Coach Feedback</h4>
+                        </div>
+                        <div id="response-content" class="response-content">
+                            <!-- AI responses will appear here -->
+                        </div>
+                    </div>
+
+                    <div id="context-display" class="context-display hidden">
+                        <h4>💭 Interview Context</h4>
+                        <div id="context-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="section">
+                <button id="settings-btn" class="btn btn-link">⚙️ Settings</button>
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings" class="screen hidden">
+            <div class="header">
+                <button id="back-btn" class="back-btn">← Back</button>
+                <h2>Settings</h2>
+            </div>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label for="auto-extract">Auto-extract job details</label>
+                    <input type="checkbox" id="auto-extract" checked>
+                </div>
+                <div class="setting-item">
+                    <label for="real-time-coaching">Real-time coaching</label>
+                    <input type="checkbox" id="real-time-coaching" checked>
+                </div>
+                <div class="setting-item">
+                    <label for="save-recordings">Save recordings locally</label>
+                    <input type="checkbox" id="save-recordings">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

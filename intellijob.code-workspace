@@ -1,0 +1,40 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "cSpell.ignoreWords": [
+      "assets",
+      "css",
+      "href",
+      "link",
+      "loopple",
+      "rel",
+      "stylesheet",
+      "theme"
+    ],
+    "files.exclude": {
+      "**/.git": true,
+      "**/node_modules": true,
+      "**/.wwebjs_cache": true,
+      "**/.wwebjs_auth": true,
+      "**/tmp": true,
+      "**/.DS_Store": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.wwebjs_cache": true,
+      "**/.wwebjs_auth": true,
+      "**/tmp": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-node-azure-pack"
+    ]
+  }
+}

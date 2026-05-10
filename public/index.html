@@ -51,245 +51,329 @@
             background-color: #ffffff;
         }
         
+        .powered-by-footer {
+            position: absolute; /* Sticks it at the bottom */
+            bottom: 10px; /* Adjust this as needed */
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 14px;
+            color: #777;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .suntrenia {
+            color: #777;/* Suntrenia brand color */
+        }
 
         .container {
-      position: relative;
-  }
+            position: relative;
+        }
   
-  .container img {
-      position: absolute;
-      top: 50px; /* Adjust this value to move the logo down */
-      left: 50%; /* Adjust this value to horizontally center the logo */
-      transform: translateX(-50%);
-  }
+        .container img {
+            position: absolute;
+            top: 50px; /* Adjust this value to move the logo down */
+            left: 50%; /* Adjust this value to horizontally center the logo */
+            transform: translateX(-50%);
+        }
+
+        /* Success Animation Styles - Made smaller */
+        .success-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+      
+        .success-animation.show {
+            opacity: 1;
+            visibility: visible;
+        }
+      
+        .success-content {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 220px;
+            width: 70%;
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+      
+        .success-animation.show .success-content {
+            transform: scale(1);
+        }
+      
+        .success-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+            position: relative;
+        }
+      
+        .success-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: pulse 1.5s infinite;
+        }
+      
+        .checkmark {
+            width: 30px;
+            height: 15px;
+            border-left: 3px solid white;
+            border-bottom: 3px solid white;
+            transform: rotate(-45deg);
+            margin-top: -3px;
+        }
+      
+        .success-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 8px;
+        }
+      
+        .user-name {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+      
+        .redirect-text {
+            font-size: 12px;
+            color: #777;
+        }
+      
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
 
     </style>
-  
-  
-
 </head>
 <body>
-  <div>
-  <!-- <div class="logo-container"> -->
-    <!-- <div class="logo">
-        <div class="blue-square"></div>
-        <div class="orange-square"></div>
-    </div>
-    <div class="mota">
-        <h2>MOTA-ENGIL</h2>
-        <div class="line"></div>
-        <h3>NIGERIA</h3>
-    </div> -->
-
-  
-    <main>
-      <!-- Your SVG content here -->
-      <svg xmlns="http://www.w3.org/2000/svg" height="200" width="400" version="1.0" viewBox="-14.709615 -11.98125 127.48333 71.8875">
-          <defs>
-              <!-- Define the clip path -->
-              <clipPath id="a">
-                  <path d="M0 841.89h1785.827V0H0z"/>
-              </clipPath>
-          </defs>
-    
-             <g clip-path="url(#a)" transform="matrix(1.25 0 0 -1.25 -1155.7275 543.7908)">
-              <path d="M924.582 415.8627h19.169v-19.17h-19.169z" fill="#f7a30a" fill-rule="evenodd"/>
-              <path d="M943.751 435.0327h19.17v-19.169h-19.17z" fill="#005ec4" fill-rule="evenodd"/>
-              <path d="M942.4095 435.0324h1.342v-19.169h-19.169v1.341h17.827zm1.3418-19.1694h19.17v-1.342h-17.827v-17.828h-1.343v17.828z" fill="#231f20"/>
-              <path d="M956.972 409.0544h-.851c-.916-1.695-1.841-3.4-2.767-5.196-.832 1.796-1.674 3.501-2.516 5.196h-.972v-6.381h.748v5.195h.019c.252-.837 1.608-3.564 2.42-5.195h.366c.879 1.631 2.365 4.448 2.627 5.195h.019v-5.195h.907zm4.5322-5.9629c-1.691 0-2.271 1.523-2.271 2.771 0 1.196.654 2.553 2.271 2.553 1.618 0 2.272-1.357 2.272-2.553 0-1.248-.579-2.771-2.272-2.771m0-.637c2.021 0 3.273 1.504 3.273 3.408 0 1.788-1.383 3.192-3.273 3.192-1.889 0-3.271-1.404-3.271-3.192 0-1.904 1.251-3.408 3.271-3.408m19.9776 6.5969l-4.021.003v-6.385h4.426v.639l-3.511.002v2.052h3.058v.637h-3.058v2.414h3.106zm7.1982 0h-.752v-5.087h-.019c-.444.638-2.876 3.428-4.329 5.087h-.679v-6.382h.755v5.078h.018c.397-.555 2.858-3.418 4.29-5.078h.716zm5.9082-3.5732v-2.16c-.367-.174-.783-.229-1.339-.229-1.432 0-2.573 1.084-2.573 2.699 0 1.495.961 2.626 2.677 2.626.725 0 1.329-.247 1.725-.511l.377.528c-.396.319-1.15.62-2.111.62-2.377 0-3.678-1.668-3.678-3.282 0-1.75 1.207-3.318 3.555-3.318.839 0 1.64.21 2.282.428v2.599zm3.2888 3.5735h-.914v-6.382h.914zm1.4983-6.3821h3.658v.639h-2.744v5.743h-.914zm-31.3632.0039v5.742l2.139.001v.638h-5.297v-.639h2.203v-5.742z" fill="#ffffff" fill-rule="evenodd"/>
-              <path d="M972.3656 409.0544l-2.607-6.381h.974l.945 2.689.225.639.671 1.91 1.987-5.238h1.102l-2.568 6.381z" fill="#ffffff"/>
-              <path d="M972.2015 405.362h4.695V406h-4.466z" fill="#ffffff" fill-rule="evenodd"/>
-
-
-            </g>
-      </svg>
- 
-  </main>
-</div>
-
-
-<div class="container" style="position: relative; top: -50px;">
-
-    <form id="loginForm">
-      
-        <div class="title">Login</div>
-        <div class="input-box underline">
-          <input type="text" id="phoneNumber" placeholder="Enter Your Phone Number" required>
-          <div class="underline"></div>
-        </div>
-        <div class="input-box">
-          <input type="password" id="password" placeholder="Enter Your Password" required>
-          <div class="underline"></div>
-        </div>
-        <div class="input-box button">
-          <input type="button" value="Continue" onclick="loginFunction()">
-        </div>
-      </form>
-
     <div>
-        <button type="submit" id="travels_advisory" onclick="gotoregister_myFunction()">Create Account</button>
+      <main>
+        <!-- Intellijob logo: tie + wordmark, scaled and lowered -->
+        <svg xmlns="http://www.w3.org/2000/svg"
+             width="300" height="90"
+             viewBox="0 0 300 90"
+             preserveAspectRatio="xMinYMid meet"
+             role="img"
+             aria-labelledby="logoTitle logoDesc"
+             style="display:block; margin: 0 0 30px 0;"  <!-- pushes it further down toward the login box -->
+             focusable="false">
+          <title id="logoTitle">Intellijob logo — tie with brand text</title>
+          <desc id="logoDesc">A stylized dark blue tie icon next to the word Intellijob, clean, bold and left-aligned.</desc>
+      
+          <style>
+            .tie { fill: #0D47A1; }   /* dark blue tie */
+            .text { 
+              font-family: 'Calibri', 'Segoe UI', sans-serif;
+              font-size: 36px;
+              font-weight: bold;
+              fill: #FFFFFF;          /* white text */
+            }
+          </style>
+      
+          <!-- Tie icon (enlarged and lowered slightly) -->
+          <g transform="translate(0,10) scale(1.3)">
+            <!-- knot -->
+            <path class="tie" d="M10 0 L30 0 L25 10 L15 10 Z" />
+            <!-- blade -->
+            <path class="tie" d="M15 10 L25 10 L33 40 C34 42 32.5 44 31 44 L24 52 L16 52 L9 44 C7.5 44 6 42 7 40 L15 10 Z" />
+          </g>
+      
+          <!-- Brand name (shifted close to tie) -->
+          <text x="70" y="58" class="text">Intellijob</text>
+        </svg>
+      </main>
+      
+      
+      
+      
+      
     </div>
 
+    <div class="container" style="position: relative; top: -50px;">
+        <form id="loginForm">
+            <div class="title">Login</div>
+            <div class="input-box underline">
+                <input type="text" id="phoneNumber" placeholder="Enter Your Phone Number" required>
+                <div class="underline"></div>
+            </div>
+            <div class="input-box">
+                <input type="password" id="password" placeholder="Enter Your Password" required>
+                <div class="underline"></div>
+            </div>
+            <div class="input-box button">
+                <input type="button" value="Continue" onclick="loginFunction()">
+            </div>
+        </form>
+
+        <div>
+            <button type="submit" id="travels_advisory" onclick="gotoregister_myFunction()">Create Account</button>
+        </div>
+
+        <footer class="powered-by-footer">
+            <p>Powered by <span class="suntrenia">Suntrenia</span></p>
+        </footer>
+    </div>
   
-<!-- <script>
-    // Function to clean and format the phone number
-    function cleanAndFormatPhoneNumber(phoneNumber) {
-      if (typeof phoneNumber !== 'string') {
-        console.error('Invalid phoneNumber:', phoneNumber);
-        return phoneNumber;
-      }
-  
-      // Remove non-digit characters and add country code if missing
-      const cleanedNumber = phoneNumber.replace(/\D/g, '');
-      const formattedNumber = cleanedNumber.startsWith('234') ? cleanedNumber : `234${cleanedNumber.slice(1)}`;
-      return formattedNumber;
-    }
-  
-    function loginFunction() {
-      const phoneNumber = cleanAndFormatPhoneNumber(document.getElementById("phoneNumber").value);
-      const password = document.getElementById("password").value;
-  
-      // Send login credentials to the server
-      fetch('/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phoneNumber, password }),
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.token) {
-          // Store the token in localStorage or a secure storage method
-          localStorage.setItem('token', data.token);
-  
-          // Redirect to the user dashboard or home page
-          window.location.href = '/dashboard';
-        } else {
-          alert(data.message);
+    <!-- Success Animation Overlay -->
+    <div class="success-animation" id="successAnimation">
+        <div class="success-content">
+            <div class="success-icon">
+                <div class="success-circle">
+                    <div class="checkmark"></div>
+                </div>
+            </div>
+            <div class="success-text">Welcome!</div>
+            <div class="user-name" id="welcomeUserName"></div>
+            <div class="redirect-text">Redirecting to dashboard...</div>
+        </div>
+    </div>
+
+    <script>
+        // Redirect if already logged in
+        fetch('/check-auth')
+            .then(response => response.json())
+            .then(data => {
+                if (data.authenticated) {
+                    window.location.href = '/protected/intellijob_dashboard.html';
+                }
+            });
+    </script>
+    
+    <script>
+        function gotoregister_myFunction() {
+            // Redirect to the create_account.html page or perform any other actions
+            window.location.href = "create_account.html";
         }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        // Handle errors
-      });
-    }
-  </script> -->
+    </script>
 
-  <script>
-    function gotoregister_myFunction() {
-        // Redirect to the create_account.html page or perform any other actions
-        window.location.href = "create_account.html";
-    }
-</script>
+    <script>
+        // Function to clean and format the phone number
+        function cleanAndFormatPhoneNumber(phoneNumber) {
+            if (typeof phoneNumber !== 'string') {
+                console.error('Invalid phoneNumber:', phoneNumber);
+                return phoneNumber;
+            }
 
-  <script>
-    // Function to clean and format the phone number
-   // Function to clean and format the phone number
-function cleanAndFormatPhoneNumber(phoneNumber) {
-  if (typeof phoneNumber !== 'string') {
-    console.error('Invalid phoneNumber:', phoneNumber);
-    return phoneNumber;
-  }
+            // Remove non-digit characters and add country code if missing
+            const cleanedNumber = phoneNumber.replace(/\D/g, '');
 
-  // Remove non-digit characters and add country code if missing
-  const cleanedNumber = phoneNumber.replace(/\D/g, '');
+            // Check if the number starts with '0' and replace it with '+234'
+            if (cleanedNumber.startsWith('0')) {
+                const formattedNumber = `+234${cleanedNumber.slice(1)}`;
+                return formattedNumber;
+            }
 
-  // Check if the number starts with '0' and replace it with '+234'
-  if (cleanedNumber.startsWith('0')) {
-    const formattedNumber = `+234${cleanedNumber.slice(1)}`;
-    return formattedNumber;
-  }
+            // Check if the number starts with '234' and add '+' if missing
+            if (cleanedNumber.startsWith('234')) {
+                return `+${cleanedNumber}`;
+            }
 
-  // Check if the number starts with '234' and add '+' if missing
-  if (cleanedNumber.startsWith('234')) {
-    return `+${cleanedNumber}`;
-  }
+            // If the number doesn't start with '0' or '234', add '+234' as the prefix
+            return `+234${cleanedNumber}`;
+        }
 
-  // If the number doesn't start with '0' or '234', add '+234' as the prefix
-  return `+234${cleanedNumber}`;
-}
+        // Function to extract first name from full name
+        function getFirstName(fullName) {
+            if (!fullName) return '';
+            return fullName.split(' ')[0];
+        }
 
+        // Function to show success animation
+        function showSuccessAnimation(userName, redirectUrl) {
+            const animation = document.getElementById('successAnimation');
+            const welcomeText = document.getElementById('welcomeUserName');
+            
+            // Set only the first name if available
+            if (userName) {
+                welcomeText.textContent = getFirstName(userName);
+            } else {
+                welcomeText.style.display = 'none';
+            }
+            
+            // Show the animation
+            animation.classList.add('show');
+            
+            // Redirect after 2 seconds - directly to dashboard
+            setTimeout(() => {
+                // Clear any form data
+                document.getElementById('loginForm').reset();
+                // Redirect directly to dashboard
+                window.location.href = redirectUrl || '/protected/intellijob_dashboard.html';
+            }, 2000);
+        }
+        
+        function loginFunction() {
+            const phoneNumber = cleanAndFormatPhoneNumber(document.getElementById("phoneNumber").value);
+            const password = document.getElementById("password").value;
 
-  //   function loginFunction() {
-  // const phoneNumber = cleanAndFormatPhoneNumber(document.getElementById("phoneNumber").value);
-  // const password = document.getElementById("password").value;
+            // Send login credentials to the server
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ phoneNumber, password }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.token) {
+                    // Store the token in localStorage or a secure storage method
+                    localStorage.setItem('token', data.token);
 
-  // // Send login credentials to the server
-  // fetch('/login', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({ phoneNumber, password }),
-  // })
-  // .then(response => response.json())
-  // .then(data => {
-  //   if (data.token) {
+                    // Store user's name in localStorage
+                    localStorage.setItem('userName', data.userName);
 
-  //   // Store the token in localStorage or a secure storage method
-  //   localStorage.setItem('token', data.token);
-
-  //   // Redirect based on the provided URL
-  //   window.location.href = data.redirect;
-  // } else {
-  //     // Display an alert if the message is about creating an account
-  //     if (data.message && data.message.includes('create an account')) {
-  //       alert(data.message);
-  //     } else {
-  //       // Handle other error messages (e.g., invalid credentials)
-  //       console.error('Error during login:', data.message);
-  //       alert('Login failed. Please check your credentials.');
-  //     }
-  //   }
-  // })
-  function loginFunction() {
-  const phoneNumber = cleanAndFormatPhoneNumber(document.getElementById("phoneNumber").value);
-  const password = document.getElementById("password").value;
-
-  // Send login credentials to the server
-  fetch('/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ phoneNumber, password }),
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.token) {
-      // Store the token in localStorage or a secure storage method
-      localStorage.setItem('token', data.token);
-
-      // Store user's name in localStorage
-      localStorage.setItem('userName', data.userName);
-
-      // Display welcome message with user's name
-      // alert(`Welcome ${data.userName}!`);
-      alert(`Welcome!`);
-      // Redirect based on the provided URL
-      window.location.href = data.redirect;
-    } else {
-      // Display an alert if the message is about creating an account
-      if (data.message && data.message.includes('create an account')) {
-        alert(data.message);
-      } else {
-        // Handle other error messages (e.g., invalid credentials)
-        console.error('Error during login:', data.message);
-        alert('Login failed. Please check your credentials.');
-      }
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    // Handle errors
-  });
-}
-</script>
-
-</div>
+                    // Show beautiful success animation instead of alert
+                    showSuccessAnimation(data.userName, data.redirect);
+                } else {
+                    // Display an alert if the message is about creating an account
+                    if (data.message && data.message.includes('create an account')) {
+                        alert(data.message);
+                    } else {
+                        // Handle other error messages (e.g., invalid credentials)
+                        console.error('Error during login:', data.message);
+                        alert('Login failed. Please check your credential or activate your account...');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Handle errors
+            });
+        }
+    </script>
 </body>
 </html>
-
-
-

@@ -1,0 +1,115 @@
+body{
+    font-family: Calibri, sans-serif;
+    background: linear-gradient(90deg, #0073e6, #FFA500);
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    border: 2px solid #000;
+    padding: 20px;
+    margin: 20px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.logo {
+    display: flex;
+    align-items: flex-end;
+}
+
+
+/* Red Seal Styles */
+/* Red Seal Styles */
+/* Red Seal Styles */
+.red-seal {
+position: absolute;
+bottom: 50px;
+right: 50px;
+width: 150px;
+height: 150px;
+background-color: red;
+border-radius: 50%;
+border: 3px solid #fff;
+text-align: center;
+display: flex;
+align-items: center;
+justify-content: center;
+clip-path: polygon(
+50% 0%,
+61.8% 35.4%,
+68.6% 57.3%,
+79.1% 91%,
+50% 70.1%,
+20.9% 91%,
+31.4% 57.3%,
+38.2% 35.4%
+);
+transform: rotate(-45deg);
+}
+
+.seal-text {
+color: white;
+font-weight: bold;
+text-transform: uppercase;
+font-size: 14px;
+margin-top: -8px;
+}
+
+
+
+.blue-square {
+    width: 50px;
+    height: 50px;
+    background-color: #0073e6;
+}
+
+.orange-square {
+    width: 50px;
+    height: 50px;
+    background-color: #FFA500;
+    margin-left: -3px;
+    margin-bottom: -50px;
+}
+
+.line {
+height: 4px; /* Increase height for a thicker line */
+width: 110px; /* Adjust width to match the "MOTA-ENGIL" text */
+background-color: gray; /* Change color to gray */
+margin: 10px auto; /* Adjust margin here to move the line up or down */
+}
+h2, h3 {
+    font-family: Calibri, sans-serif;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table, th, td {
+    border: 1px solid #000;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    font-size: 16px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

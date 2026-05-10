@@ -1,0 +1,1941 @@
+<head>
+ 
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- <title>Dashboard Builder</title> -->
+    
+    <!-- External CSS libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+    <link rel="stylesheet" href="https://rawcdn.githack.com/Loopple/loopple-public-assets/ad60f16c8a16d1dcad75e176c00d7f9e69320cd4/argon-dashboard/css/nucleo/css/nucleo.css">
+    
+    <!-- Local CSS (served from /public/assets/...) -->
+    <link rel="stylesheet" href="/assets/css/theme.css">
+    <link rel="stylesheet" href="/assets/css/loopple/loopple.css">
+    
+    <!-- Extra font-awesome (if really needed, though you already loaded it above) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+
+<style>/* General form section styles */
+
+   /* General form section styles */
+
+    /* Style for submit button */
+    .btn-submit {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        background-color: #0056b3;
+    }
+
+
+
+.form-section {
+    margin-bottom: 20px;
+}
+
+.section-heading {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Existing button styles */
+.button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.btn-back {
+    display: none;
+}
+
+#backButton {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-control {
+    margin-bottom: 10px;
+}
+
+.btn-submit {
+    display: none;
+}
+
+/* New styles for "Add" buttons */
+.btn-secondary {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #218838;
+}
+
+#certifications button,
+#memberships button,
+#languages button,
+#projectsContainer button {
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+#certifications button:hover,
+#memberships button:hover,
+#languages button:hover,
+#projectsContainer button:hover {
+    background-color: #138496;
+}
+
+/* Existing styles */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.entry-table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid #ddd;
+}
+
+.entry-table th,
+.entry-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.entry-table th {
+    background: linear-gradient(to bottom, #007bff, #011588);
+    color: white;
+}
+
+.entry-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.jumping-dots-loader {
+    width: 100px;
+    height: 100px;
+    border-radius: 100%;
+    position: relative;
+    margin: 0 auto;
+}
+
+.jumping-dots-loader span {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    background-color: rgba(241, 83, 110, 0.8);
+    margin: 35px 5px;
+}
+
+.jumping-dots-loader span:nth-child(1) {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+.jumping-dots-loader span:nth-child(2) {
+    animation: bounce 1s ease-in-out 0.33s infinite;
+}
+
+.jumping-dots-loader span:nth-child(3) {
+    animation: bounce 1s ease-in-out 0.66s infinite;
+}
+
+@keyframes bounce {
+    0%, 75%, 100% {
+        transform: translateY(0);
+    }
+    25% {
+        transform: translateY(-20px);
+    }
+}
+
+.certification-entry, .membership-entry, .language-entry, .project-entry {
+    margin-bottom: 15px;
+}
+
+.certification-entry input, .membership-entry input, .language-entry input, .project-entry input, .project-entry textarea {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.certification-entry input, .membership-entry input, .language-entry input {
+    height: 40px;
+}
+
+.certification-entry input::placeholder, .membership-entry input::placeholder, .language-entry input::placeholder, .project-entry input::placeholder, .project-entry textarea::placeholder {
+    color: #999;
+}
+
+ </style>  
+
+
+
+</head>
+<body class="g-sidenav-show">
+    <nav class="sidenav navbar navbar-vertical fixed-left navbar-expand-xs navbar-light bg-white loopple-fixed-start" id="sidenav-main">
+        <div class="sidenav-header  align-items-center">
+            <a class="navbar-brand" href="javascript:void(0)">
+                <img src="https://loopple.s3.eu-west-3.amazonaws.com/images/6hrcq113GeocFfxSvZ8Lcz38JIFfMfuafaW6l1s5.png" class="navbar-brand-img" alt="...">
+            </a>
+        </div>
+        <div class="navbar-inner">
+            <div class="collapse navbar-collapse" id="sidenav-collapse-main">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="javascript:">
+                            <i class="fa fa-desktop text-primary"></i>
+                            <span class="nav-link-text" style="font-size: 22px; font-weight: bold; font-family: 'Arial', sans-serif;">IntelliJob</span>
+                        </a>
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:" id="profileSettingsLink">
+                            <i class="fa fa-user text-success"></i>
+                            <span class="nav-link-text">My Profile</span>
+                        </a>
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/protected/intellijob_panel_page.html#accountPanel">
+                            <i class="fa fa-user-cog text-warning"></i>
+                            <span class="nav-link-text">My Account</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/protected/intellijob_panel_page.html#topupPanel">
+                            <i class="fa fa-credit-card text-info"></i>
+                            <span class="nav-link-text">Top Up</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/protected/intellijob_panel_page.html#appsPanel">
+                            <i class="fa fa-paper-plane text-danger"></i>
+                            <span class="nav-link-text">Applications</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:goBack()">
+                            <i class="fas fa-arrow-left text-primary"></i>
+                            <span class="nav-link-text">Back</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:goHome()">
+                            <i class="fas fa-home text-primary"></i>
+                            <span class="nav-link-text">Home</span>
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="main-content" id="panel">
+        <nav class="navbar navbar-top navbar-expand navbar-dark border-bottom bg-dark" id="navbarTop">
+            <div class="container-fluid">
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <form class="navbar-search navbar-search-light form-inline mr-sm-3 mb-0" id="navbar-search-main">
+                        <div class="form-group mb-0">
+                            <div class="input-group input-group-alternative input-group-merge">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                </div>
+                                <input class="form-control" placeholder="Search" type="text">
+                            </div>
+                        </div>
+                        <button type="button" class="close" data-action="search-close" data-target="#navbar-search-main" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </form>
+                    <ul class="navbar-nav align-items-center  ml-md-auto ">
+                        <li class="nav-item d-xl-none">
+                            <div class="pr-3 sidenav-toggler sidenav-toggler-dark active" data-action="sidenav-pin" data-target="#sidenav-main">
+                                <div class="sidenav-toggler-inner">
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item d-sm-none">
+                            <a class="nav-link" href="#" data-action="search-show" data-target="#navbar-search-main">
+                                <i class="ni ni-zoom-split-in"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa fa-bell"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-xl  dropdown-menu-right  py-0 overflow-hidden">
+                                <div class="px-3 py-3">
+                                    <h6 class="text-sm text-muted m-0">You have <strong class="text-primary">13</strong> notifications.</h6>
+                                </div>
+                                <div class="list-group list-group-flush">
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <!-- <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-1.jpg" class="avatar rounded-circle"> -->
+                                                <img id="userProfileImage" alt="User Image" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-1.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-2.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-3.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>5 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Your posts have been liked a lot.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-4.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-5.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <a href="#!" class="dropdown-item text-center text-primary font-weight-bold py-3">View all</a>
+                            </div>
+                        </li>
+                  
+                    </ul>
+                    <ul class="navbar-nav align-items-center  ml-auto ml-md-0 ">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link pr-0" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <div class="media align-items-center">
+                                    <span class="avatar avatar-sm rounded-circle">
+                                        <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg">
+                                    </span>
+                                    <div class="media-body  ml-2  d-none d-lg-block">
+                                        <span class="mb-0 text-sm  font-weight-bold">John Snow</span>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu  dropdown-menu-right ">
+                                <div class="dropdown-header noti-title">
+                                    <h6 class="text-overflow m-0">Welcome!</h6>
+                                </div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-user"></i>
+                                    <span>My profile</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-tools"></i>
+                                    <span>Settings</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="far fa-calendar"></i>
+                                    <span>Activity</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-phone"></i>
+                                    <span>Support</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-sign-out-alt"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid pt-3">
+            <div class="row removable">
+                <div class="col-xl-3 col-md-6">
+  <div class="card bg-gradient-success border-0" style="cursor:pointer;position:relative" tabindex="0" role="button" onclick="window.location.href='/protected/intellijob_panel_page.html#accountPanel'">
+    <a class="sun-card-hit" href="/protected/intellijob_panel_page.html#accountPanel" aria-label="Open My Account">Open My Account</a>
+    <div class="card-body">
+      <div class="row">
+        <div class="col">
+          <h5 class="card-title text-uppercase text-muted mb-0 text-white">My Account</h5>
+          <span class="h2 font-weight-bold mb-0 text-white" id="accountPlanLabel">-</span>
+          <div class="progress progress-xs mt-3 mb-0">
+            <div class="progress-bar bg-warning" role="progressbar" id="accountProgress" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="col-auto">
+          <div class="icon icon-shape bg-white text-success rounded-circle shadow">
+            <i class="fa fa-user-cog"></i>
+          </div>
+        </div>
+      </div>
+      <p class="mt-3 mb-0 text-sm">
+        <span class="text-white font-weight-600" id="accountStatusLabel">Subscription &amp; settings</span>
+      </p>
+    </div>
+  </div>
+</div>
+<div class="col-xl-3 col-md-6">
+  <div class="card border-0" style="cursor:pointer;position:relative;background:linear-gradient(135deg,#7c3aed,#4f46e5)" tabindex="0" role="button" onclick="window.location.href='/protected/intellijob_panel_page.html#topupPanel'">
+    <a class="sun-card-hit" href="/protected/intellijob_panel_page.html#topupPanel" aria-label="Open Top Up Plan">Open Top Up Plan</a>
+    <div class="card-body">
+      <div class="row">
+        <div class="col">
+          <h5 class="card-title text-uppercase text-muted mb-0 text-white">Top Up Plan</h5>
+          <span class="h2 font-weight-bold mb-0 text-white">Top Up</span>
+          <div class="progress progress-xs mt-3 mb-0">
+            <div class="progress-bar bg-warning" role="progressbar" style="width:100%"></div>
+          </div>
+        </div>
+        <div class="col-auto">
+          <div class="icon icon-shape bg-white rounded-circle shadow" style="color:#7c3aed">
+            <i class="fa fa-credit-card"></i>
+          </div>
+        </div>
+      </div>
+      <p class="mt-3 mb-0 text-sm">
+        <span class="text-white font-weight-600">Basic &middot; Standard &middot; Premium</span>
+      </p>
+    </div>
+  </div>
+</div>
+<div class="col-xl-3 col-md-6">
+  <div class="card bg-gradient-danger border-0" style="cursor:pointer;position:relative" tabindex="0" role="button" onclick="window.location.href='/protected/intellijob_panel_page.html#appsPanel'">
+    <a class="sun-card-hit" href="/protected/intellijob_panel_page.html#appsPanel" aria-label="Open Applications">Open Applications</a>
+    <div class="card-body">
+      <div class="row">
+        <div class="col">
+          <h5 class="card-title text-uppercase text-muted mb-0 text-white">Applications</h5>
+          <span class="h2 font-weight-bold mb-0 text-white" id="appsTotalLabel">-</span>
+          <div class="progress progress-xs mt-3 mb-0">
+            <div class="progress-bar bg-success" role="progressbar" id="appsProgress" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="col-auto">
+          <div class="icon icon-shape bg-white text-danger rounded-circle shadow">
+            <i class="fa fa-paper-plane"></i>
+          </div>
+        </div>
+      </div>
+      <p class="mt-3 mb-0 text-sm">
+        <span class="text-white font-weight-600" id="appsTodayLabel">Today: -</span>
+      </p>
+    </div>
+  </div>
+</div>
+<div class="col-xl-3 col-md-6" id="newEntriesTab">
+                    <div class="card bg-gradient-primary border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Manage Biodata</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">8/24</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" style="width: 30%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#" id="managePhotograph">Manage Photograph</a>
+                                        <a class="dropdown-item" href="#">Add Biodata</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <div class="col-xl-3 col-md-6 manage-job-preferences">
+                    <div class="card bg-gradient-info border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Manage Job Preferences</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">123/267</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100" style="width: 50%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#" id="manageJobPreferencesLink">Manage Job Preferences</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+         
+                <!-- TOP UP CARD -->
+                <div class="col-xl-3 col-md-6 d-none" aria-hidden="true" style="display:none">
+                    <div class="card border-0" style="cursor:pointer;position:relative;background:linear-gradient(135deg,#7c3aed,#4f46e5)" tabindex="0" role="button" onclick="window.location.href='/protected/intellijob_panel_page.html#topupPanel'">
+                        <a class="sun-card-hit" href="/protected/intellijob_panel_page.html#topupPanel" aria-label="Open Top Up Plan">Open Top Up Plan</a>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Top Up Plan</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">₦5k–12k</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width:100%"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="icon icon-shape bg-white rounded-circle shadow" style="color:#7c3aed">
+                                        <i class="fa fa-credit-card"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <span class="text-white text-nowrap font-weight-600">Basic · Standard · Premium</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- APPLICATIONS CARD -->
+                <div class="col-xl-3 col-md-6 d-none" aria-hidden="true" style="display:none">
+                    <div class="card bg-gradient-danger border-0" style="cursor:pointer;position:relative" tabindex="0" role="button" onclick="window.location.href='/protected/intellijob_panel_page.html#appsPanel'">
+                        <a class="sun-card-hit" href="/protected/intellijob_panel_page.html#appsPanel" aria-label="Open Applications">Open Applications</a>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Applications</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">–</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width:0%"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="icon icon-shape bg-white text-danger rounded-circle shadow">
+                                        <i class="fa fa-paper-plane"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <span class="text-white text-nowrap font-weight-600">Today: –</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+              
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-danger border-0"     >
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Activity Dashboard!</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">200/300</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100" style="width: 80%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="window.location.href='dashboard.html';">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#">Action</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-gradient-default border-0" onclick="navigateToSubscriptionPage()">
+                    <!-- Card body -->
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <h5 class="card-title text-uppercase text-muted mb-0 text-white">Manage Subscriptions</h5>
+                                <span class="h2 font-weight-bold mb-0 text-white">50/62</span>
+                                <div class="progress progress-xs mt-3 mb-0">
+                                    <div class="progress-bar bg-success" role="progressbar" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100" style="width: 90%;"></div>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right">
+                                    <a class="dropdown-item" href="#">Action</a>
+                                    <a class="dropdown-item" href="#">Another action</a>
+                                    <a class="dropdown-item" href="#">Something else here</a>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="mt-3 mb-0 text-sm">
+                            <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+
+            <div class="col-xl-3 col-md-6" id="interviewHelperCard" style="display: none;">
+                <div class="card bg-gradient-success border-0">
+                    <!-- Card body -->
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col">
+                                <h5 class="card-title text-uppercase text-muted mb-0 text-white">Suntrenia AI Intervia</h5>
+                                <span class="h2 font-weight-bold mb-0 text-white">Interview Coach</span>
+                                <div class="progress progress-xs mt-3 mb-0">
+                                    <div class="progress-bar bg-white" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right">
+                                    <a class="dropdown-item" href="#" id="launchInterviewHelper">Launch Suntrenia AI Intervia</a>
+                                    <a class="dropdown-item" href="#" id="manageInterviewHelper">Manage Settings</a>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="mt-3 mb-0 text-sm">
+                            <a href="#!" class="text-nowrap text-white font-weight-600" id="interviewHelperLink">Start Practice</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="jumping-dots-loader" id="loadingAnimation">
+                <span></span> <span></span> <span></span>
+            </div>
+
+            <div class="card" id="profileForm">
+                <div class="table-container">
+                    <table class="entry-table">
+                        <thead>
+                            <tr>
+                                <th>1</th>
+                                <th>2</th>
+                                <th>3</th>
+                                <th>4</th>
+                                <th>5</th>
+                                <th>6</th>
+                                <th>7</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entryTableBody">
+                            <!-- Entries from the form will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-header">
+                    <div class="row align-items-center"></div>
+                </div>
+                <div class="card-body">
+                    <form id="cvForm" enctype="multipart/form-data" >
+                        <h6 class="heading-small text-muted mb-4">User CV Biodata Form</h6>
+                        <div id="section-1" class="form-section">
+                            <h6 class="section-heading">1 of 3: Biodata</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="input-username">Name</label>
+                                            <input type="text" id="input-username" name="name" class="form-control" placeholder="First Name then Surname e.g Kayode Fakorede" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="jobTitle">Job Title</label>
+                                            <input type="text" id="jobTitle" name="jobTitle" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="dateOfBirth">Date of Birth</label>
+                                            <input type="date" id="dateOfBirth" name="dateOfBirth" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="phone_number">Phone Number</label>
+                                            <input type="tel" id="phone_number" name="phone_number" class="form-control" placeholder="e.g 08034567890" pattern="[0-9]{11}" title="Please enter a valid phone number (11 digits)" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                        <div id="section-2" class="form-section" style="display: none;">
+                            <h6 class="section-heading">2 of 3: Contact Information</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="address">Address</label>
+                                            <input type="text" id="address" name="address" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="email">Email</label>
+                                            <input type="email" id="email" name="email" class="form-control" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="skills">Skills (comma separated)</label>
+                                            <textarea id="skills" name="skills" class="form-control" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="summary">Summary</label>
+                                            <textarea id="summary" name="summary" class="form-control" required></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                        <div id="section-3" class="form-section" style="display: none;">
+                            <h6 class="section-heading">3 of 3: Experience and Education</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div id="workExperienceContainer">
+                                            <h5>Work Experience</h5>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="workExperienceTitle[]" placeholder="Job Title" required>
+                                                <input type="text" class="form-control" name="workExperienceCompany[]" placeholder="Company" required>
+                                                <input type="text" class="form-control" name="workExperienceDuration[]" placeholder="Duration" required>
+                                                <textarea class="form-control" name="workExperienceDescription[]" placeholder="Description" required></textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="addWorkExperience" class="btn btn-secondary">Add Work Experience</button>
+                
+                                        <div id="educationContainer">
+                                            <h5>Education</h5>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="educationSchool[]" placeholder="School" required>
+                                                <input type="text" class="form-control" name="educationDegree[]" placeholder="Degree" required>
+                                                <input type="text" class="form-control" name="educationDuration[]" placeholder="Duration" required>
+                                                <textarea class="form-control" name="educationDescription[]" placeholder="Description" required></textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="addEducation" class="btn btn-secondary">Add Education</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                        
+                        <div id="section-4" class="form-section" style="display: none;">
+                            <h6 class="section-heading">4 of 4: Additional Information</h6>
+                            <div class="pl-lg-4">
+                                <div class="row">
+                                    <div class="col-lg-6">
+
+                                    
+                                        <div id="certificationContainer">
+                                            <button type="button" onclick="addCertifications()">Add Certification</button>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="certificationName[]" placeholder="Certification Name" required>
+                                                <input type="text" class="form-control" name="institution[]" placeholder="Institution" required>
+                                                <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+                                            </div>
+                                            
+                                        </div>
+                              
+                                  
+                            
+                                        <div id="professionalBodyContainer">
+                                            <button type="button" onclick="addProfessionalBody()">Add Professional Membership</button>
+                                            <div class="form-group">
+                                           
+                                                    <input type="text" class="form-control" name="membershipName[]" placeholder="Membership Name" required>
+                                                    <input type="text" class="form-control" name="role[]" placeholder="Role" required>
+                                                    <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+                                            
+                                            </div>
+                                           
+                                        </div>
+                                 
+
+                                    
+                                        <div id="languagesContainer">
+                                            <button type="button" onclick="addLanguage()">Add Language</button>
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" name="languagesTitle[]" placeholder="Language Name" required>
+                                                <input type="text" class="form-control" name="languageProficiency[]" placeholder="Language Proficiency" required>
+                                            </div>
+                                        </div>
+                                        
+                                          
+
+
+
+                                        <div class="form-group">
+                                            <label class="form-control-label" for="gender">Gender</label>
+                                            <select id="gender" name="gender" class="form-control" required>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+
+
+                                        <div id="projectsContainer">
+                                            <h5>Projects</h5>
+                                            <div class="form-group project-entry">
+                                                <input type="text" class="form-control" name="projectsTitle[]" placeholder="Project Title" required>
+                                                <input type="text" class="form-control" name="projectsPeriod[]" placeholder="Period" required>
+                                                <textarea class="form-control" name="projectsDescription[]" placeholder="Description" required></textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="addProjects" class="btn btn-secondary">Add Project</button> 
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                     
+                        <hr class="my-4">
+
+                    </form>
+
+                </div>
+                <div class="button-container">
+                    <button id="backButton" class="btn btn-back">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button id="nextButton" class="btn btn-primary">Next</button>
+                    <button id="submitButton" class="btn btn-submit" style="display: none;">Preview and Submit</button>
+                </div>
+
+<style>
+.sun-overlay{display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:transparent;z-index:9999;align-items:flex-end;justify-content:center;pointer-events:none;}
+.sun-overlay.active{background:rgba(0,0,0,0.6);pointer-events:auto;}
+.sun-overlay:has(#accountPanel:target),
+.sun-overlay:has(#topupPanel:target),
+.sun-overlay:has(#appsPanel:target){background:rgba(0,0,0,0.6);pointer-events:auto;}
+.sun-overlay:has(#accountPanel:target) #accountPanel,
+.sun-overlay:has(#topupPanel:target) #topupPanel,
+.sun-overlay:has(#appsPanel:target) #appsPanel{display:block!important;}
+#accountPanel:target,
+#topupPanel:target,
+#appsPanel:target{display:block!important;visibility:visible;pointer-events:auto;position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:900px;max-height:85vh;overflow-y:auto;background:#1a1a2e;border-radius:20px 20px 0 0;padding:28px;z-index:10000;box-shadow:0 -12px 40px rgba(0,0,0,0.35);}
+.sun-overlay:has(#accountPanel:target) #topupPanel,
+.sun-overlay:has(#accountPanel:target) #appsPanel,
+.sun-overlay:has(#topupPanel:target) #accountPanel,
+.sun-overlay:has(#topupPanel:target) #appsPanel,
+.sun-overlay:has(#appsPanel:target) #accountPanel,
+.sun-overlay:has(#appsPanel:target) #topupPanel{display:none!important;}
+.sun-panel{background:transparent;border-radius:20px 20px 0 0;width:100%;max-width:900px;max-height:85vh;overflow-y:auto;padding:0;animation:slideUp 0.3s ease;pointer-events:none;}
+.sun-overlay.active .sun-panel,
+.sun-overlay:has(#accountPanel:target) .sun-panel,
+.sun-overlay:has(#topupPanel:target) .sun-panel,
+.sun-overlay:has(#appsPanel:target) .sun-panel{pointer-events:auto;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.sun-panel-title{font-size:18px;font-weight:700;color:#f0f0f0;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}
+.sun-close{background:none;border:none;color:#a0a0b0;font-size:22px;cursor:pointer;padding:0;}
+.sun-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;}
+.sun-stat{background:#16213e;border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:14px;}
+.sun-stat-label{font-size:10px;color:#a0a0b0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+.sun-stat-value{font-size:22px;font-weight:700;color:#7c3aed;}
+.sun-stat-value.green{color:#10b981;}
+.sun-stat-value.red{color:#ef4444;}
+.sun-stat-value.yellow{color:#f59e0b;}
+.sun-card{background:#16213e;border:1px solid rgba(124,58,237,0.15);border-radius:12px;padding:18px;margin-bottom:14px;}
+.sun-card-title{font-size:13px;font-weight:600;color:#a78bfa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;}
+.sun-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.sun-toggle-row:last-child{border-bottom:none;}
+.sun-toggle-label{font-size:14px;font-weight:500;color:#f0f0f0;}
+.sun-toggle-desc{font-size:11px;color:#a0a0b0;margin-top:2px;max-width:380px;line-height:1.4;}
+.sun-toggle{position:relative;width:42px;height:22px;flex-shrink:0;}
+.sun-toggle input{opacity:0;width:0;height:0;}
+.sun-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#2d2d4d;border-radius:22px;transition:0.3s;}
+.sun-slider:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.3s;}
+input:checked + .sun-slider{background:#7c3aed;}
+input:checked + .sun-slider:before{transform:translateX(20px);}
+.sun-btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;transition:0.2s;}
+.sun-panel-trigger-active{box-shadow:0 0 0 3px rgba(124,58,237,0.28);transform:translateY(-1px);transition:box-shadow 0.2s,transform 0.2s;}
+.sun-card-hit{position:absolute;inset:0;z-index:5;border-radius:inherit;text-indent:-9999px;overflow:hidden;}
+.sun-btn-primary{background:#7c3aed;color:white;}
+.sun-btn-primary:hover{background:#6d28d9;}
+.sun-btn-secondary{background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);}
+.sun-plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:8px;}
+.sun-plan-card{background:#0f3460;border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:16px;text-align:center;transition:0.2s;}
+.sun-plan-card:hover{border-color:#7c3aed;transform:translateY(-2px);}
+.sun-plan-card.featured{border-color:#7c3aed;background:rgba(124,58,237,0.1);}
+.sun-plan-name{font-size:15px;font-weight:700;color:#a78bfa;margin-bottom:4px;}
+.sun-plan-apps{font-size:11px;color:#a0a0b0;margin-bottom:10px;}
+.sun-plan-price{font-size:22px;font-weight:700;color:#f0f0f0;margin-bottom:12px;}
+.sun-table{width:100%;border-collapse:collapse;font-size:13px;}
+.sun-table th{text-align:left;padding:8px 10px;color:#a0a0b0;border-bottom:1px solid rgba(124,58,237,0.1);font-size:11px;text-transform:uppercase;}
+.sun-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:#f0f0f0;vertical-align:middle;}
+.sun-badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.sun-badge-green{background:rgba(16,185,129,0.15);color:#10b981;}
+.sun-badge-red{background:rgba(239,68,68,0.15);color:#ef4444;}
+.sun-badge-purple{background:rgba(124,58,237,0.15);color:#a78bfa;}
+.sun-alert{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;}
+.sun-alert-success{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;}
+.sun-alert-error{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;}
+</style>
+
+<div class="sun-overlay" id="sunOverlay" data-sun-overlay>
+  <div class="sun-panel" id="sunPanel">
+
+    <!-- ACCOUNT PANEL -->
+    <div id="accountPanel" style="display:none">
+      <div class="sun-panel-title">
+        My Account
+        <a class="sun-close" href="#" data-sun-close>&#10005;</a>
+      </div>
+      <div id="accountAlert"></div>
+      <div class="sun-stats">
+        <div class="sun-stat"><div class="sun-stat-label">Plan</div><div class="sun-stat-value" id="sPlan">-</div></div>
+        <div class="sun-stat"><div class="sun-stat-label">Status</div><div class="sun-stat-value" id="sStatus">-</div></div>
+        <div class="sun-stat"><div class="sun-stat-label">Expires</div><div class="sun-stat-value" style="font-size:13px;padding-top:6px" id="sExpiry">-</div></div>
+        <div class="sun-stat"><div class="sun-stat-label">Apps Sent</div><div class="sun-stat-value green" id="sApps">-</div></div>
+        <div class="sun-stat"><div class="sun-stat-label">Mode</div><div class="sun-stat-value yellow" id="sMode">-</div></div>
+      </div>
+      <div class="sun-card">
+        <div class="sun-card-title">Application Mode</div>
+        <div class="sun-toggle-row">
+          <div>
+            <div class="sun-toggle-label">Auto Mode (Do Not Disturb)</div>
+            <div class="sun-toggle-desc">System applies automatically. WhatsApp summary sent at 9PM daily.</div>
+          </div>
+          <label class="sun-toggle">
+            <input type="checkbox" id="autoModeToggle" data-auto-mode-toggle>
+            <span class="sun-slider"></span>
+          </label>
+        </div>
+        <div class="sun-toggle-row">
+          <div>
+            <div class="sun-toggle-label">Consent Mode</div>
+            <div class="sun-toggle-desc">You approve each job via WhatsApp before it is sent.</div>
+          </div>
+          <span id="consentStatus" style="font-size:12px;font-weight:600;color:#10b981">Active</span>
+        </div>
+      </div>
+      <div class="sun-card">
+        <div class="sun-card-title">Gmail Authorization</div>
+        <div class="sun-toggle-row">
+          <div>
+            <div class="sun-toggle-label">Connect your Gmail</div>
+            <div class="sun-toggle-desc">Send from your own Gmail for a personal touch.</div>
+          </div>
+          <a href="/settings/email-authorization" class="sun-btn sun-btn-secondary" style="font-size:12px;padding:6px 14px">Manage</a>
+        </div>
+      </div>
+      <div class="sun-card">
+        <div class="sun-card-title">Subscription Details</div>
+        <table class="sun-table">
+          <tr><td style="color:#a0a0b0">Plan</td><td id="sdPlan">-</td></tr>
+          <tr><td style="color:#a0a0b0">Status</td><td id="sdStatus">-</td></tr>
+          <tr><td style="color:#a0a0b0">Expires</td><td id="sdExpiry">-</td></tr>
+          <tr><td style="color:#a0a0b0">Apps Sent</td><td id="sdApps">-</td></tr>
+          <tr><td style="color:#a0a0b0">Interview Helper</td><td id="sdHelper">-</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- TOP UP PANEL -->
+    <div id="topupPanel" style="display:none">
+      <div class="sun-panel-title">
+        Top Up Subscription
+        <a class="sun-close" href="#" data-sun-close>&#10005;</a>
+      </div>
+      <div id="topupAlert"></div>
+      <p style="color:#a0a0b0;font-size:13px;margin-bottom:16px">Choose a plan. Payment via Paystack or Monnify.</p>
+      <div class="sun-plan-grid">
+        <div id="topup-plans-container"><p style="color:#a0a0b0;text-align:center;">Loading plans...</p></div>
+<script>
+async function loadTopupPlans() {
+  try {
+    const r = await fetch('/api/get-plan-config');
+    const data = await r.json();
+    if (!data.success) throw new Error('Failed');
+    const plans = data.plans;
+    const order = ['basic', 'standard', 'premium'];
+    const featured = { basic: false, standard: true, premium: false };
+    const container = document.getElementById('topup-plans-container');
+    container.innerHTML = order.map(key => {
+      const p = plans[key];
+      if (!p) return '';
+      return '<div class="sun-plan-card' + (featured[key] ? ' featured' : '') + '">'
+        + '<div class="sun-plan-name">' + p.name + '</div>'
+        + '<div class="sun-plan-apps">' + p.apps + ' applications &middot; ' + p.days + ' days</div>'
+        + '<div class="sun-plan-price">&#8358;' + Number(p.price).toLocaleString() + '</div>'
+        + '<button class="sun-btn sun-btn-' + (featured[key] ? 'primary' : 'secondary') + '" data-payment-plan="' + key + '" data-payment-gateway="paystack" style="width:100%">Pay with Paystack</button>'
+        + '<button class="sun-btn" data-payment-plan="' + key + '" data-payment-gateway="monnify" style="width:100%;margin-top:8px;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3)">Pay with Monnify</button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    document.getElementById('topup-plans-container').innerHTML = '<p style="color:#ef4444;">Failed to load plans. Please refresh.</p>';
+  }
+}
+loadTopupPlans();
+</script>
+      </div>
+    </div>
+
+    <!-- APPS PANEL -->
+    <div id="appsPanel" style="display:none">
+      <div class="sun-panel-title">
+        My Applications
+        <a class="sun-close" href="#" data-sun-close>&#10005;</a>
+      </div>
+      <div class="sun-stats">
+        <div class="sun-stat"><div class="sun-stat-label">Total</div><div class="sun-stat-value green" id="apTotalSent">-</div></div>
+        <div class="sun-stat"><div class="sun-stat-label">Today</div><div class="sun-stat-value" id="apToday">-</div></div>
+        <div class="sun-stat"><div class="sun-stat-label">This Week</div><div class="sun-stat-value" id="apWeek">-</div></div>
+      </div>
+      <div class="sun-card">
+        <div class="sun-card-title">Recent Applications</div>
+        <div style="overflow-x:auto">
+          <table class="sun-table">
+            <thead><tr><th>Role</th><th>Applied At</th><th>Status</th></tr></thead>
+            <tbody id="recentAppsBody">
+              <tr><td colspan="3" style="color:#a0a0b0;text-align:center;padding:20px">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sun-card" id="autoLogCard" style="display:none">
+        <div class="sun-card-title">Today Auto-Applied</div>
+        <div style="overflow-x:auto">
+          <table class="sun-table">
+            <thead><tr><th>Role</th><th>Company</th><th>Applied At</th></tr></thead>
+            <tbody id="autoLogBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/auth-check.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/jquery.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/bootstrap.bundle.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/js.cookie.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/chart.extension.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/7bb803d2af2ab6d71d429b0cb459c24a4cd0fbb4/argon-dashboard/js/argon.min.js"></script>
+                
+                <script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    const nextButton = document.getElementById('nextButton');
+                    const submitButton = document.getElementById('submitButton');
+                    const sections = document.querySelectorAll('.form-section');
+                    let currentSectionIndex = 0;
+                
+                    function showSection(index) {
+                        sections.forEach((section, i) => {
+                            section.style.display = i === index ? 'block' : 'none';
+                        });
+                        if (index === sections.length - 1) {
+                            nextButton.style.display = 'none';
+                            submitButton.style.display = 'block';
+                        } else {
+                            nextButton.style.display = 'block';
+                            submitButton.style.display = 'none';
+                        }
+                    }
+                
+                    nextButton.addEventListener('click', function() {
+                        currentSectionIndex = Math.min(currentSectionIndex + 1, sections.length - 1);
+                        showSection(currentSectionIndex);
+                    });
+                
+                    showSection(currentSectionIndex);
+                });
+                </script>
+                <script>
+                    const backButton = document.getElementById('backButton');
+                
+                    // Event listener for the "Back" button
+                    if (backButton) backButton.addEventListener('click', function () {
+                        // Redirect to the security_portal.html page
+                        window.location.href = 'receptionist.html';
+                    });
+                </script>
+                
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        var receptionistLink = document.getElementById("receptionistPortalLink");
+                        
+                        if (receptionistLink) receptionistLink.addEventListener("click", function(event) {
+                            event.preventDefault(); // Prevent the default behavior of the link
+                            
+                            // Redirect to the receptionist page
+                            window.location.href = "receptionist.html";
+                        });
+                    });
+                </script>
+                
+                <script>
+                    // Function to handle the Security Portal link click
+                    function receptionist() {
+                        // Redirect to the security_portal page
+                        window.location.href = 'Receptionist.html';
+                    }
+                
+                    // Get a reference to the link element
+                    const securityPortalLink = document.getElementById('securityPortalLink');
+                
+                    // Attach the function to the click event of the link
+                    if (securityPortalLink) securityPortalLink.addEventListener('click', security_portal);
+                </script>
+                
+                <script>
+                    const submitButton = document.getElementById('submitButton');
+                    const entryTableBody = document.getElementById('entryTableBody');
+                    const loadingAnimation = document.getElementById('loadingAnimation');
+                    const profileForm = document.getElementById('profileForm');
+                
+                    loadingAnimation.style.display = 'none';
+                    // Initially hide the profile form
+                    profileForm.style.display = 'none';
+                
+    
+
+                    newEntriesTab.addEventListener('click', () => {
+                        window.location.href = '/protected/upload-image.html';
+
+                        });
+                      
+</script>  
+
+<script>
+    function addLanguage() {
+        const container = document.getElementById('languagesContainer');
+        const newEntry = document.createElement('div');
+        newEntry.classList.add('form-group');
+        newEntry.innerHTML = `
+            <input type="text" class="form-control" name="languagesTitle[]" placeholder="Language Name" required>
+            <input type="text" class="form-control" name="languageProficiency[]" placeholder="Language Proficiency" required>
+        `;
+        container.appendChild(newEntry);
+    }
+</script>
+
+<script>           
+    const addProjectsButton = document.getElementById('addProjects');
+    const addCertificationsButton = document.getElementById('addCertifications');
+    const addProfessionalBodiesButton = document.getElementById('addProfessionalBodies');
+    const projectsContainer = document.getElementById('projectsContainer');
+    const certificationsContainer = document.getElementById('certificationContainer');
+    const professionalBodiesContainer = document.getElementById('professionalBodyContainer');
+
+    if (addCertificationsButton) addCertificationsButton.addEventListener('click', function () {
+        const certificationsGroup = document.createElement('div');
+        certificationsGroup.className = 'form-group';
+        certificationsGroup.innerHTML = `
+            <input type="text" class="form-control" name="certificationName[]" placeholder="Certification Name" required>
+            <input type="text" class="form-control" name="institution[]" placeholder="Institution" required>
+            <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+        `;
+        certificationsContainer.appendChild(certificationsGroup);
+    });
+
+    if (addProfessionalBodiesButton) addProfessionalBodiesButton.addEventListener('click', function () {
+        const professionalBodiesGroup = document.createElement('div');
+        professionalBodiesGroup.className = 'form-group';
+        professionalBodiesGroup.innerHTML = `
+            <input type="text" class="form-control" name="membershipName[]" placeholder="Membership Name" required>
+            <input type="text" class="form-control" name="role[]" placeholder="Role" required>
+            <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+        `;
+        professionalBodiesContainer.appendChild(professionalBodiesGroup);
+    });
+ </script>
+
+                    <script>
+        function addCertifications() {
+    const container = document.getElementById('certificationContainer');
+    const newEntry = document.createElement('div');
+    newEntry.classList.add('form-group');
+    newEntry.innerHTML = `
+        <input type="text" class="form-control" name="certificationName[]" placeholder="Certification Name" required>
+        <input type="text" class="form-control" name="institution[]" placeholder="Institution" required>
+        <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+    `;
+    container.appendChild(newEntry);
+}
+
+
+
+function addProfessionalBody() {
+    const container = document.getElementById('professionalBodyContainer');
+    const newEntry = document.createElement('div');
+    newEntry.classList.add('form-group');
+    newEntry.innerHTML = `
+        <input type="text" class="form-control" name="membershipName[]" placeholder="Membership Name" required>
+        <input type="text" class="form-control" name="role[]" placeholder="Role" required>
+        <input type="text" class="form-control" name="year[]" placeholder="Year" required>
+    `;
+    container.appendChild(newEntry);
+}
+
+</script>
+     <script>
+               document.addEventListener("DOMContentLoaded", function () {
+                    const backButton = document.getElementById('backButton');
+                    const addWorkExperienceButton = document.getElementById('addWorkExperience');
+                    const addEducationButton = document.getElementById('addEducation');
+                    const addProjectsButton = document.getElementById('addProjects'); // Added this line
+                    const addLanguagesButton = document.getElementById('addLanguages'); // Added this line
+                    const workExperienceContainer = document.getElementById('workExperienceContainer');
+                    const educationContainer = document.getElementById('educationContainer');
+                    const projectsContainer = document.getElementById('projectsContainer'); // Added this line
+                    const languagesContainer = document.getElementById('languagesContainer'); // Added this line
+                    const submitButton = document.getElementById('submitButton');
+                    const cvForm = document.getElementById('cvForm');
+
+                    if (backButton) backButton.addEventListener('click', function () {
+                        window.location.href = 'receptionist.html';
+                    });
+                                
+                    if (addWorkExperienceButton) addWorkExperienceButton.addEventListener('click', function () {
+                        const workExperienceGroup = document.createElement('div');
+                        workExperienceGroup.className = 'form-group';
+                        workExperienceGroup.innerHTML = `
+                            <input type="text" class="form-control" name="workExperienceTitle[]" placeholder="Job Title" required>
+                            <input type="text" class="form-control" name="workExperienceCompany[]" placeholder="Company" required>
+                            <input type="text" class="form-control" name="workExperienceDuration[]" placeholder="Duration" required>
+                            <textarea class="form-control" name="workExperienceDescription[]" placeholder="Description" required></textarea>
+                        `;
+                        workExperienceContainer.appendChild(workExperienceGroup);
+                    });
+                                
+                    addEducationButton.addEventListener('click', function () {
+                        const educationGroup = document.createElement('div');
+                        educationGroup.className = 'form-group';
+                        educationGroup.innerHTML = `
+                            <input type="text" class="form-control" name="educationSchool[]" placeholder="School" required>
+                            <input type="text" class="form-control" name="educationDegree[]" placeholder="Degree" required>
+                            <input type="text" class="form-control" name="educationDuration[]" placeholder="Duration" required>
+                            <textarea class="form-control" name="educationDescription[]" placeholder="Description" required></textarea>
+                        `;
+                        educationContainer.appendChild(educationGroup);
+                    });
+                
+                    addProjectsButton.addEventListener('click', function () {
+                        const projectGroup = document.createElement('div');
+                        projectGroup.className = 'form-group project-entry';
+                        projectGroup.innerHTML = `
+                            <input type="text" class="form-control" name="projectsTitle[]" placeholder="Project Title" required>
+                            <input type="text" class="form-control" name="projectsPeriod[]" placeholder="Period" required>
+                            <textarea class="form-control" name="projectsDescription[]" placeholder="Description" required></textarea>
+                        `;
+                        projectsContainer.appendChild(projectGroup);
+                    });
+                
+                    cvForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const formData = new FormData(cvForm);
+                    const data = Object.fromEntries(formData.entries());
+
+                    // Ensure phone number is included in data
+                    data.phone_number = formData.get('phone_number');
+
+                    // Convert comma separated skills to array
+                    data.skills = data.skills.split(',').map(skill => skill.trim());
+
+                    // Collect work experience entries
+                    data.workExperience = [];
+                    const workExperienceTitles = formData.getAll('workExperienceTitle[]');
+                    const workExperienceCompanies = formData.getAll('workExperienceCompany[]');
+                    const workExperienceDurations = formData.getAll('workExperienceDuration[]');
+                    const workExperienceDescriptions = formData.getAll('workExperienceDescription[]');
+
+                    for (let i = 0; i < workExperienceTitles.length; i++) {
+                        data.workExperience.push({
+                            title: workExperienceTitles[i],
+                            company: workExperienceCompanies[i],
+                            duration: workExperienceDurations[i],
+                            description: workExperienceDescriptions[i]
+                        });
+                    }
+                                    // Collect education entries
+                        data.education = [];
+                        const educationSchools = formData.getAll('educationSchool[]');
+                        const educationDegrees = formData.getAll('educationDegree[]');
+                        const educationDurations = formData.getAll('educationDuration[]');
+                        const educationDescriptions = formData.getAll('educationDescription[]');
+                
+                        for (let i = 0; i < educationSchools.length; i++) {
+                            data.education.push({
+                                school: educationSchools[i],
+                                degree: educationDegrees[i],
+                                duration: educationDurations[i],
+                                description: educationDescriptions[i]
+                            });
+                        }
+                
+                       // Collect project entries
+                        data.projects = [];
+                        const projectTitles = formData.getAll('projectsTitle[]');
+                        const projectPeriods = formData.getAll('projectsPeriod[]');
+                        const projectDescriptions = formData.getAll('projectsDescription[]');
+
+                        for (let i = 0; i < projectTitles.length; i++) {
+                            data.projects.push({
+                                title: projectTitles[i],
+                                period: projectPeriods[i],
+                                description: projectDescriptions[i]
+                            });
+                        }
+                            
+                                  // Collect certifications entries
+                                data.certifications = [];
+                                const certificationNames = formData.getAll('certificationName[]');
+                                const institutions = formData.getAll('institution[]');
+                                const certificationYears = formData.getAll('year[]');
+
+                                for (let i = 0; i < certificationNames.length; i++) {
+                                    data.certifications.push({
+                                        name: certificationNames[i],
+                                        institution: institutions[i],
+                                        year: certificationYears[i]
+                                    });
+                                }
+
+                                                            // Collect professional bodies entries
+                                    data.professionalBodies = [];
+                                    const membershipNames = formData.getAll('membershipName[]');
+                                    const roles = formData.getAll('role[]');
+                                    const membershipYears = formData.getAll('year[]');
+
+                                    for (let i = 0; i < membershipNames.length; i++) {
+                                        data.professionalBodies.push({
+                                            name: membershipNames[i],
+                                            role: roles[i],
+                                            year: membershipYears[i]
+                                        });
+                                    }  
+                                    
+                                    data.languages = [];
+            const languageNames = formData.getAll('languagesTitle[]');
+            const languageProficiencies = formData.getAll('languageProficiency[]');
+
+            for (let i = 0; i < languageNames.length; i++) {
+                data.languages.push({
+                    name: languageNames[i],
+                    proficiency: languageProficiencies[i]
+                });
+            }
+                
+
+            // Get subscription level
+                        data.subscription = formData.get('subscription');
+                
+                        try {
+                            const response = await fetch('/submit-cv', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            });
+                            if (response.ok) {
+                                alert('CV submitted successfully');
+                            } else {
+                                alert('Error submitting CV');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('Error submitting CV');
+                        }
+                    });
+                
+                    submitButton.addEventListener('click', function () {
+                        cvForm.dispatchEvent(new Event('submit'));
+                    });
+    
+                        const fetchData = async () => {
+                        try {
+                            const response = await fetch('/fetch-cv-data');
+                            const data = await response.json();
+
+                            data.forEach(user => {
+                                const name = user.name;
+                                const jobTitle = user.jobTitle;
+                                const dateOfBirth = user.dateOfBirth;
+                                const address = user.address;
+                                const phone_number = user.phone_number;
+                                const email = user.email; // Add email field if needed
+                                const linkedin = user.linkedin;
+                                const languages = user.languages;
+                                const educationData = user.education;
+                                const summaryData = user.summary;
+                                const experienceData = user.workExperience;
+                                const skillsData = user.skills;
+                                const projectsData = user.projects; // Add projects data
+                                const certificationsData = user.certifications; // Add certifications data
+                                const professionalBodiesData = user.professionalBodies; // Add professional bodies data
+
+                                const skillsHTML = generateSkillsHTML(skillsData);
+                                const summaryHTML = generateSummaryHTML(summaryData);
+                                const experienceHTML = generateExperienceHTML(experienceData);
+                                const educationHTML = generateEducationHTML(educationData);
+                                const languagesHTML = generateLanguageList(languages);
+                                const projectsHTML = generateProjectsHTML(projectsData); // Generate HTML for projects
+                                const certificationsHTML = generateCertificationsHTML(certificationsData); // Generate HTML for certifications
+                                const professionalBodiesHTML = generateProfessionalBodiesHTML(professionalBodiesData); // Generate HTML for professional bodies
+
+                                    const premium_CV = `
+                                    <!DOCTYPE html>
+                                    <html lang="en">
+                                    <head>
+                                        <!-- Your existing template code... -->
+                                    </head>
+                                    <body>
+                                        <div class="container">
+                                            <div class="sidebar">
+                                                <img src="https://via.placeholder.com/100" alt="${name}">
+                                                <h1>${name}</h1>
+                                                <p>${jobTitle}</p>
+                                                <div class="contact">
+                                                    <h3>${address}</h3>
+                                                    <p>${email}</p>
+                                                    <p>${phone_number}</p>
+                                                    <p>${linkedin.join(', ')}</p>
+                                                </div>
+                                                <div class="skills" id="skillsContainer">
+                                                    <h3>Skills</h3>
+                                                    <ul id="skillsList">
+                                                        ${skillsHTML}
+                                                    </ul>
+                                                </div>
+                                                <div class="languages">
+                                                    <h3>Languages</h3>
+                                                    <ul id="Languages">
+                                                        ${languagesHTML}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <div class="main">
+                                                <div class="summary section">
+                                                    <h2>SUMMARY</h2>
+                                                    ${summaryHTML}
+                                                </div>
+                                                <div class="experience section">
+                                                    <h2>EXPERIENCE</h2>
+                                                    ${experienceHTML}
+                                                </div>
+                                                <div class="projects section">
+                                                    <!-- Your existing projects code... -->
+                                                </div>
+                                                <div class="education section">
+                                                    <h2>EDUCATION</h2>
+                                                    ${educationHTML}
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                        
+                                    </body>
+                                    </html>
+                                    `;
+                
+                                    document.body.innerHTML = premium_CV;
+                                });
+                            } catch (error) {
+                                console.error('Error fetching CV data:', error);
+                            }
+                        };
+                
+                        fetchData();
+                    });
+                </script>
+                
+
+
+            <script>
+                // JavaScript for initial page
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    const uploadPhotoButton = document.getElementById('uploadPhotoButton');
+                    
+                    if (uploadPhotoButton) uploadPhotoButton.addEventListener('click', function() {
+                        // Redirect to image upload page
+                        window.location.href = '/upload-image.html'; // Replace with your image upload page URL
+                    });
+                });
+            </script> 
+
+
+            <script>
+                // Interview Helper Status Check and Card Management
+                document.addEventListener('DOMContentLoaded', function() {
+                    const interviewHelperCard = document.getElementById('interviewHelperCard');
+                    const launchInterviewHelperBtn = document.getElementById('launchInterviewHelper');
+                    const interviewHelperLink = document.getElementById('interviewHelperLink');
+
+                    // Function to check interview helper access status
+                    async function checkInterviewHelperStatus() {
+                        try {
+                            const response = await fetch('/api/interview-helper/status');
+                            const data = await response.json();
+                            
+                            if (data.hasAccess) {
+                                // Show the Interview Helper card
+                                interviewHelperCard.style.display = 'block';
+                            } else {
+                                // Hide the Interview Helper card
+                                interviewHelperCard.style.display = 'none';
+                            }
+                        } catch (error) {
+                            console.error('Error checking interview helper status:', error);
+                            // Hide card on error
+                            interviewHelperCard.style.display = 'none';
+                        }
+                    }
+
+                    // Function to launch Interview Helper
+                    function launchInterviewHelper() {
+                        // Check if the Chrome extension is installed and accessible
+                        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+                            // Try to find and communicate with the Parakleet extension
+                            // Since we don't know the exact extension ID, we'll try a generic approach
+                            const extensionIds = [
+                                'parakleet-interview-helper', // Development ID
+                                // Add your actual extension ID here when published
+                            ];
+
+                            let found = false;
+                            extensionIds.forEach(extId => {
+                                chrome.runtime.sendMessage(extId, { action: 'openPopup' }, (response) => {
+                                    if (!chrome.runtime.lastError && !found) {
+                                        found = true;
+                                        console.log('Interview Helper extension opened');
+                                    }
+                                });
+                            });
+
+                            // If no specific extension found, try to open a generic interview helper
+                            setTimeout(() => {
+                                if (!found) {
+                                    // Fallback: try to open extension popup directly if it's the active extension
+                                    chrome.action.openPopup && chrome.action.openPopup();
+                                }
+                            }, 100);
+
+                        } else {
+                            // Not in Chrome or extension APIs not available
+                            showExtensionInstallPrompt();
+                        }
+                    }
+
+                    function showExtensionInstallPrompt() {
+                        const installUrl = '/interviewhelper/README.md'; // Link to installation instructions
+                        const message = 'Suntrenia AI Intervia Chrome extension is required. Click OK to view installation instructions.';
+                        
+                        if (confirm(message)) {
+                            window.open(installUrl, '_blank');
+                        }
+                    }
+
+                    // Add event listeners
+                    if (launchInterviewHelperBtn) {
+                        launchInterviewHelperBtn.addEventListener('click', launchInterviewHelper);
+                    }
+                    
+                    if (interviewHelperLink) {
+                        interviewHelperLink.addEventListener('click', launchInterviewHelper);
+                    }
+
+                    // Check status on page load
+                    checkInterviewHelperStatus();
+                });
+            </script>
+
+
+<!--         
+        <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        document.getElementById('profileImage').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = document.getElementById('imagePreview');
+                img.src = e.target.result;
+                img.style.display = 'block';
+            };
+            
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('profileImage');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select an image file.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('profileImage', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Image uploaded successfully!');
+                    // Optionally, display the uploaded image's URL or update the CV section
+                    document.getElementById('imagePreview').src = data.imageUrl;
+                } else {
+                    alert('Failed to upload image.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while uploading the image.');
+            });
+        });
+    </script> -->
+    <script>
+        // JavaScript for navigating to the upload photograph page
+
+document.addEventListener('DOMContentLoaded', function () {
+    const managePhotographLink = document.getElementById('managePhotograph');
+
+    if (managePhotographLink) managePhotographLink.addEventListener('click', function (event) {
+        event.preventDefault();
+        window.location.href = 'upload_photograph.html';
+    });
+});
+
+// JavaScript for navigating to the upload photograph page and handling image upload
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Navigation logic
+    const managePhotographLink = document.getElementById('managePhotograph');
+
+    if (managePhotographLink) managePhotographLink.addEventListener('click', function (event) {
+        event.preventDefault();
+        window.location.href = 'upload-image.html';
+    });
+
+    // Image upload logic
+    const submitImageBtn = document.getElementById('submitImage');
+    const imageUploadForm = document.getElementById('cvForm'); // Reference the correct form
+
+    if (submitImageBtn) submitImageBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        // Perform image upload and save to database logic here
+        const formData = new FormData(imageUploadForm);
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            // Try to parse JSON response
+            return response.json().catch(() => {
+                throw new Error("Invalid JSON response");
+            });
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Image uploaded successfully!');
+               
+                window.location.href = '/intellijob_dashboard.html'; // Replace with your initial page URL
+         
+            } else {
+                // Handle upload failure
+                alert('Image upload failed. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    });
+
+    // Image preview functionality
+    const profileImageInput = document.getElementById('profileImage');
+    const imagePreview = document.getElementById('imagePreview');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+
+    if (profileImageInput) profileImageInput.addEventListener('change', function () {
+        const file = profileImageInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+            }
+
+            reader.readAsDataURL(file);
+        } else {
+            imagePreview.src = '';
+            imagePreview.style.display = 'none';
+        }
+    });
+
+    // Enable submit button once image is selected
+    if (profileImageInput) profileImageInput.addEventListener('input', function () {
+        submitImageBtn.disabled = false;
+    });
+});
+</script>
+<script>
+   function navigateToSubscriptionPage() {
+    // Change the URL to the subscription page
+    // window.location.href = '/subscription_page.html'; // Replace with your actual subscription page URL
+    window.location.href = '/protected/subscription_page.html';
+
+}
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var manageJobPreferencesTab = document.querySelector('.manage-job-preferences');
+        manageJobPreferencesTab.addEventListener('click', function() {
+            window.location.href = 'job_preferences.html';
+        });
+    });
+</script>
+
+<script>
+    function goBack() {
+        window.history.back(); // Navigates to the previous page
+    }
+
+    function goHome() {
+        window.location.href = 'intellijob_dashboard.html'; // Change this to your actual homepage URL
+    }
+</script>
+
+<script src="intellijob-panels.js"></script>
+<script>
+(function () {
+  if (window.intellijobPanelsReady) return;
+
+  function getPanel(id) {
+    return document.getElementById(id);
+  }
+
+  function setActiveTrigger(panelId) {
+    document.querySelectorAll('[data-sun-panel]').forEach(function (trigger) {
+      trigger.classList.toggle('sun-panel-trigger-active', trigger.getAttribute('data-sun-panel') === panelId);
+    });
+  }
+
+  window.openPanel = function (panelId) {
+    ['accountPanel', 'topupPanel', 'appsPanel'].forEach(function (id) {
+      var panel = getPanel(id);
+      if (panel) panel.style.display = 'none';
+    });
+
+    var target = getPanel(panelId);
+    var overlay = getPanel('sunOverlay');
+    var shell = getPanel('sunPanel');
+    if (!target || !overlay) return false;
+
+    target.style.display = 'block';
+    overlay.style.display = 'flex';
+    overlay.classList.add('active');
+    if (shell) {
+      shell.style.background = '#1a1a2e';
+      shell.style.padding = '28px';
+      shell.style.pointerEvents = 'auto';
+    }
+    setActiveTrigger(panelId);
+
+    if (panelId === 'accountPanel' && typeof window.loadAccountData === 'function') window.loadAccountData();
+    if (panelId === 'appsPanel' && typeof window.loadAppsData === 'function') window.loadAppsData();
+    return false;
+  };
+
+  function updatePanelHash(panelId) {
+    var nextHash = '#' + panelId;
+    if (window.location.hash === nextHash) return;
+
+    if (window.history && window.history.pushState) {
+      window.history.pushState(null, document.title, window.location.pathname + window.location.search + nextHash);
+    } else {
+      window.location.hash = panelId;
+    }
+  }
+
+  window.closePanel = function () {
+    var overlay = getPanel('sunOverlay');
+    var shell = getPanel('sunPanel');
+    if (overlay) overlay.classList.remove('active');
+    if (shell) {
+      shell.style.background = 'transparent';
+      shell.style.padding = '0';
+      shell.style.pointerEvents = 'none';
+    }
+    setActiveTrigger('');
+    if (['#accountPanel', '#topupPanel', '#appsPanel'].indexOf(window.location.hash) !== -1 && window.history && window.history.replaceState) {
+      window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+    }
+    return false;
+  };
+
+  document.addEventListener('click', function (event) {
+    var panelTrigger = event.target.closest('[data-sun-panel]');
+    if (panelTrigger) {
+      event.preventDefault();
+      var panelId = panelTrigger.getAttribute('data-sun-panel');
+      window.openPanel(panelId);
+      updatePanelHash(panelId);
+      return;
+    }
+
+    if (event.target.closest('[data-sun-close]')) {
+      event.preventDefault();
+      window.closePanel();
+      return;
+    }
+
+    if (event.target === getPanel('sunOverlay')) window.closePanel();
+  });
+
+  window.addEventListener('hashchange', function () {
+    var panelId = window.location.hash ? window.location.hash.slice(1) : '';
+    if (['accountPanel', 'topupPanel', 'appsPanel'].indexOf(panelId) !== -1) window.openPanel(panelId);
+  });
+
+  if (['#accountPanel', '#topupPanel', '#appsPanel'].indexOf(window.location.hash) !== -1) {
+    window.openPanel(window.location.hash.slice(1));
+  }
+})();
+</script>

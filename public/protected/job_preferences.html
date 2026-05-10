@@ -1,0 +1,939 @@
+<!-- 
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Preferences</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .form-section {
+            display: none;
+        }
+        .form-section.active {
+            display: block;
+        }
+        .section-heading {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            color: #333333;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            height: auto; /* Ensure the height is auto */
+            min-height: 40px; /* Minimum height to ensure the text fits well */
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .progress-container {
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .progress-text {
+            font-size: 1.1em;
+            color: #555555;
+        }
+        .dropdown-width {
+            width: 65%;
+        }
+        .textbox-width {
+            width: 35%;
+        }
+        .input-group-custom {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-text" id="progressText">Step 1 of 3</div>
+        </div>
+        <form id="jobPreferencesForm">
+            <div id="section-1" class="form-section active">
+                <h6 class="section-heading">Job Preferences (1/3)</h6>
+                <div class="form-group">
+                    <label for="jobTitle">Job Title</label>
+                    <div class="input-group input-group-custom">
+                        <select id="jobTitle" name="jobTitle" class="form-control dropdown-width">
+                            <option value="">Select Job Title</option>
+                            <option value="Software Engineer">Software Engineer</option>
+                            <option value="Data Scientist">Data Scientist</option>
+                            <option value="Product Manager">Product Manager</option>
+                            <! Add more options as needed -->
+                        <!-- </select>
+                        <input type="text" id="customJobTitle" name="customJobTitle" class="form-control ml-2 textbox-width d-none" placeholder="Enter Custom Job Title">
+                        <div class="input-group-append">
+                            <button type="button" class="btn btn-secondary" id="addCustomRoleBtn">Add Custom Role</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="jobLevel">Job Level</label>
+                    <select id="jobLevel" name="jobLevel" class="form-control">
+                        <option value="">Select Job Level</option>
+                        <option value="Entry">Entry</option>
+                        <option value="Mid">Mid</option>
+                        <option value="Senior">Senior</option>
+                        <! Add more options as needed -->
+                    <!-- </select>
+                </div>
+                <div class="form-group">
+                    <label for="jobCategory">Job Category</label>
+                    <select id="jobCategory" name="jobCategory" class="form-control">
+                        <option value="">Select Job Category</option>
+                        <option value="IT">IT</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Marketing">Marketing</option>
+                        <! Add more options as needed -->
+                    <!-- </select>
+                </div>
+                <div class="form-group">
+                    <label for="experienceLevel">Experience Level</label>
+                    <select id="experienceLevel" name="experienceLevel" class="form-control">
+                        <option value="">Select Experience Level</option>
+                        <option value="0-1 years">0-1 years</option>
+                        <option value="2-3 years">2-3 years</option>
+                        <option value="4-5 years">4-5 years</option>  -->
+                        <!-- Add more options as needed -->
+                    <!-- </select>
+                </div>
+                <button type="button" class="btn" onclick="nextSection()">Next</button>
+            </div>
+            <div id="section-2" class="form-section">
+                <h6 class="section-heading">Job Preferences (2/3)</h6>
+                <div class="form-group">
+                    <label for="salary">Salary Expectation</label>
+                    <select id="salary" name="salary" class="form-control">
+                        <option value="">Select Salary</option>
+                        <option value="$40,000 - $60,000">$40,000 - $60,000</option>
+                        <option value="$60,000 - $80,000">$60,000 - $80,000</option>
+                        <option value="$80,000 - $100,000">$80,000 - $100,000</option> -->
+                        <!-- Add more options as needed
+                    </select>
+                </div>
+                <button type="button" class="btn" onclick="nextSection()">Next</button>
+            </div>
+            <div id="section-3" class="form-section">
+                <h6 class="section-heading">Job Preferences (3/3)</h6>
+                <div class="form-group">
+                    <label for="location">Preferred Location</label>
+                    <select id="location" name="location" class="form-control">
+                        <option value="">Select Location</option>
+                        <option value="New York">New York</option>
+                        <option value="San Francisco">San Francisco</option>
+                        <option value="Remote">Remote</option> -->
+                        <!-- Add more options as needed -->
+                    <!-- </select>
+                </div>
+                <button type="button" class="btn" id="submitJobPreferences">Submit</button>
+            </div>
+        </form> -->
+    <!-- </div>  -->
+
+<!--   
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const submitJobPreferencesBtn = document.getElementById('submitJobPreferences');
+    const jobPreferencesForm = document.getElementById('jobPreferencesForm');
+
+    submitJobPreferencesBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        const formData = new FormData(jobPreferencesForm);
+
+    
+        const jobPreferences = {
+            desiredJobTitle: document.getElementById('jobTitle').value,
+            desiredLocation: document.getElementById('location').value,
+            salaryExpectation: document.getElementById('salary').value,
+            jobLevel: document.getElementById('jobLevel').value,
+            jobCategory: document.getElementById('jobCategory').value,
+            experienceLevel: document.getElementById('experienceLevel').value
+        };
+
+        formData.append('jobPreferences', JSON.stringify(jobPreferences));
+
+        // Log FormData key-value pairs for debugging
+        for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.add('active');
+
+        fetch('/update-job-preferences', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingOverlay.classList.remove('active');
+            if (data.success) {
+                alert('Job preferences updated successfully!');
+                window.location.href = '/protected/intellijob_dashboard.html';
+
+            } else { -->
+                <!-- alert('Job preferences update failed. Please try again.');
+            }
+        })
+        .catch(error => {
+            loadingOverlay.classList.remove('active');
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    });
+}); -->
+
+<!-- 
+        function nextSection() {
+            const currentSection = document.querySelector('.form-section.active');
+            const nextSection = currentSection.nextElementSibling;
+
+            if (nextSection && nextSection.classList.contains('form-section')) {
+                currentSection.classList.remove('active');
+                nextSection.classList.add('active');
+                updateProgress();
+            }
+        }
+
+        function updateProgress() {
+            const sections = document.querySelectorAll('.form-section');
+            const activeSectionIndex = Array.from(sections).findIndex(section => section.classList.contains('active'));
+            const progressText = document.getElementById('progressText');
+            progressText.textContent = `Step ${activeSectionIndex + 1} of ${sections.length}`;
+        }
+
+        document.getElementById('addCustomRoleBtn').addEventListener('click', function () {
+            const customJobTitleInput = document.getElementById('customJobTitle');
+            const jobTitleSelect = document.getElementById('jobTitle');
+
+            if (customJobTitleInput.classList.contains('d-none')) {
+                customJobTitleInput.classList.remove('d-none');
+                jobTitleSelect.disabled = true;
+                this.textContent = 'Remove Custom Role';
+            } else {
+                customJobTitleInput.classList.add('d-none');
+                jobTitleSelect.disabled = false;
+                customJobTitleInput.value = '';
+                this.textContent = 'Add Custom Role';
+            }
+        });
+    </script>
+</body> -->
+<!-- </html> - -->
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Preferences</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
+            top: -250px;
+            right: -250px;
+            border-radius: 50%;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
+            bottom: -200px;
+            left: -200px;
+            border-radius: 50%;
+        }
+
+        .container {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 50px 45px;
+            border-radius: 24px;
+            max-width: 550px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            border-radius: 24px;
+            z-index: 1000;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(59, 130, 246, 0.2);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 24px;
+            color: #94a3b8;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #f1f5f9;
+            margin-bottom: 12px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 15px;
+            font-weight: 400;
+        }
+
+        .progress-bar-container {
+            height: 6px;
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            margin-bottom: 35px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 10px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 33.33%;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 35px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.2);
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-number {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .step-item.completed .step-number {
+            background: #10b981;
+            color: white;
+        }
+
+        .step-name {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .step-item.active .step-name {
+            color: #e2e8f0;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-heading {
+            font-size: 22px;
+            margin-bottom: 28px;
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: rgba(15, 23, 42, 0.5);
+            color: #f1f5f9;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(15, 23, 42, 0.7);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-control option {
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+
+        .custom-role-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .custom-role-container .form-control {
+            flex: 1;
+        }
+
+        .btn-custom-role {
+            padding: 14px 24px;
+            background: rgba(148, 163, 184, 0.2);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .btn-custom-role:hover {
+            background: rgba(148, 163, 184, 0.3);
+            border-color: rgba(148, 163, 184, 0.5);
+        }
+
+        .custom-input-hidden {
+            display: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(148, 163, 184, 0.2);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(148, 163, 184, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-single {
+            width: 100%;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 35px 25px;
+            }
+
+            .header h1 {
+                font-size: 26px;
+            }
+
+            .step-name {
+                display: none;
+            }
+
+            .step-item {
+                gap: 0;
+            }
+
+            .btn-group {
+                flex-direction: column-reverse;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Saving your preferences...</div>
+        </div>
+
+        <div class="header">
+            <h1>Job Preferences</h1>
+            <p>Help us find your perfect opportunity</p>
+        </div>
+
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+
+        <div class="step-indicator">
+            <div class="step-item active" data-step="1">
+                <div class="step-number">1</div>
+                <span class="step-name">Role</span>
+            </div>
+            <div class="step-item" data-step="2">
+                <div class="step-number">2</div>
+                <span class="step-name">Salary</span>
+            </div>
+            <div class="step-item" data-step="3">
+                <div class="step-number">3</div>
+                <span class="step-name">Location</span>
+            </div>
+        </div>
+
+        <form id="jobPreferencesForm">
+            <div id="section-1" class="form-section active">
+                <h6 class="section-heading">Tell us about your ideal role</h6>
+                <div class="form-group">
+                    <label for="jobTitle">Job Title</label>
+                    <div class="custom-role-container">
+                        <select id="jobTitle" name="jobTitle" class="form-control">
+                            <option value="">Select a job title</option>
+                            <option value="Software Engineer">Software Engineer</option>
+                            <option value="Data Scientist">Data Scientist</option>
+                            <option value="Product Manager">Product Manager</option>
+                            <option value="UX Designer">UX Designer</option>
+                            <option value="DevOps Engineer">DevOps Engineer</option>
+                            <option value="Business Analyst">Business Analyst</option>
+                            <option value="Marketing Manager">Marketing Manager</option>
+                            <option value="Sales Executive">Sales Executive</option>
+                        </select>
+                        <button type="button" class="btn-custom-role" id="addCustomRoleBtn">Custom</button>
+                    </div>
+                    <input type="text" id="customJobTitle" name="customJobTitle" 
+                           class="form-control custom-input-hidden" 
+                           placeholder="Enter your custom job title"
+                           style="margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="jobLevel">Job Level</label>
+                    <select id="jobLevel" name="jobLevel" class="form-control">
+                        <option value="">Select job level</option>
+                        <option value="Entry">Entry Level</option>
+                        <option value="Mid">Mid Level</option>
+                        <option value="Senior">Senior Level</option>
+                        <option value="Lead">Lead</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Director">Director</option>
+                        <option value="VP">Vice President</option>
+                        <option value="C-Level">C-Level Executive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="jobCategory">Industry</label>
+                    <select id="jobCategory" name="jobCategory" class="form-control">
+                        <option value="">Select industry</option>
+                        <option value="IT">Information Technology</option>
+                        <option value="Finance">Finance & Banking</option>
+                        <option value="Marketing">Marketing & Advertising</option>
+                        <option value="Sales">Sales</option>
+                        <option value="HR">Human Resources</option>
+                        <option value="Operations">Operations</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Education">Education</option>
+                        <option value="Retail">Retail</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="experienceLevel">Years of Experience</label>
+                    <select id="experienceLevel" name="experienceLevel" class="form-control">
+                        <option value="">Select experience</option>
+                        <option value="0-1 years">0-1 years</option>
+                        <option value="2-3 years">2-3 years</option>
+                        <option value="4-5 years">4-5 years</option>
+                        <option value="6-8 years">6-8 years</option>
+                        <option value="9-12 years">9-12 years</option>
+                        <option value="12+ years">12+ years</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-primary btn-single" onclick="nextSection()">Continue</button>
+            </div>
+
+            <div id="section-2" class="form-section">
+                <h6 class="section-heading">What's your salary expectation?</h6>
+                <div class="form-group">
+                    <label for="salary">Expected Salary Range</label>
+                    <select id="salary" name="salary" class="form-control">
+                        <option value="">Select salary range</option>
+                        <option value="$30,000 - $50,000">$30,000 - $50,000</option>
+                        <option value="$50,000 - $70,000">$50,000 - $70,000</option>
+                        <option value="$70,000 - $90,000">$70,000 - $90,000</option>
+                        <option value="$90,000 - $110,000">$90,000 - $110,000</option>
+                        <option value="$110,000 - $130,000">$110,000 - $130,000</option>
+                        <option value="$130,000 - $150,000">$130,000 - $150,000</option>
+                        <option value="$150,000 - $200,000">$150,000 - $200,000</option>
+                        <option value="$200,000+">$200,000+</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-secondary" onclick="prevSection()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="nextSection()">Continue</button>
+                </div>
+            </div>
+
+            <div id="section-3" class="form-section">
+                <h6 class="section-heading">Where do you want to work?</h6>
+                <div class="form-group">
+                    <label for="location">Preferred Work Location</label>
+                    <select id="location" name="location" class="form-control">
+                        <option value="">Select location</option>
+                        <option value="Remote">Remote (Work from Anywhere)</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="New York">New York, NY</option>
+                        <option value="San Francisco">San Francisco, CA</option>
+                        <option value="Los Angeles">Los Angeles, CA</option>
+                        <option value="Chicago">Chicago, IL</option>
+                        <option value="Austin">Austin, TX</option>
+                        <option value="Seattle">Seattle, WA</option>
+                        <option value="Boston">Boston, MA</option>
+                        <option value="Denver">Denver, CO</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-secondary" onclick="prevSection()">Back</button>
+                    <button type="button" class="btn btn-primary" id="submitJobPreferences">Submit</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        let currentStep = 1;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const submitJobPreferencesBtn = document.getElementById('submitJobPreferences');
+            const jobPreferencesForm = document.getElementById('jobPreferencesForm');
+
+            submitJobPreferencesBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+
+                const customJobTitleInput = document.getElementById('customJobTitle');
+                const jobTitleSelect = document.getElementById('jobTitle');
+                
+                const jobTitle = customJobTitleInput.classList.contains('custom-input-hidden') 
+                    ? jobTitleSelect.value 
+                    : customJobTitleInput.value;
+
+                const jobPreferences = {
+                    desiredJobTitle: jobTitle,
+                    desiredLocation: document.getElementById('location').value,
+                    salaryExpectation: document.getElementById('salary').value,
+                    jobLevel: document.getElementById('jobLevel').value,
+                    jobCategory: document.getElementById('jobCategory').value,
+                    experienceLevel: document.getElementById('experienceLevel').value
+                };
+
+                // Basic validation
+                if (!jobPreferences.desiredJobTitle || !jobPreferences.desiredLocation || 
+                    !jobPreferences.salaryExpectation || !jobPreferences.jobLevel || 
+                    !jobPreferences.jobCategory || !jobPreferences.experienceLevel) {
+                    alert('Please fill in all fields before submitting.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('jobPreferences', JSON.stringify(jobPreferences));
+
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                loadingOverlay.classList.add('active');
+
+                fetch('/update-job-preferences', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingOverlay.classList.remove('active');
+                    if (data.success) {
+                        alert('Job preferences updated successfully!');
+                        window.location.href = '/protected/intellijob_dashboard.html';
+                    } else {
+                        alert(data.message || 'Job preferences update failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    loadingOverlay.classList.remove('active');
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            });
+        });
+
+        function nextSection() {
+            const currentSection = document.querySelector('.form-section.active');
+            const nextSection = currentSection.nextElementSibling;
+
+            if (nextSection && nextSection.classList.contains('form-section')) {
+                currentSection.classList.remove('active');
+                nextSection.classList.add('active');
+                currentStep++;
+                updateProgress();
+            }
+        }
+
+        function prevSection() {
+            const currentSection = document.querySelector('.form-section.active');
+            const prevSection = currentSection.previousElementSibling;
+
+            if (prevSection && prevSection.classList.contains('form-section')) {
+                currentSection.classList.remove('active');
+                prevSection.classList.add('active');
+                currentStep--;
+                updateProgress();
+            }
+        }
+
+        function updateProgress() {
+            const steps = document.querySelectorAll('.step-item');
+            const progressBar = document.getElementById('progressBar');
+            
+            steps.forEach((step, index) => {
+                const stepNumber = index + 1;
+                if (stepNumber < currentStep) {
+                    step.classList.add('completed');
+                    step.classList.remove('active');
+                } else if (stepNumber === currentStep) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                } else {
+                    step.classList.remove('active', 'completed');
+                }
+            });
+
+            // Update progress bar
+            const percentage = (currentStep / 3) * 100;
+            progressBar.style.width = percentage + '%';
+        }
+
+        document.getElementById('addCustomRoleBtn').addEventListener('click', function () {
+            const customJobTitleInput = document.getElementById('customJobTitle');
+            const jobTitleSelect = document.getElementById('jobTitle');
+
+            if (customJobTitleInput.classList.contains('custom-input-hidden')) {
+                customJobTitleInput.classList.remove('custom-input-hidden');
+                jobTitleSelect.disabled = true;
+                jobTitleSelect.style.display = 'none';
+                this.textContent = 'Cancel';
+                this.style.background = 'rgba(239, 68, 68, 0.2)';
+                this.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                this.style.color = '#fca5a5';
+            } else {
+                customJobTitleInput.classList.add('custom-input-hidden');
+                jobTitleSelect.disabled = false;
+                jobTitleSelect.style.display = 'block';
+                customJobTitleInput.value = '';
+                this.textContent = 'Custom';
+                this.style.background = 'rgba(148, 163, 184, 0.2)';
+                this.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+                this.style.color = '#cbd5e1';
+            }
+        });
+    </script>
+</body>
+</html>

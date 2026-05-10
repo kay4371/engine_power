@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Panel Test</title>
+<style>
+body { font-family: sans-serif; padding: 30px; background: #f0f0f0; }
+h2 { color: #333; }
+button { padding: 12px 24px; margin: 10px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; background: #4f46e5; color: white; }
+button:hover { background: #3730a3; }
+#result { margin-top: 20px; padding: 16px; background: white; border-radius: 8px; font-family: monospace; white-space: pre-wrap; min-height: 60px; border: 2px solid #ddd; }
+.ok { color: green; font-weight: bold; }
+.fail { color: red; font-weight: bold; }
+
+/* Copy of sun panel CSS for isolated test */
+.sun-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:flex-end;justify-content:center;}
+.sun-overlay.active{display:flex;}
+.sun-panel{background:#fff;width:100%;max-width:600px;border-radius:16px 16px 0 0;padding:24px;max-height:80vh;overflow-y:auto;}
+.sun-panel-title{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+.sun-close{background:none;border:none;font-size:22px;cursor:pointer;color:#666;}
+</style>
+</head>
+<body>
+<h2>Panel System — Isolated Test</h2>
+<p>Click the buttons below. If the dark overlay + white panel appears from the bottom, the panel system works in isolation.</p>
+
+<button onclick="testPanel()">Open Test Panel</button>
+<button onclick="checkDashboard()">Check Dashboard DOM</button>
+
+<div id="result">Results will appear here...</div>
+
+<!-- Test overlay -->
+<div class="sun-overlay" id="testOverlay" onclick="if(event.target===this)closeTest()">
+  <div class="sun-panel">
+    <div class="sun-panel-title">
+      Test Panel Works!
+      <button class="sun-close" onclick="closeTest()">✕</button>
+    </div>
+    <p>✅ If you can see this, the CSS and HTML are working correctly.</p>
+    <p>The issue was that these elements were trapped inside a script block in the dashboard file.</p>
+  </div>
+</div>
+
+<script>
+function testPanel() {
+  document.getElementById('testOverlay').classList.add('active');
+  document.getElementById('result').innerHTML = '✅ Panel opened successfully! CSS and HTML are working.';
+}
+function closeTest() {
+  document.getElementById('testOverlay').classList.remove('active');
+}
+
+function checkDashboard() {
+  // Open dashboard in iframe and check
+  var out = '';
+  
+  // Try to reach the dashboard
+  fetch('/protected/intellijob_dashboard.html')
+    .then(r => r.text())
+    .then(html => {
+      var hasOverlay = html.includes('id="sunOverlay"');
+      var hasOpenPanel = html.includes('function openPanel');
+      var hasCSS = html.includes('.sun-overlay{') || html.includes('.sun-overlay {');
+      
+      // Find positions
+      var overlayPos = html.indexOf('<div class="sun-overlay"');
+      var firstScript = html.indexOf('<script');
+      var cssPos = html.indexOf('.sun-overlay{');
+      if (cssPos === -1) cssPos = html.indexOf('.sun-overlay {');
+      
+      out += 'DASHBOARD FILE CHECKS:\n';
+      out += '--------------------------------\n';
+      out += 'sunOverlay div exists: ' + (hasOverlay ? '✅ YES' : '❌ NO') + '\n';
+      out += 'openPanel() function exists: ' + (hasOpenPanel ? '✅ YES' : '❌ NO') + '\n';
+      out += 'sun-overlay CSS exists: ' + (hasCSS ? '✅ YES' : '❌ NO') + '\n';
+      out += '\n';
+      out += 'overlay HTML position: ' + overlayPos + '\n';
+      out += 'first <script> position: ' + firstScript + '\n';
+      out += 'CSS position: ' + cssPos + '\n';
+      out += '\n';
+      out += 'overlay is BEFORE first script? ' + (overlayPos > -1 && overlayPos < firstScript ? '✅ YES - GOOD' : '❌ NO - STILL BROKEN') + '\n';
+      out += 'CSS is BEFORE first script? ' + (cssPos > -1 && cssPos < firstScript ? '✅ YES - GOOD' : '❌ NO - STILL BROKEN') + '\n';
+      
+      document.getElementById('result').innerText = out;
+    })
+    .catch(e => {
+      document.getElementById('result').innerText = 'Error fetching dashboard: ' + e.message;
+    });
+}
+</script>
+</body>
+</html>

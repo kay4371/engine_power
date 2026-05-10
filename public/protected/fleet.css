@@ -1,0 +1,117 @@
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(to right, #0306aa, #ffffff); /* Updated gradient colors */
+  color: #333;
+}
+
+header {
+  background: linear-gradient(to right, #2980b9, #2c3e50);
+  color: white;
+  text-align: center;
+  padding: 1em;
+}
+
+main {
+  display: flex;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+aside {
+  width: 200px;
+  background: linear-gradient(to right, #2c3e50, #3498db);
+  color: white;
+  padding: 20px;
+}
+
+nav ul {
+  list-style: none;
+  padding: 0;
+}
+
+nav ul li {
+  margin-bottom: 10px;
+}
+
+nav a {
+  text-decoration: none;
+  color: white;
+}
+
+section {
+  flex-grow: 1;
+  padding: 20px;
+}
+
+h2 {
+  color: #333;
+}
+
+/* Style for car and driver details cards */
+.card {
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
+}
+
+.card h3 {
+  color: #333;
+}
+
+.card p {
+  color: #555;
+}
+
+button {
+  background: linear-gradient(to right, #3498db, #2c3e50);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+section {
+    flex-grow: 1;
+    padding: 20px;
+}
+
+h2 {
+    color: #333;
+}
+
+/* Style for car, driver, and escort details cards */
+.card {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+}
+
+.card h3 {
+    color: #333;
+}
+
+.card p {
+    color: #555;
+}
+
+button {
+    background: linear-gradient(to right, #3498db, #2c3e50);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+
+
+
+

@@ -1,12 +1,26 @@
-
+const http = require('http');
+const MongoStore = require('connect-mongo');
+const natural = require('natural'); // or use import syntax if using ES modules
+const { WordTokenizer, PorterStemmer } = natural;
+const tfidf = new natural.TfIdf();
+const schedule = require('node-schedule'); // Import the schedule module
+const imaps = require('imap-simple');
+const { simpleParser } = require('mailparser');
+const puppeteer = require('puppeteer');
+const AWS = require('aws-sdk');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const tokenizer = new natural.WordTokenizer();
+const nodemailer = require("nodemailer");
+const makeWASocket = require('@whiskeysockets/baileys').default;
+const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
+const { v4: uuidv4 } = require('uuid');
 const winston = require('winston');
 const unirest = require('unirest');
 const cheerio = require('cheerio');
 const logger = require('morgan');
 const cors = require('cors');
 require('dotenv').config();
-const natural = require('natural');
-const tokenizer = new natural.WordTokenizer();
 const classifier = new natural.BayesClassifier(); // Initialize a Bayesian classifier
 const sanitizeHtml = require('sanitize-html'); // Import sanitize-html library
 const session = require('express-session');
@@ -16,7 +30,6 @@ const fetch = require('node-fetch');
 const FormData = require('form-data');
 const axios = require('axios');
 const bcrypt = require('bcryptjs');
-const mongoUrl = 'mongodb+srv://OlukayodeUser:Kayode4371@cluster0.zds6pi9.mongodb.net/olukayode_sage?retryWrites=true&w=majority';
 const dbName = 'olukayode_sage';
 const socketIo = require('socket.io'); // Make sure to require 'socket.io'
 const helmet = require('helmet');
@@ -43,7 +56,7 @@ const path = require("path");
 const html_to_pdf = require('html-pdf-node');
 const app = express();
 const port = process.env.PORT || 3000;
-// Set up a route for the new visitor page
+
 function generateUniqueCode() {
   const timestamp = new Date().getTime();
   const randomString = Math.random().toString(36).substring(2, 10); // Random alphanumeric string
@@ -51,7 +64,6 @@ function generateUniqueCode() {
   console.log('Generated Code:', uniqueCode); // Log the generated code
   return uniqueCode;
 }
-
 // Generate the code when the app is initialized
 const generatedCode = generateUniqueCode();
 
@@ -62,120 +74,1007 @@ const options = {
   cert: fs.readFileSync('./certs/certificate.crt'),
 };
 // alert(" Worked")
+
+
+// Authentication middleware
+function ensureAuthenticated(req, res, next) {
+  if (req.session && req.session.userId) {
+    return next();
+  } else {
+    return res.redirect('/');
+  }
+}
+
+// Root redirect
+app.get('/', (req, res) => {
+  res.redirect('/index.html');
+});
+
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+// app.use(express.static(__dirname + '/public'));
 app.use(express.static(__dirname + '/public'));
+app.use('/protected', ensureAuthenticated, express.static(__dirname + '/public/protected'));
 app.use(helmet());
 app.use(logger('dev'));
-app.use(cors());
+// Updated CORS for Parakleet AI Chrome extension support
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = [
+      'http://localhost:3000',
+      'http://localhost:5000',
+      process.env.APP_DOMAIN || '',
+    ];
+    // Always allow Chrome extension origins and server origins
+    if (!origin || origin.startsWith('chrome-extension://') || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow for now, restrict in production
+    }
+  },
+  methods: ['GET', 'POST', 'DELETE', 'PUT', 'OPTIONS'],
+  credentials: true,
+}));
 
 
 app.use((req, res, next) => {
   req.generatedCode = generatedCode;
   next();
 });
-
 const token = process.env.TOKEN;
+// const token = process.env.TOKEN;
 const token2 = process.env.TOKEN2;
-
-// Set up S3 client
-const s3 = new aws.S3({
-   accessKeyId : process.env.AWS_ACCESS_KEY_ID,
-   secretAccessKey : process.env.AWS_SECRET_ACCESS_KEY,
-  region: "us-west-2"
-})
+const WHAPI_TOKEN3 = process.env.WHAPI_TOKEN3
 
 
-// Set up multer and S3 storage
-const uploadS3 = () =>
-  multer({
-    storage: multerS3({
-      s3,
-      bucket: 'profile-picture-upload-youtube1',
-      key: function (req, file, cb) {
-        cb(null, Date.now().toString() + '-' + file.originalname);
-      },
-    })
-  });
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION
+});
 
-  let securityReportHTML = '';
-  // Function to extract other details
-  async function extractOtherDetails() {
-    const uri = 'mongodb+srv://OlukayodeUser:Kayode4371@cluster0.zds6pi9.mongodb.net/olukayode_sage?retryWrites=true&w=majority';
-    const client = new MongoClient(uri);
-  
-    try {
-      await client.connect();
-  
-      const database = client.db('olukayode_sage');
-      const driversHistoryCollection = database.collection('OtherIDs');
-  
-      // Fetch the required data from the database
-      token1Data = await driversHistoryCollection.findOne({ idType: 'Token 1' });
-      groupIDData = await driversHistoryCollection.findOne({ idType: 'GroupID' });
-  
-      // Log the retrieved data
-      console.log('Extracted Details:');
-      console.log('Token1:', token1Data.idNumber);
-      console.log('GroupID:', groupIDData.idNumber);
-  
-      // Close the database connection
-      await client.close();
-  
-      // Return the extracted data
-      return {
-        token1: token1Data.idNumber,
-        groupID: groupIDData.idNumber
-      };
-    } catch (error) {
-      console.error('An error occurred:', error);
-      throw new Error('An error occurred while extracting details');
+const s3 = new AWS.S3();
+
+const upload = multer({
+  storage: multerS3({
+    s3,
+    bucket: 'profile-picture-upload-youtube1',
+    // acl: 'public-read', // Ensure this ACL is supported by your bucket
+    acl: 'private', // Remove this line if ACLs are disabled
+    key: function (req, file, cb) {
+      cb(null, Date.now().toString() + '-' + file.originalname);
     }
+  }),
+  fileFilter: function (req, file, cb) {
+    // Implement file filtering if needed
+    cb(null, true); // Allow all files for demonstration
   }
+});
+
+const sessionSecret = crypto.randomBytes(64).toString('hex');
+
+//Note email is kayodelphia@gmail.com
+const GROQ_CONFIG = {
+  model: 'llama-3.3-70b-versatile', // Your working model from app2.js
+  apiKey: process.env.GROQ_API_KEY,
   
-//   // Function to start the server and extract other details
-//   async function startServerAndExtractDetails() {
-//     try {
-//       // Call the function to extract other details
-//       const extractedDetails = await extractOtherDetails();
-//       console.log("Extracted details:", extractedDetails);
+  endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+  temperature: 0.75, // Slightly higher for variety
+  max_tokens: 3000, // Increased for detailed responses
+  top_p: 0.92
+};
+
+
+app.use(session({
+  secret: sessionSecret, // Use the generated secure key
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true in production with HTTPS
+}));
+
+
+// Authentication middleware
+function ensureAuthenticated(req, res, next) {
+  if (req.session && req.session.userId) {
+    // User is logged in
+    return next();
+  } else {
+    // Redirect to login page
+    return res.redirect('/');
+  }
+}
+
+app.use(express.static(__dirname + '/public'));
+
+
+
+// Set up MongoDB connection
+let registrationDetails = []; // Define a variable to store registration details
+
+const uri = process.env.MONGO_URI || 
+  `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@${process.env.MONGO_HOST}/${process.env.MONGO_DB}${process.env.MONGO_OPTIONS}`;
+
+const client = new MongoClient(uri);
+mongoose.set('strictQuery', false);
+mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
+
+
+app.use(session({
+  secret: generatedCode, // Change this to a secure secret
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+
+
+//  //////////////////////////////ensures app redirect to index.html on startup
+// // === PROTECT ALL HTML FILES (except login pages) ===
+// app.use((req, res, next) => {
+//   const allowedPaths = ['/', '/index.html'];
+//   // const allowedPaths = ['/', '/index.html', '/create_account.html'];
   
-//       // Start the server here
-//       // Replace this with your server start logic
-  
-//       // Access the extracted details
-//       const groupId = extractedDetails.groupID; // Corrected variable name
-//       const token = extractedDetails.token1; // Replace with your token
-  
-//       // Now you can use groupId and token
-//     } catch (error) {
-//       console.error("An error occurred:", error);
+//   // If accessing any HTML file that's not login-related
+//   if (req.path.endsWith('.html') && !allowedPaths.includes(req.path)) {
+//     if (!req.session || !req.session.userId) {
+//       return res.redirect('/');
 //     }
 //   }
+//   next();
+// });
+// === PROTECT ALL HTML FILES (except login pages) ===
+app.use((req, res, next) => {
+  const allowedPaths = [
+    '/', 
+    '/index.html',
+    '/activate.html',           // Add your activation page
+    '/verify-activation-code',  // Add the API route
+    '/resend-activation-code'   // Add the resend route
+  ];
   
-//   // Call the function to start the server and extract other details
-//   startServerAndExtractDetails();
+  // If accessing any HTML file that's not login-related
+  if (req.path.endsWith('.html') && !allowedPaths.includes(req.path)) {
+    if (!req.session || !req.session.userId) {
+      return res.redirect('/');
+    }
+  }
+  next();
+});
+
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(htmlDir, 'index.html'));
+});
+
+
+
+  let userSubscription; // Declare globally
+  function generateSessionToken() {
+    return Math.random().toString(36).slice(2); // Generate a random session token
+  }
   
-//   // const token2 = "notWeiRdf4mmY2CWf1Lk1Iz1W7hysaCX"; // Replace with your actual token
+  // Generate a session token externally (outside the logic)
+  const sessionToken = generateSessionToken(); // This will be the token you'll use externally
+///////////////////////working
+// ////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
-// function normalizePhoneNumber(phoneNumber) {
-//   const numericPhoneNumber = phoneNumber.replace(/\D/g, '');
-
-//   if (numericPhoneNumber.startsWith('0')) {
-//     return `+234${numericPhoneNumber.slice(1)}`;
-//   } else {
-//     return `+234${numericPhoneNumber}`;
-//   }
-// }
+// Route to serve the Test_email.html file
+app.get('/Test_email.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'Test_email.html'));
+});
 
 
-// const generateVerificationCode = () => {
-//   const codeLength = 4; // Adjust the code length as needed
-//   const min = Math.pow(10, codeLength - 1);
-//   const max = Math.pow(10, codeLength) - 1;
-//   return Math.floor(Math.random() * (max - min + 1)) + min;
-// };
-// ////////////////////////////////////////////////////////////////////////
+
+
+app.post('/register', async (req, res) => {
+  const { name, email, phoneNumber, password, confirmPassword } = req.body;
+
+  // Check for missing fields
+  if (!name || !email || !phoneNumber || !password || !confirmPassword) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  // Password match validation
+  if (password !== confirmPassword) {
+    return res.status(400).json({ success: false, message: 'Passwords do not match.' });
+  }
+
+  // Phone number validation
+  if (!/^\+234\d{10}$/.test(phoneNumber)) {
+    return res.status(400).json({ success: false, message: 'Invalid phone number format. Use +234XXXXXXXXXX.' });
+  }
+
+  try {
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const userCollection = database.collection('Users_CV_biodata');
+   
+    // Check if email or phone number already exists
+    const existingUser = await userCollection.findOne({
+      $or: [{ email }, { phoneNumber }],
+    });
+
+    if (existingUser) {
+      const message = existingUser.email === email
+        ? 'Email already in use.'
+        : 'Phone number already in use.';
+      return res.status(409).json({ success: false, message });
+    }
+
+    // Use phone number as UserRegistrationId
+    const UserRegistrationId = phoneNumber;
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user object
+    const user = {
+      _id: UserRegistrationId, // Use UserRegistrationId as custom ID
+      name,
+      email,
+      phoneNumber,
+      password: hashedPassword,
+    };
+
+    // Insert the new user
+    await userCollection.insertOne(user);
+
+    // Simulate sending activation code
+    sendActivationCode(phoneNumber);
+
+    // Respond with success
+    res.status(200).json({ success: true, message: 'User registered successfully.' });
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(500).json({ success: false, message: 'Error registering user.' });
+  } finally {
+    await client.close();
+  }
+});
+
+// });
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+// const transporter = nodemailer.createTransport({
+//   host: "smtp.gmail.com",
+//   port: 587,
+//   secure: false, // true for 465, false for other ports
+//   auth: {
+//     user: "testmyitproject@gmail.com", // Your email
+//     pass: "ewcl clle zkjr djra", // Your email password or app-specific password
+//   },
+// });
+
+
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: false, // true for 465, false for 587
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+app.get('/authorize', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Email Authorization</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: linear-gradient(135deg, #1d2671, #c33764);
+          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+          height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: #333;
+        }
+        .auth-container {
+          background: #fff;
+          padding: 40px 50px;
+          border-radius: 16px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+          max-width: 420px;
+          width: 90%;
+          text-align: center;
+          animation: fadeIn 0.6s ease-in-out;
+        }
+        .auth-container h2 {
+          margin-bottom: 10px;
+          color: #222;
+          font-size: 1.8rem;
+        }
+        .auth-container p {
+          color: #555;
+          font-size: 1rem;
+          margin-bottom: 30px;
+          line-height: 1.5;
+        }
+        form {
+          display: flex;
+          justify-content: space-evenly;
+          gap: 20px;
+        }
+        button {
+          flex: 1;
+          padding: 12px;
+          border: none;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        button[value="yes"] {
+          background: #0078d4;
+          color: white;
+        }
+        button[value="yes"]:hover {
+          background: #005fa3;
+        }
+        button[value="no"] {
+          background: #f0f0f0;
+          color: #333;
+        }
+        button[value="no"]:hover {
+          background: #ddd;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        footer {
+          margin-top: 25px;
+          font-size: 0.85rem;
+          color: #888;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="auth-container">
+        <h2>Email Access Permission</h2>
+        <p>
+          We’ll need your authorization to send job application emails on your behalf.  
+          This is a one-time approval to connect securely with your email service.
+        </p>
+        <form method="POST" action="/authorize">
+          <button type="submit" name="decision" value="yes">Allow Access</button>
+          <button type="submit" name="decision" value="no">Deny</button>
+        </form>
+        <footer>
+          Your credentials are never stored. This access is used only to send authorized job applications.
+        </footer>
+      </div>
+    </body>
+    </html>
+  `);
+});
+async function sendActivationCode(phoneNumber) {
+  if (!/^\+234\d{10}$/.test(phoneNumber)) {
+    throw new Error('Invalid phone number format. Use +234XXXXXXXXXX.');
+  }
+
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    const collection = db.collection('Users_CV_biodata');
+
+    // Fetch the user by phone number
+    const savedData = await collection.findOne({ phoneNumber });
+
+    if (!savedData) {
+      throw new Error('User not found');
+    }
+
+    // Generate a 5-digit activation code
+    const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
+
+    // Update user document with activation code and expiration
+    await collection.updateOne(
+      { phoneNumber },
+      {
+        $set: {
+          activationCode,
+          activationCodeExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes from now
+        },
+      }
+    );
+
+    // Extract email from the user data
+    const recipientEmail = savedData.email;
+
+
+    const mailOptions = {
+      from: `"noreply@suntrenia.com" <${process.env.EMAIL_USER}>`,
+      to: recipientEmail,
+      subject: 'Activate Your Account',
+      html: `
+        <div style="font-family: 'Arial', sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+          <h1 style="font-weight: bold; font-size: 24px; color: #6A0DAD; margin-bottom: 20px;">Activate Your Account</h1>
+          <p style="font-size: 16px; margin-bottom: 10px;">Dear <strong>${savedData.name.split(' ')[0]}</strong>,</p>
+          <p style="font-size: 16px; margin-bottom: 20px;">Thank you for signing up with Suntrenia! To complete your registration and activate your account, please use the activation code below:</p>
+          <p style="font-size: 24px; font-weight: bold; color: #6A0DAD; background: #f9f9f9; padding: 15px 30px; border-radius: 5px; letter-spacing: 5px; display: inline-block;">
+            ${activationCode.split('').join(' ')}
+          </p>
+          <p style="font-size: 14px; margin: 20px 0; color: #555;">This code will expire in 15 minutes.</p>
+          <p style="font-size: 14px; margin-top: 20px; color: #777;">If you didn’t create this account, please ignore this email.</p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+          <p style="font-size: 14px; margin-top: 20px; color: #555;">
+            Need help? Contact us at <a href="mailto:support@suntrenia.com" style="color: #007BFF; text-decoration: none;">support@suntrenia.com</a>.
+          </p>
+          <p>The Suntrenia Team</p>
+        </div>
+      `,
+    };
+    
+// Send email
+const info = await transporter.sendMail(mailOptions);
+console.log('Activation code sent: %s', info.messageId);
+
+return {
+  email: recipientEmail,
+  message: 'Activation code sent successfully',
+};
+} catch (error) {
+  console.error('Error sending activation code:', error);
+  throw error;
+} finally {
+  await client.close();
+}
+}
+
+//////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+app.post('/resend-activation-code', async (req, res) => {
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+  
+  try {
+      // Retrieve the email from the session or localStorage on the client-side
+      const email = req.body.email; // You might need to send email from client
+      
+      if (!email) {
+          return res.status(400).json({
+              success: false,
+              message: 'Email is required to resend activation code'
+          });
+      }
+
+      await client.connect();
+      const db = client.db('olukayode_sage');
+      const collection = db.collection('Users_CV_biodata');
+
+      // Find the user by email
+      const user = await collection.findOne({ email });
+
+      if (!user) {
+          return res.status(404).json({
+              success: false,
+              message: 'User not found'
+          });
+      }
+
+      // Generate a new 5-digit activation code
+      const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
+
+      // Update user document with new activation code and expiration
+      await collection.updateOne(
+          { email },
+          {
+              $set: {
+                  activationCode,
+                  activationCodeExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes from now
+              }
+          }
+      );
+
+      // Send email with new activation code (using your existing email sending logic)
+      const mailOptions = {
+        from: `"noreply@suntrenia.com" <${process.env.EMAIL_USER}>`,
+       
+        to: email,
+        
+        subject: 'Your Activation Code',
+        html: `
+            <div style="font-family: Arial, sans-serif; color: #333333; background-color: #f8f9fa; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto;">
+                <h1 style="color: #333333; text-align: center; font-size: 24px; margin-bottom: 20px;">Your Activation Code</h1>
+                <p style="font-size: 16px; line-height: 1.5; margin-bottom: 10px;">Dear User,</p>
+                <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+                    Your activation code is: <strong style="color: #007BFF;">${activationCode}</strong>
+                </p>
+                <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+                    Please note that this code will expire in <strong>15 minutes</strong>.
+                </p>
+                <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="font-size: 14px; color: #555555; text-align: center; margin-top: 20px;">
+                    If you did not request this code, please ignore this email or contact support if you have concerns.
+                </p>
+            </div>
+        `,
+    };
+    
+
+
+      await transporter.sendMail(mailOptions);
+
+      res.status(200).json({
+          success: true,
+          message: 'New activation code sent successfully'
+      });
+
+  } catch (error) {
+      console.error('Error resending activation code:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Failed to resend activation code'
+      });
+  } finally {
+      await client.close();
+  }
+});
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Route for verifying activation code
+app.post('/verify-activation-code', async (req, res) => {
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+  try {
+    
+    const { email, activationCode } = req.body;
+
+    if (!email || !activationCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and activation code are required',
+      });
+    }
+
+    // Connect to MongoDB
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    const collection = db.collection('Users_CV_biodata');
+
+    // Find user by email and activation code, and ensure the code is not expired
+    const user = await collection.findOne({
+      email: email,
+      activationCode: activationCode,
+      activationCodeExpires: { $gt: new Date() }, // Check expiration
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired activation code',
+      });
+    }
+
+    // Activate the user by updating their record
+    await collection.updateOne(
+      { email: email },
+      {
+        $set: {
+          isActivated: true,
+          activationCode: null,
+          activationCodeExpires: null,
+        },
+      }
+    );
+
+    // Send success response
+    res.status(200).json({
+      success: true,
+      message: 'Account activated successfully',
+      redirectUrl: '/index.html',
+    });
+  } catch (error) {
+    console.error('Error verifying activation code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error verifying activation code',
+    });
+  } finally {
+    // Ensure MongoDB connection is always closed
+    await client.close();
+  }
+});
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Login Route
+app.post('/login', async (req, res) => {
+  const { phoneNumber, password } = req.body;
+
+  try {
+    console.log('Login attempt:', { phoneNumber, password });
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const usersCollection = database.collection('Users_CV_biodata');
+    const user = await usersCollection.findOne({phoneNumber});
+
+    if (!user) {
+      console.log('User not found');
+      return res.status(400).json({ message: 'User not found. Please create an account.' });
+    }
+    if (!user.isActivated) {
+      console.log('Account not activated');
+      return res.status(403).json({ message: 'Account not activated. Please activate your account.' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      console.log('Invalid credentials');
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Generate session token
+    const token = jwt.sign({ userId: user._id }, sessionSecret, { expiresIn: '1h' });
+    req.session.token = token;
+    req.session.userId = user._id;
+
+    console.log('Login successful:', user.name);
+    res.json({
+      token,
+      userName: user.name,
+      // redirect: '/receptionist_newVisitor_entry.html',
+      redirect: '/protected/receptionist_newVisitor_entry.html', // Updated path
+    });
+
+
+  } catch (error) {
+    console.error('Error during login:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Middleware to check if user is authenticated
+function isAuthenticated(req, res, next) {
+  if (req.session.userId) {
+    return next();
+  }
+  res.status(401).send('You must be logged in to access this resource');
+}
+
+
+app.get('/check-auth', (req, res) => {
+  if (req.session.userId) {
+    res.status(200).json({ authenticated: true });
+  } else {
+    res.status(401).json({ authenticated: false });
+  }
+});
+
+
+
+
+// Logout a user
+app.post('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error during logout:', err);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+    res.clearCookie('connect.sid'); // Adjust cookie name as needed
+    res.json({ message: 'Logged out successfully.' });
+  });
+});
+
+
+
+function cleanAndFormatPhoneNumber(phoneNumber) {
+  if (typeof phoneNumber !== 'string') {
+    console.error('Invalid phoneNumber:', phoneNumber);
+    return phoneNumber;
+  }
+
+  const cleanedNumber = phoneNumber.replace(/\D/g, '');
+
+  if (cleanedNumber.startsWith('0')) {
+    return `+234${cleanedNumber.slice(1)}`;
+  }
+
+  if (cleanedNumber.startsWith('234')) {
+    return `+${cleanedNumber}`;
+  }
+
+  return `+234${cleanedNumber}`;
+}
+
+
+// Protected route example
+// app.get('/dashboard', isAuthenticated, (req, res) => {
+//   res.send('Welcome to your dashboard');
+// });
+app.get('/dashboard', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const client = new MongoClient(process.env.MONGO_URI);
+  let user = {}, statusDoc = {}, recentApps = [], autoModeLogs = [];
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    user = await db.collection('Users_CV_biodata').findOne(
+      { _id: userId },
+      { projection: { name: 1, email: 1, subscription: 1, autoMode: 1, interviewHelper: 1 } }
+    ) || {};
+    statusDoc = await db.collection('application_status').findOne({ userId }) || {};
+    recentApps = await db.collection('applicationProcessingFeeder')
+      .find({ userId, role_processed: true })
+      .sort({ processedAt: -1 }).limit(20).toArray();
+    const today = new Date(); today.setHours(0,0,0,0);
+    autoModeLogs = await db.collection('autoMode_daily_log')
+      .find({ userId, date: { $gte: today } }).toArray();
+  } catch(e) { console.error('[Dashboard]', e.message); }
+  finally { await client.close(); }
+
+  const plan = user.subscription?.plan || 'None';
+  const appsTotal = statusDoc.successfulApplications || 0;
+  const appsToday = recentApps.filter(a => new Date(a.processedAt) >= new Date(new Date().setHours(0,0,0,0))).length;
+  const subExpiry = user.subscription?.expirationDate ? new Date(user.subscription.expirationDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : 'N/A';
+  const subStatus = user.subscription?.expirationDate && new Date(user.subscription.expirationDate) > new Date() ? 'Active' : 'Expired';
+  const autoMode = user.autoMode === true;
+  const oauthConnected = !!(user.gmailAuthorized);
+  const isStopped = statusDoc.isStopped === true;
+
+  const appRows = recentApps.map(a => `
+    <tr>
+      <td>${a.role || a.title || '-'}</td>
+      <td style="font-size:12px">${a.processedAt ? new Date(a.processedAt).toLocaleString() : '-'}</td>
+      <td><span class="badge-green">Sent</span></td>
+    </tr>`).join('');
+
+  const autoRows = autoModeLogs.map(a => `
+    <tr>
+      <td>${a.role || '-'}</td>
+      <td>${a.company || '-'}</td>
+      <td style="font-size:12px">${a.appliedAt ? new Date(a.appliedAt).toLocaleString() : '-'}</td>
+    </tr>`).join('');
+
+  // Load plan config for dashboard topup section
+  let dashPlans = {};
+  try { dashPlans = await getPlanConfig(); } catch(e) { /* use defaults */ }
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>My Dashboard — Suntrenia</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#1a1a2e;font-family:Inter,sans-serif;color:#f0f0f0;min-height:100vh;}
+    .topbar{background:#16213e;border-bottom:1px solid rgba(124,58,237,0.3);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;width:100%;z-index:100;}
+    .logo{color:#7c3aed;font-size:20px;font-weight:700;}
+    .nav a{color:#a0a0b0;text-decoration:none;font-size:14px;margin-left:20px;}
+    .nav a:hover{color:#f0f0f0;}
+    .content{padding:80px 24px 40px;max-width:1100px;margin:0 auto;}
+    .welcome{font-size:22px;font-weight:700;margin-bottom:4px;}
+    .sub-welcome{color:#a0a0b0;font-size:14px;margin-bottom:24px;}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;}
+    .stat-card{background:#16213e;border:1px solid rgba(124,58,237,0.15);border-radius:12px;padding:18px 20px;}
+    .stat-label{color:#a0a0b0;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+    .stat-value{font-size:24px;font-weight:700;color:#7c3aed;}
+    .stat-value.green{color:#10b981;}
+    .stat-value.red{color:#ef4444;}
+    .stat-value.yellow{color:#f59e0b;}
+    .card{background:#16213e;border:1px solid rgba(124,58,237,0.15);border-radius:12px;padding:22px;margin-bottom:20px;}
+    .card-title{font-size:14px;font-weight:600;margin-bottom:16px;color:#e0e0f0;}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+    @media(max-width:700px){.two-col{grid-template-columns:1fr;}}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{text-align:left;padding:9px 12px;color:#a0a0b0;border-bottom:1px solid rgba(124,58,237,0.1);font-weight:500;font-size:11px;text-transform:uppercase;}
+    td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+    .badge-green{background:rgba(16,185,129,0.15);color:#10b981;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-red{background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-purple{background:rgba(124,58,237,0.15);color:#a78bfa;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-yellow{background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+    .toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+    .toggle-label{font-size:14px;font-weight:500;}
+    .toggle-desc{font-size:12px;color:#a0a0b0;margin-top:3px;}
+    .toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#2d2d4d;border-radius:24px;transition:0.3s;}
+    .slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.3s;}
+    input:checked+.slider{background:#7c3aed;}
+    input:checked+.slider:before{transform:translateX(20px);}
+    .btn{padding:10px 20px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;}
+    .btn-primary{background:#7c3aed;color:white;}
+    .btn-secondary{background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);}
+    .btn-success{background:rgba(16,185,129,0.2);color:#10b981;border:1px solid rgba(16,185,129,0.3);}
+    .btn-danger{background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.3);}
+    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+    .dot-green{background:#10b981;}
+    .dot-red{background:#ef4444;}
+    .section-title{font-size:16px;font-weight:700;margin:24px 0 12px;color:#a78bfa;}
+    .alert{padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px;}
+    .alert-success{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;}
+    .alert-warning{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:#f59e0b;}
+    .table-wrap{overflow-x:auto;}
+    .topup-plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px;}
+    .plan-card{background:#0f3460;border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:16px;text-align:center;}
+    .plan-name{font-size:15px;font-weight:700;color:#a78bfa;margin-bottom:6px;}
+    .plan-apps{font-size:12px;color:#a0a0b0;margin-bottom:12px;}
+    .plan-price{font-size:20px;font-weight:700;color:#f0f0f0;margin-bottom:12px;}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">Suntrenia</div>
+    <div class="nav">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/user/settings">Settings</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+  <div class="content">
+    <div class="welcome">Welcome back, ${user.name?.split(' ')[0] || 'there'} 👋</div>
+    <div class="sub-welcome">${user.email || ''}</div>
+
+    ${isStopped ? '<div class="alert alert-warning">⚠️ Your account applications are currently paused. Contact support or wait for admin to resume.</div>' : ''}
+    ${req.query.success ? `<div class="alert alert-success">✅ ${decodeURIComponent(req.query.success)}</div>` : ''}
+
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Plan</div><div class="stat-value" style="font-size:18px;padding-top:4px">${plan}</div></div>
+      <div class="stat-card"><div class="stat-label">Status</div><div class="stat-value ${subStatus === 'Active' ? 'green' : 'red'}" style="font-size:18px;padding-top:4px">${subStatus}</div></div>
+      <div class="stat-card"><div class="stat-label">Expires</div><div class="stat-value" style="font-size:15px;padding-top:6px">${subExpiry}</div></div>
+      <div class="stat-card"><div class="stat-label">Apps Today</div><div class="stat-value green">${appsToday}</div></div>
+      <div class="stat-card"><div class="stat-label">Apps Total</div><div class="stat-value">${appsTotal}</div></div>
+      <div class="stat-card"><div class="stat-label">Mode</div><div class="stat-value ${autoMode ? 'yellow' : 'green'}" style="font-size:15px;padding-top:6px">${autoMode ? 'Auto' : 'Consent'}</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Account Settings</div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Application Mode</div>
+            <div class="toggle-desc">${autoMode ? 'Auto Mode — system applies automatically' : 'Consent Mode — you approve each application'}</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="autoModeToggle" ${autoMode ? 'checked' : ''} onchange="toggleAutoMode(this)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Gmail Authorization</div>
+            <div class="toggle-desc">${oauthConnected ? '✅ Connected — emails sent from your Gmail' : '⚠️ Not connected — using Suntrenia SMTP'}</div>
+          </div>
+          <a href="/settings/email-authorization" class="btn ${oauthConnected ? 'btn-success' : 'btn-secondary'}" style="font-size:12px;padding:6px 14px">${oauthConnected ? 'Manage' : 'Connect'}</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Subscription Details</div>
+        <table>
+          <tr><td style="color:#a0a0b0;font-size:12px">Plan</td><td><span class="badge-purple">${plan}</span></td></tr>
+          <tr><td style="color:#a0a0b0;font-size:12px">Status</td><td><span class="${subStatus === 'Active' ? 'badge-green' : 'badge-red'}">${subStatus}</span></td></tr>
+          <tr><td style="color:#a0a0b0;font-size:12px">Expires</td><td style="font-size:13px">${subExpiry}</td></tr>
+          <tr><td style="color:#a0a0b0;font-size:12px">Apps Sent</td><td style="font-weight:600">${appsTotal}</td></tr>
+          <tr><td style="color:#a0a0b0;font-size:12px">Interview Helper</td><td><span class="${user.interviewHelper?.access ? 'badge-green' : 'badge-red'}">${user.interviewHelper?.access ? 'Unlocked' : 'Locked'}</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-title">Top Up Subscription</div>
+    <div class="card">
+      <div class="card-title">Choose a plan to activate or extend your subscription</div>
+      <div class="topup-plans" id="topupPlans">
+        <div style="color:#a0a0b0;font-size:13px">Loading plans...</div>
+      </div>
+    </div>
+
+    ${autoMode && autoRows ? `
+    <div class="section-title">Today's Auto-Applied Jobs</div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Company</th><th>Applied At</th></tr></thead>
+          <tbody>${autoRows}</tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <div class="section-title">Recent Applications</div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Applied At</th><th>Status</th></tr></thead>
+          <tbody>${appRows || '<tr><td colspan=3 style="color:#a0a0b0;text-align:center;padding:20px">No applications yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function toggleAutoMode(checkbox) {
+      const mode = checkbox.checked;
+      try {
+        const res = await fetch('/user/toggle-automode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoMode: mode })
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = '/dashboard?success=' + encodeURIComponent('Mode updated to ' + (mode ? 'Auto' : 'Consent'));
+        } else {
+          alert('Failed to update mode: ' + (data.message || 'Unknown error'));
+          checkbox.checked = !mode;
+        }
+      } catch(e) {
+        alert('Network error. Please try again.');
+        checkbox.checked = !mode;
+      }
+    }
+
+    async function loadTopupPlans() {
+      try {
+        const r = await fetch('/api/get-plan-config');
+        const data = await r.json();
+        if (!data.success) throw new Error('Failed');
+        const plans = data.plans;
+        const order = ['basic', 'standard', 'premium'];
+        const container = document.getElementById('topupPlans');
+        if (!container) return;
+        let html = '';
+        order.forEach(function(key, idx) {
+          const p = plans[key];
+          if (!p) return;
+          const highlighted = idx === 1;
+          const borderStyle = highlighted ? ' style="border-color:rgba(124,58,237,0.5)"' : '';
+          const nameStyle = highlighted ? ' style="color:#7c3aed"' : '';
+          const btnClass = highlighted ? 'btn btn-primary' : 'btn btn-secondary';
+          const star = highlighted ? ' ⭐' : '';
+          const highlightHtml = p.highlight ? '<div style="font-size:11px;color:#10b981;margin-bottom:6px">' + p.highlight + '</div>' : '';
+          const price = p.price.toLocaleString ? p.price.toLocaleString() : p.price;
+          html += '<div class="plan-card"' + borderStyle + '>';
+          html += '<div class="plan-name"' + nameStyle + '>' + p.name + star + '</div>';
+          html += highlightHtml;
+          html += '<div class="plan-apps">Up to ' + p.applications + ' applications · ' + p.durationDays + ' days</div>';
+          html += '<div class="plan-price">\u20A6' + price + '</div>';
+          html += '<button class="' + btnClass + '" onclick="topUp(\'' + p.name + '\')" style="width:100%">Activate</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+      } catch(e) {
+        const container = document.getElementById('topupPlans');
+        if (container) container.innerHTML = '<div style="color:#ef4444;font-size:13px">Could not load plans. Please refresh.</div>';
+      }
+    }
+    loadTopupPlans();
+
+    async function topUp(plan) {
+      if (!confirm('Activate ' + plan + ' plan? This will start your new subscription immediately.')) return;
+      try {
+        const res = await fetch('/api/submit-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan, date: new Date().toISOString() })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          window.location.href = '/dashboard?success=' + encodeURIComponent(plan + ' plan activated successfully!');
+        } else {
+          alert('Error: ' + (data.message || 'Could not activate plan'));
+        }
+      } catch(e) {
+        alert('Network error. Please try again.');
+      }
+    }
+  </script>
+</body>
+</html>`);
+});
 
 
 const formatDate2 = (date) => {
@@ -193,757 +1092,112 @@ const formattedStartDate2 = formatDate2(lastWeek2);
 
 const timeFrame = `from ${formattedStartDate2} to ${formattedToday2}`;
 
-const groupId= "2347035517578"
+const groupId = "2347035517578"
 
 
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+function generateUniqueCode() {
+  return Math.random().toString(36).substring(2, 5).toUpperCase(); // Generates a 3-letter unique code
+}
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// Modify this part for fetching userId8 dynamically based on session or session token
+// Declare variables globally so they can be accessed outside Resume_Details
+let applicantName = " "; // Default value
+let accessedRoleTime = new Date().toISOString().replace(/[:.]/g, '-');
+let uniqueCode = generateUniqueCode();
 
+// Function to fetch userId from sessionToken
+async function fetchUserIdBySessionToken(sessionToken) {
+  try {
+    // Connect to the MongoDB database
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const sessionsCollection = database.collection('sessions');
 
+    // Query the database to find the user by sessionToken
+    const sessionData = await sessionsCollection.findOne({ sessionToken });
 
-
-
-// Function to generate and save PDF
-// function generateAndSavePdf(content, filename) {
-//   const options = { format: 'A4' }; // Optional format setting
-
-//   const file = { content };
-
-//   html_to_pdf.generatePdf(file, options)
-//     .then(pdfBuffer => {
-//       // Create downloads folder if it doesn't exist
-//       const downloadsDir = path.join(__dirname, 'downloads');
-//       if (!fs.existsSync(downloadsDir)) {
-//         fs.mkdirSync(downloadsDir);
-//       }
-
-//       const filePath = path.join(downloadsDir, filename + '.pdf');
-//       fs.writeFile(filePath, pdfBuffer, err => {
-//         if (err) {
-//           console.error('Error saving PDF:', err);
-//         } else {
-//           console.log(`PDF saved successfully to: ${filePath}`);
-//         }
-//       });
-//     })
-//     .catch(error => {
-//       console.error('Error generating PDF:', error);
-//     });
-// }
-
-// // Example usage: Replace "<h1>Welcome...</h1>" with your HTML content
-// const htmlContent = "<h1>Welcome to html-pdf-node</h1>";
-// const filename = "my_pdf"; // Customize the filename
-
-// generateAndSavePdf(htmlContent, filename);
-
-
-// let options = { format: 'A4' };
-// // Example of options with args //
-// // let options = { format: 'A4', args: ['--no-sandbox', '--disable-setuid-sandbox'] };
-
-// let file = { content: "<h1>Welcome to html-pdf-node</h1>" };
-// // or //
-// let file = { url: "https://example.com" };
-// html_to_pdf.generatePdf(file, options).then(pdfBuffer => {
-//   console.log("PDF Buffer:-", pdfBuffer);
-// });
-
-
-
-const generateSVGMap = () => {
-  // Your dynamic SVG generation logic goes here
-  return `
-  
-  <div class="map-container">
-   
-    <svg width="800" height="610">   
-
-  <rect x="10" y="10" width="740" height="900" fill="#f0f0f0" stroke="#ccc" stroke-width="2" />
-  
-  <text x="400" y="30" font-family="Arial, sans-serif" font-size="20" fill="#000000" text-anchor="middle">Security Incident Map</text>
-
-  <svg id="nigerian-map" x="20" y="20" width="750" height="650" viewBox="0 100 800 500">
-
- <path
- d="m 291.01165,491.65874 0.6,0.77 4.83,-0.89 2.71,0.27 2.05,1.34 0.33,1.46 0,0 0.07,4.36 -0.55,2.86 0.05,0.73 0.94,1.03 14.09,0.86 1.24,1.86 0.22,2.19 0.7,1.04 3.21,2.33 1.34,0.21 0,0 1.08,1.29 -0.59,3.72 0.15,3.78 1.37,4.63 0.73,1.68 1.71,2 0.76,2.55 -0.6,1.21 -3.42,-0.76 0,0 -2.69,-2.61 -2.54,-0.84 -2.76,-2.14 -0.58,-2.11 -1.19,-1.47 -3.4,-0.91 -2.42,0.14 -0.28,0.91 0.53,3.51 -1.84,5.1 0.32,0.45 2.23,-0.16 -0.7,2.44 -0.73,0.9 -6.08,-0.16 -1.1,0.98 -0.07,0.75 1.07,1.94 -1.21,5.81 -0.03,2.4 0.66,2.49 -1.17,2.89 -2.52,1.94 0.09,0.77 -0.47,0.64 0.22,1.47 0.59,0.67 0.02,1.17 -0.67,1.62 1.79,3.37 0.13,1.85 0,0 -2.36,-1.79 -2.94,-1.41 -1.8,0.43 -3.28,-1.22 -2.79,0.12 -1.11,0.64 -3.13,0.58 -1.8,-0.27 -1.45,-1.41 -0.59,-1.1 0.16,-1.1 1.37,-3.7 3.42,-4.33 2.39,-4.19 -0.05,-2.78 -0.66,-1.72 -0.54,-0.05 0,0 3.09,-10.25 2.1,-3.87 1.82,-1.68 1.18,-3.04 0.89,-0.9 0.43,-2.01 -0.36,-3.45 0.28,-2.05 -1.51,-2.44 1.23,-0.77 -0.38,-8.47 -0.47,-1.35 -1.04,-1.45 -5.34,-1.78 -2.01,-1.69 0,0 1.27,-2.22 1.36,-1.3 z"
- title="Abia"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-AB" />
-
-
-<path
- d="m 682.64165,187.16874 -0.13,1.83 -0.82,1.76 -1.02,1.57 -1.1,0.83 -1.77,2.9 -1.36,4.89 -2.66,2.45 -0.48,1.1 -0.61,3.01 0.72,3.61 0.77,1.06 0,1.7 -1.61,1.66 -0.26,4.61 -0.97,1.67 0.13,3.45 -0.78,1.94 -2.05,2.57 -0.26,3.02 -1.61,1.04 -1.44,2.61 -5.87,1.16 -4.18,5.88 0.15,0.98 1.54,1.62 0.04,0.64 -1.15,2.74 -1.85,1.39 -0.03,1.77 0.69,1.6 2.69,1.33 1.01,1.59 -2.16,3.09 -0.13,2.25 -0.54,1.29 0.27,1.11 -1.08,1.47 0.33,0.78 -0.22,1.41 0.43,0.63 -0.74,2.2 -1.02,1.64 -0.97,-0.13 -1.7,1.32 -8.01,0.82 -2.75,2.16 -1.62,0.29 -3.76,3.39 -3.76,1.98 0.09,1.34 2.37,0.27 0.49,0.42 0.09,7.48 -0.73,0.69 -0.83,4.41 0.84,2.07 -1.16,4.03 0.3,1.32 -2.81,4.8 -2.64,2.3 -0.01,1 0.71,0.99 -0.82,2.05 1.27,3.92 -1.13,1.85 -1.09,0.38 -1.67,-0.23 -1.46,0.54 -0.57,1.1 -0.16,2.73 -0.98,0.74 -0.99,1.85 -2.18,0.19 -3.4,2.76 -0.83,0.12 -5.88,-1.64 -0.66,0.66 -0.24,1.71 -1.18,1.16 -0.81,3.05 -1.77,2.34 -2.33,0.14 -1.12,0.89 -2.47,-0.28 -1.85,1.21 -1.91,0.33 -0.72,0.82 -0.68,4.04 1.44,5.22 0.58,5.77 -0.06,1.04 -0.77,0.56 -2.43,4.51 0.62,2.51 0.22,3.73 -4.13,6.35 -3.49,3.09 -1.76,3.01 -0.48,2 -1.12,1.47 -0.41,3.45 -1.11,1.56 0.69,6.14 0.65,1.8 -2.93,1.48 -1.96,0.27 -2.75,3.14 0,0 -1.22,-0.88 0.05,-1.56 -1.94,-4.62 -0.38,-3.54 -0.74,-1.73 0.58,-5.49 -1.04,-2.02 -2.15,-2.6 -4.32,-3.84 -2.5,-3.15 -1.52,-1.12 -1.42,-0.43 -1.64,0.38 -2.83,4.01 -2.72,1.99 -2.71,-2.45 -2.91,-4.7 -2.52,-6.73 0.82,-1.58 4.14,-4.78 3.8,-3.22 5.08,-5.48 8.63,-11.52 6.12,-5.22 0.44,-2.08 -0.38,-5.78 5.99,-11.44 1,-3.62 -0.26,-1.81 -2.02,-3.84 -4.14,-1.47 -2.66,-2.94 -0.34,-3.84 0.46,-2.17 -5.26,-9.82 -2.08,-1.29 -4.65,-1.08 -1.46,-1.92 -5.45,-10.18 0,0 6.2,-0.91 3.37,-1.43 9.4,-5.66 5.75,-4 1.1,-2.33 -0.52,-3.7 0.68,-10.23 0,0 6.34,0.97 2.7,-0.19 4.57,-1.32 1.74,-1.07 1.7,-1.9 3.73,-5.55 6.2,-7.06 2.51,-0.87 6.29,-0.49 5.9,-2.22 2.44,-2.62 0.82,-2.66 3.32,-0.14 2.35,-1.14 2.22,-3.7 2.1,-2.16 2.51,-1.47 8.52,0.79 2.87,1.03 2.58,1.55 2.84,3.11 2.43,1.15 2.38,1.02 4.39,-0.01 1.14,-1.22 1.48,-7.76 2.71,-5.68 1.22,-3.64 0.88,-4.1 0.28,-8.01 3.09,-0.43 0.62,0.74 3.75,1.14 3.86,-0.29 5.62,-1.74 0,0 z"
- title="Adamawa"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-AD" />
-
-
-<path
- d="m 302.91165,585.31874 0,0.01 0,0 -0.02,-0.02 0,0 0.02,0.01 z m 7.57,-0.7 0.97,0.5 0.92,-0.19 0.88,-0.14 0.33,0.28 -3.58,0.75 -0.49,-0.59 0.97,-0.61 z m 40.31,-7.56 0.88,2.09 -0.76,0.82 -1.07,0.22 -0.22,-1.24 0.56,-0.1 0.35,-0.9 0.26,-0.89 z m -51.56,-11.07 -0.12,-1.85 -1.79,-3.36 0.67,-1.63 -0.02,-1.17 -0.59,-0.67 -0.22,-1.47 0.47,-0.65 -0.09,-0.77 2.52,-1.94 1.18,-2.89 -0.66,-2.49 0.02,-2.41 1.21,-5.81 -1.07,-1.94 0.07,-0.75 1.1,-0.98 6.09,0.16 0.73,-0.9 0.7,-2.44 -2.23,0.16 -0.32,-0.45 1.84,-5.1 -0.53,-3.51 0.29,-0.91 2.42,-0.14 3.4,0.91 1.19,1.47 0.58,2.11 2.75,2.14 2.54,0.84 2.69,2.61 0,0 -0.85,0.1 -1.15,2.45 0.66,1.79 0.84,0.31 0.78,1.94 4.77,-0.56 4.96,2.68 0.4,2.1 -0.61,6.1 1.63,5.13 3.41,4.91 3.19,2.8 3.77,4.33 3.67,2.81 0.59,1.01 0,0 -0.43,2.16 0.79,0.44 0.03,2.5 -0.5,0.45 -0.41,-0.67 -0.07,0.58 1.19,1.17 -0.6,1.8 -0.74,0.19 0.1,1.03 -1.03,1.15 0.24,0.17 -1.05,2.38 -5.23,-0.63 -5.74,-0.07 -10.71,0.55 -12.05,1.68 -0.52,-0.46 -1.82,0.36 -0.93,-0.48 -0.88,0.36 -0.95,-0.09 -0.02,0.03 0.5,0.81 0.27,0.43 -3.32,1.32 -0.98,-1.7 -1.17,-0.65 -0.86,-0.19 -0.96,-1.06 0.38,-0.91 -0.09,-0.12 -0.53,0.5 -0.5,-0.38 0,0 -0.61,-1.17 0.04,-0.64 0.51,-0.32 -0.58,-4.55 0.96,-4.27 -0.63,-2.3 -1.98,-3.47 z"
- title="Akwa Ibom"
-  fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-AK" />
-
-
-<path
- d="m 262.67165,444.90874 0.44,0.4 0.09,3.62 3.83,-0.13 2.44,1.41 2.05,0.08 3.73,1.7 0.36,0.79 -1.25,3.45 -0.75,1.08 -1.69,1.14 -1.85,2.48 0.24,0.96 -0.62,0.83 -0.43,2.35 0.39,0.54 3.85,1.16 1.42,1.8 1.34,3.64 1.31,1.85 -0.3,0.96 -0.82,0.29 0.41,1.37 -0.5,1.62 0.72,0.74 1.89,-1.13 0.61,0.13 0.59,2.58 1.33,0.63 -0.35,2.15 1.88,3.79 0.18,1.51 0.76,0.98 2.39,1.4 1.66,-0.96 1.08,0.09 1.12,0.74 -0.04,0.54 0.83,0.17 0,0 -4.4,2.31 -1.36,1.3 -1.27,2.22 0,0 -5.32,1.42 -5.38,-1.25 -6.31,1.16 -1.78,1.04 -0.93,3.55 -2.37,4.61 -2.68,0.27 -4.51,-1.92 -1.62,0.8 -3,3.83 -2.09,0.83 0,0 -2.4,-0.21 -1.11,-1.28 0,0 1.01,-1.17 1.92,-3.9 0.34,-2.64 1.77,-4.69 2.5,-4.55 0.38,-6.01 1.28,-3.65 -1.23,-3.77 -1.48,-7.29 0.08,-1.37 -1.13,-1.13 -2.13,-9.57 0,0 -0.07,-0.29 0,0 1.67,-0.77 3.59,0.66 1.43,-0.89 1.84,-2.51 0.06,-2.73 1.24,-4.12 2.24,-2.31 1.54,-0.86 z"
- title="Anambra"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-AN" />
-
-
-<path
- d="m 491.94165,87.518745 7.74,6.19 1.14,2.93 0.77,7.079995 -0.19,1.81 3.16,4.66 0.21,6.74 0.33,2.7 0.95,2.71 0.2,3.87 8.35,20.91 -0.23,4.92 -1.05,2.72 -0.99,6.78 1.63,1.53 3.04,0.37 0,0 -0.8,0.24 -2.71,3.76 -6.04,3.28 -2.57,3.7 -2.01,1.75 -1.49,0.76 -3.91,0.88 -1.44,1.36 -1.38,2.03 -0.97,4.94 -2.61,7.43 -3.61,5.07 -0.2,1.38 7.38,2.99 1.14,1.71 0.87,7.15 0.88,1.15 7.2,2.62 2.08,4.94 -0.48,8.63 0.4,2.86 -0.83,1.76 -3.9,0.63 -1.99,0.92 -1.31,1.91 0.33,1.62 4.29,4.38 2.5,1.41 9.15,7.09 1.23,3.79 0.61,6.19 2.58,5.28 1.69,2.12 -0.13,0.95 -0.58,0.16 0,0 -3.99,-0.03 -6.44,-1.09 -10.59,4.85 -5.85,-0.78 -4.59,2.65 0,0 -6.36,-3.43 -6.18,-4.04 -11.07,-4.74 -9.26,-4.93 -2.57,-0.51 -7.6,-3.95 -3.03,1.78 -0.3,1.44 3.17,4.06 0.27,1.74 -0.5,1.67 -4.76,1.3 -2.89,5.21 -4.39,1.41 -10.04,0.59 -5.47,-1.48 -4.8,-0.27 -1.51,-0.53 -1.56,-1.34 -1.65,-4.07 -0.9,-1.16 -0.79,-0.71 -3.92,-1.42 -0.6,-0.85 0.09,-1.69 2.38,-4.47 0.23,-1.17 -0.26,-5.94 -0.97,-3.13 -1.8,-1.92 -1.06,-0.21 -10.97,2.19 0.04,-12.38 -0.78,-4.8 -2.61,-4.16 -2.78,-0.88 -3.18,-0.08 -1.53,0.49 0,0 -2.53,-2.71 -2.79,-1.75 -0.27,-0.73 2.35,-4.2 0.53,-3.96 0,0 0.99,-0.56 2.59,-4.09 1.33,-3.85 -0.08,-2 -0.77,-1.67 -3.86,-4.33 -0.45,-1.99 -0.4,-6.89 0.45,-3.5 1.6,-4.57 1.02,-0.43 2.7,0.16 2.04,-0.51 2.74,-3.21 2.65,-4.11 4.74,-4.17 0.67,-1.1 2.48,-1.57 1.69,-0.3 1.14,1.07 1.14,0.09 5.52,-2.17 0,0 1,-0.19 6,1.1 7.43,2.41 3.35,-1.46 2.3,0.73 1.78,3.67 3.13,0.21 7.7,-0.48 3.57,-0.91 1.14,0.3 2.67,4.9 0.54,2.15 -0.83,7.85 0.81,2.05 1.35,1.36 5.7,1.19 5.6,-1.39 1.56,0.17 1.86,1.36 2.46,0.62 1.86,-0.57 -1.11,-3.43 0.04,-1.8 1.53,-1.91 2.53,-1.36 4.04,-0.99 1.44,-0.78 1.85,-1.39 1.1,-2.72 -1.04,-1.46 -8.87,-0.56 -5.72,-1.27 -6.39,-0.77 -2.99,-1.85 -5.3,-7.42 -1.05,-2.5 -0.47,-2.57 -3.84,0.94 -1.18,-1.11 -0.55,-1.74 2.51,-5 -0.52,-4.32 -1.46,-4.42 -1.81,-0.5 -2.75,0.27 -2.12,1.03 -2.61,0.04 -1.35,-0.63 0.49,-4.26 3.22,-4.54 6.16,-0.46 5.47,-3.04 10.94,-3.73 6.23,-2.51 1.19,-0.94 -0.03,-2.25 -0.57,-1.88 6.71,-20.589995 4.54,-1.95 3.48,-0.55 0.99,0.82 0.83,1.64 0.12,1.39 z"
- title="Bauchi"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-BA" />
-<path
- d="m 309.66165,367.75874 9.13,2.48 8.51,1.25 8.71,3.55 4.92,2.82 5.25,0.99 1.07,-0.14 3.32,2.8 5.33,2.23 1.14,-1.1 0.09,-1.36 -4.7,-11.64 -0.08,-2.52 1.02,-2.86 1.24,-1.41 3.95,-2.2 1.38,-0.28 2.59,-0.18 2.68,0.44 10.09,3.72 6.86,1.55 4.88,0.41 3.96,-0.22 0.01,-0.7 11.79,8.93 0,0 -3.79,5.97 1.9,0.57 6.12,-2.63 7.47,-0.95 8.18,0.48 7.48,1.77 5.14,4.9 4.44,5.65 8.37,7.57 -0.14,0.65 1.17,1.36 -0.26,1.04 0.56,1.78 -0.59,3.23 -2.38,5.89 0.29,5.92 -0.92,1.43 -3.09,1.94 -3.44,3.25 -3.31,6.16 -2.11,11.5 0.61,0.73 -0.33,1.08 -0.03,8.76 -1.9,8.19 0,0 -0.72,0.3 -2.12,-0.73 -0.78,1.42 0.1,2 -2.82,1.74 -1.79,0.22 -2.78,-0.44 0,0 -0.65,-1.55 -4.88,-6.63 -5.53,-5.73 -1.49,-0.72 -3.09,-0.22 -9.57,2.24 -4.38,-0.44 -1.21,-0.89 0.66,-4.77 -0.56,-1.64 -8.64,-5.38 -5.43,-1.69 -2.11,-0.07 -2.31,0.59 -2.11,0.67 -1.52,1.2 0.77,4.5 -3.14,1.92 -3.13,0.83 -3.84,-0.14 -2.06,-0.67 -1.92,0.45 -1.36,1.75 -2.36,1.96 -2.99,0.49 0,0 -1.7,-2.27 -0.84,-4.26 -1.76,-1.3 -1.02,2.31 -3.41,0.37 -1.77,2.88 -1.92,0.93 -2.95,-0.25 -3.45,0.4 -1.25,8.23 -0.99,2.05 -1.41,0.59 -1.78,-0.74 -4.01,-3.68 -0.65,-1.54 0.17,-0.91 0,0 2.28,-6.42 -0.9,-5.62 -1.42,-2.14 -1.52,-1.15 -2.81,-0.35 -2.21,2.11 -2.1,0.73 -2.92,-1.52 -3.58,-2.76 -2.89,-3.35 -2.74,-6.51 0.13,-0.53 0,0 0.41,-0.5 0.84,0.58 3.37,3.29 0.82,-0.1 1.35,1.05 1.76,0 0.34,-4.42 0.96,-1.44 6.44,-3.12 3.3,-3.11 1.94,-5.83 0.42,-3.93 0.47,-1.29 1.23,-1.21 0.36,-1.81 -1.48,-0.47 -3.31,0.32 -1.27,-1.05 -1.24,-5.53 -0.57,-6.81 -0.01,-6.9 -0.73,-1.85 -2.7,-2.61 -1.88,-3.22 -0.54,-5.87 z"
- title="Benue"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-BE" />
-<path
- d="m 662.15165,11.078745 0.7,5.65 -0.83,3 3.49,6.26 -0.2,2.52 -0.46,0.49 0.28,-2.17 -1.04,1.33 -0.22,1.92 2.38,2.55 2.46,0.61 -0.65,0.67 0.28,0.54 0.78,0.19 4.46,7.53 2.83,3.08 1.05,0.22 1.72,0.96 1.63,1.2 3.87,0.75 0.26,0.86 -0.58,-0.01 -0.56,1.1 -0.2,-1.04 -0.66,0.58 -0.74,-0.04 1.44,1.6 0.27,1.76 3.88,-1.16 2.31,-2.61 2.47,-2.02 1.6,-0.67 -1.08,1.76 0.15,0.45 0.65,-0.19 0.57,2.34 -0.33,0.22 -0.67,-1.38 -0.85,0.48 -0.57,1.23 -2.02,0.57 0.67,1.88 -1.19,1.13 -1.86,3.73 0.41,0.77 1.37,-0.45 -0.07,2.44 -0.58,1.15 0.85,0.04 -0.34,1.36 -1.15,1.54 0.4,0.57 1.57,-0.43 0.29,0.55 -2.63,1.39 1.97,0.5 -0.15,0.89 1.2,0.05 -0.75,0.85 -1.32,0.33 0.12,0.42 1.24,-0.23 0.12,0.6 -0.48,0.44 -0.23,-0.37 -1.01,0.23 0.24,0.75 0.74,-0.12 -0.85,1.67 1.51,0.21 0.22,1.34 -0.57,0.74 0.26,1.25 0.97,0.22 0.53,1.21 -0.24,1.15 1.95,0.55 0.34,1.46 0.61,0.52 1.61,-0.95 0.46,0.2 0.71,1.91 1.22,0.71 0.31,1.08 2.16,0.77 -0.03,1.1 0.67,1 -0.37,1.19 0.71,0.64 1.11,0.55 1.41,-0.5 2,0.26 -0.27,1.04 0.83,0.06 0.39,-0.69 1.81,-0.07 1.47,-0.81 2.46,-0.08 0.17,1.22 1.07,0.09 -0.12,0.91 -1.25,0.32 0.22,0.53 -0.38,0.64 0.95,0.28 2.25,2.61 3.42,-0.53 1.03,-0.05 0.43,0.81 1.72,-0.87 2.93,0.87 3.5,-0.35 0.68,0.31 0.85,0.12 1.61,0.34 0.79,1.2 1.27,0.34 0.34,0.87 -0.67,0.02 0.08,1.119995 2.17,1.01 0.7,1.37 -0.72,1.39 2.99,0.77 0.76,1.5 -0.54,0.46 1.13,0.54 0.78,0.12 0.12,-0.49 0.97,-0.08 0.51,-0.51 1.33,2.51 -1.37,1.29 -0.32,1.8 -0.74,0.87 0.68,2 -1.72,1.16 -0.06,1.57 2.2,3.78 -1.21,1.74 0.23,1.35 -2.32,2.77 0.01,1.5 0.29,3.79 -0.7,1.23 -2.81,2.15 -0.06,0.55 1.26,1.72 2.01,1.13 2.16,2.18 0.44,2.16 -0.62,4.68 -1.26,0.93 -6.36,2.57 -3.88,0.9 -1.7,3.09 -8.09,3.17 -3.28,2.07 -1.93,2.65 -4.46,1.94 -2.32,0.04 -2.72,-2.37 -2.52,-0.44 -1.07,-0.83 -1.07,0.16 -0.61,0.76 -0.58,2.32 -2.08,2.36 -0.78,2.68 -0.72,1.05 -1.46,0.96 0.24,1.49 -0.65,0.21 -1.08,1.68 -2.32,2.04 -1.21,2.91 -3.24,1.61 -2.42,0.54 -0.77,0.75 -0.19,1.74 0,0 -5.62,1.74 -3.86,0.29 -3.75,-1.14 -0.62,-0.74 -3.09,0.43 -0.28,8.01 -0.88,4.1 -1.22,3.64 -2.71,5.68 -1.48,7.76 -1.14,1.22 -4.39,0.01 -2.38,-1.02 -2.43,-1.15 -2.84,-3.11 -2.58,-1.55 -2.87,-1.03 -8.52,-0.79 -2.51,1.47 -2.1,2.16 -2.22,3.7 -2.35,1.14 -3.32,0.14 -0.82,2.66 -2.44,2.62 -5.9,2.22 -6.29,0.49 -2.51,0.87 -6.2,7.06 -3.73,5.55 -1.7,1.9 -1.74,1.07 -4.57,1.32 -2.7,0.19 -6.34,-0.97 0,0 -3.91,-2.2 -1.81,-1.6 -3.13,-6.17 -5.66,-2.34 -1.83,-1.82 -2.43,-3.51 -0.81,-2.83 5.18,-7.56 0.62,-3.02 -1.35,-3.3 0,0 3.04,-0.69 3.41,-4.53 -0.28,-8.39 0.61,-2.77 1.72,-2.83 2.66,-1.92 11.21,-3.02 6.11,-3.65 2.09,-3.08 0.24,-2.94 -0.76,-4.15 -0.04,-2.97 0.9,-2.86 2.89,-3.35 3.3,-5.9 4.54,-4.43 0.99,-2.11 -0.84,-3.33 -3.13,-3.75 -4.91,0.21 -0.64,-0.36 -0.15,-1.94 4.72,-9.14 -1.69,-7.44 0.13,-3.5 2.54,-16.29 0.05,-5.789995 -1.72,-3.83 0.55,-2.2 7.06,-6.31 2.37,-3.08 1.84,-4.21 -0.48,-3.74 -4.8,-3.84 -1.45,-1.82 -1.23,-3.85 1.49,-8.02 0.08,-4.21 0,0 1.45,-0.12 4.38,0.88 0.03,-1.19 0.59,-0.41 0.07,-0.74 0.19,-1.71 1.48,-1.33 1.14,0.24 1.35,-0.73 -0.34,-1.16 0.73,-1.08 -0.23,-0.32 -0.89,-0.19 0.4,-1.13 0.77,-1.33 0.8,-1.78 0.64,-0.6 2.28,0.35 1.38,-0.87 0.96,0.09 0.61,0.74 0.96,-1.11 0.23,-1.44 1.34,-0.23 1.47,-0.29 0.29,-0.46 -0.34,-0.4 0.98,-1.17 2.11,-0.48 0.62,-1.24 1.37,-0.78 0.16,-0.79 0.58,-0.74 0.4,-0.74 -0.02,-0.86 1.1,-0.43 0.43,-1.02 -0.81,-0.31 0.57,-0.61 1.23,0.63 -0.29,-1.57 1.1,0.12 0.06,0.47 0.85,0.29 1.1,-0.14 1.87,-1.67 1.02,-0.37 0.32,0.38 1.98,-0.1 1.39,-1.33 1.02,0.49 0.05,-1.08 1.08,-0.36 1.02,0.09 -0.89,1.17 1.47,0.79 0.92,-1.31 1.35,1.04 -0.2,-1.31 1.48,-0.51 -0.31,2.08 0.92,0.12 0.45,-0.97 1.15,-0.25 0.92,1.39 0.96,-2.53 1.66,-0.84 0.02,-0.44 -0.55,-0.19 0.19,-0.71 1.19,0.2 0.64,-0.8 -0.64,-0.17 -0.4,-1.02 1.68,-1.6 -0.06,-0.58 1.49,-0.67 -0.05,-0.93 1.05,-1.06 1.24,-0.24 0.39,-1.06 z"
- title="Borno"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-BO" />
-<path
- d="m 251.22165,579.30874 -0.21,-0.62 -0.68,0.1 -3.96,-2.6 -1.2,-4.38 -1.38,-1.87 -1.99,-0.02 -6.54,2.54 -1.04,-0.26 -0.35,-1.94 0.42,-1.46 -3.31,-1.44 -0.5,-0.83 0.07,-4.34 1.9,-2.67 0.76,-2.05 0.03,-1.27 -1.29,0.16 -0.84,-0.78 1.33,-4.44 4.49,-7.84 2.77,0.17 0.55,-0.5 0.75,-2.49 1.54,-0.79 -0.23,-1.81 1.58,-1.07 0.95,-1.48 -0.03,-1.94 -0.63,-1.54 -0.76,-0.58 -1.92,-0.83 -2.94,0.49 -1.04,-0.28 0.77,2.47 -1.2,0.85 -5.08,2.19 -3.49,-0.44 -2.74,0.49 -2.01,4.1 -2.11,0.52 -0.79,-0.6 -1.47,-0.08 -0.36,0.95 0.26,2.31 -2.83,1.56 -1.62,0.56 -3.01,-0.24 -1.23,1.99 -2.31,0.62 -1.89,-0.67 -0.99,-1.66 -2.11,-1.28 -0.75,0.5 -1.48,3.07 -3.3,1.64 -2.62,-0.42 -7.48,4.1 -0.94,-0.37 -2.32,0.4 -1,-1.1 -2.69,-1.6 -3.05,-0.71 -2.9,-1.66 -2.1,-2.1 -0.56,0.72 -0.72,-0.57 -1.43,0.53 -0.36,-0.5 -1.63,0.84 2.36,4.61 1.91,5.81 -0.34,0.79 0.95,1.52 0.35,1.86 4.06,6.77 0.19,1.44 0.94,0.55 0.01,0.17 0.05,1.1 7.5,10.38 1.19,0.62 -0.02,0.75 2.77,1.35 -0.27,0.41 1.05,0.75 0.12,0.65 2.56,1.59 0.19,-0.39 0.31,0.34 -0.22,0.24 0.02,0.34 2.61,2.16 0.48,-0.02 -0.14,-0.77 -0.45,-0.21 1.58,-0.46 -0.76,0.7 0.33,0.72 -0.26,0.27 0.07,0.51 2.32,1.7 5.07,2.36 0.19,-2 -0.79,-0.51 -0.55,-1.25 0.34,0.12 0.29,0.89 0.79,0.22 -0.12,-0.7 0.41,0.03 -0.02,0.7 0.52,0.17 0.26,0.77 -0.62,1.18 0.26,0.43 -0.34,1.3 0.4,0.29 5.18,1.32 0.19,-2.23 0.65,-0.58 0.38,3.84 8.34,-0.7 -0.64,-2.4 1.03,-3.05 0.65,-1.1 -0.29,-1.37 -1.91,-1.15 0.48,-0.05 1.19,0.27 0.96,1.58 0.6,-1.13 -0.55,-0.79 0.09,-2.14 -0.84,-1.35 0.31,-0.74 0.17,1.03 0.69,0.55 0.03,0.38 0.74,2.02 -0.1,3.1 2.72,-2.47 -0.58,-0.63 0.1,-1.94 1.91,-0.6 0.5,-0.63 0.69,1.61 0.12,1.29 -0.48,1.03 0.6,1.32 0.05,1.61 1.34,0.26 1.08,1.51 0.48,-0.05 -0.19,0.33 0.22,0.43 2.17,-0.48 0.19,0.34 -0.62,0.65 1.53,0.79 8.46,-0.91 0.02,-0.48 -0.4,-0.51 -0.07,-0.77 -0.1,-0.34 0.67,-0.86 0.6,-0.58 -0.52,2.04 0.22,0.39 2.03,1.76 0.96,-0.98 3.53,-0.38 -0.5,-2.47 -0.09,-0.38 -0.38,-1.13 -1.15,-0.75 -0.19,-0.99 0.02,-0.19 0.29,-1.06 -0.53,-2.25 -0.41,-0.55 0.35,-0.36 0.76,0.9 1.25,4.2 0.38,-0.58 -0.65,-5.23 1.7,-3.39 0.26,-1.83 z m -78.3,-19.41 0,0 0.01,0.01 -0.01,-0.01 z m 59.51,37.48 -8.22,0.99 -2.8,-0.1 -0.22,-0.7 1.36,-2.52 0.15,-0.02 0.45,0.04 0.14,-1.3 1.98,-2.19 0.12,-0.31 0.43,-0.89 0.45,-0.19 -0.59,-0.77 -0.18,-1.3 0.55,-0.35 1.03,-0.19 0.9,1.34 -0.5,1.33 0.78,1.62 -0.22,1.57 1.63,0.44 0.65,0.92 2.11,2.58 z"
- title="Bayelsa"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-BY" />
-<path
- d="m 348.48165,451.12874 2.99,-0.49 2.36,-1.96 1.36,-1.75 1.92,-0.45 2.06,0.67 3.84,0.14 3.13,-0.83 3.14,-1.92 -0.77,-4.5 1.52,-1.2 2.11,-0.67 2.31,-0.59 2.11,0.07 5.43,1.69 8.64,5.38 0.56,1.64 -0.66,4.77 1.21,0.89 4.38,0.44 9.57,-2.24 3.09,0.22 1.49,0.72 5.53,5.73 4.88,6.63 0.65,1.55 0,0 -2.17,8.34 -5.15,-2.21 -0.78,1.84 -0.02,1.98 -0.58,0.73 -1.08,0.94 -2.8,4.86 -3.23,0.94 -1.63,1.19 -1.2,1.18 -0.95,2.5 -0.99,0.97 -8.72,7.77 -3.81,2.73 -1.12,0.33 -1.64,2.3 -1.69,0.87 -1.3,1.48 0.4,0.86 1.36,1.04 -1.05,1.48 0.4,0.83 -0.45,0.96 -1.47,1.87 -0.57,-0.58 0.05,1.5 5.1,5.64 0.31,1.76 -2.4,4.05 -0.64,2.4 -1.12,1.36 0.21,3.89 -1.81,5.88 0.15,6.56 -2.54,4.2 -1.89,0.77 -0.08,0.84 -1.34,1.04 -1.22,3.3 -1.25,1.04 0.97,1.02 -0.9,0.35 -0.98,1.24 0.05,0.57 -1.01,0.38 0.09,1.76 -1.97,0.75 -1.02,1.25 -0.02,0.96 1.2,1.14 0.34,1.53 -2.42,1.46 -1.09,-0.24 -0.68,-0.72 -1.03,0.82 -0.64,1.52 -0.75,0.53 -0.16,1.47 0.67,0.07 0.6,-1.75 0.26,2.51 -0.36,0.56 -0.43,-0.67 -0.6,0.14 0.58,1.44 -1.48,0.27 0.06,0.76 -1.78,0.29 -1.47,-0.6 0.51,-1.77 1.07,-0.12 -1.27,-1.61 -0.8,1.22 -1.16,0.48 -2.07,-0.46 -0.65,-1.15 0.77,-0.7 0.21,-0.16 -0.31,-0.91 -1.36,0.41 -1.13,-0.63 -2.38,2.18 0,0 -0.59,-1.01 -3.67,-2.81 -3.78,-4.34 -3.18,-2.8 -3.41,-4.91 -1.63,-5.13 0.61,-6.1 -0.39,-2.1 -4.96,-2.68 -4.77,0.56 -0.79,-1.94 -0.83,-0.31 -0.66,-1.79 1.15,-2.45 0.85,-0.1 0,0 3.42,0.76 0.6,-1.21 -0.76,-2.55 -1.71,-2 -0.73,-1.68 -1.37,-4.63 -0.15,-3.78 0.59,-3.72 -1.08,-1.29 0,0 0.38,-2.39 2.34,-3.11 -0.36,-2.66 1.46,-1.26 0.34,-1.35 1.98,-2.29 0.08,-2.42 -1.14,-1.8 0.19,-0.98 2.27,-1.08 2.62,-0.18 2.69,4.5 1.34,-2.08 2.16,-0.77 2.2,-1.71 0.28,-1.31 1.88,-0.29 2.18,1.26 0.84,-0.91 0.68,-2.3 0.1,-2.59 0.8,-1.47 6.92,-8.39 0.02,-1.4 -1.86,-2.6 -0.01,-1.6 1.65,-1.63 2.19,-0.37 0.83,-1.7 -0.24,-1.05 -1.38,-1 -0.41,-1.5 -0.52,-0.37 0.1,-1.94 -1.28,-1.12 -0.5,-1.71 -2.7,-1.87 -1.99,-2.62 z"
- title="Cross River"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-CR" />
-<path
- d="m 252.45165,479.95874 -1.48,-7.29 0.08,-1.37 -1.13,-1.13 -2.13,-9.57 -1.88,2.04 -4.1,-0.38 -3.73,0.81 -8.19,5.12 -7.35,3.1 -4.03,4.53 -0.64,0.05 -2.58,-3.94 -1.01,-0.42 -1.67,-0.31 -1.78,1.58 -0.89,2.03 -0.15,2.37 0.4,0.75 1.46,0.81 0.54,4.82 2.03,3.59 1.96,2.42 1.88,1.46 2.23,0.81 0.29,1.75 -0.7,3.24 -1.55,1.91 -1.63,1.66 -3.08,2.03 -2.29,3.07 -2.78,1.99 -1.81,0.6 -5.23,1.04 -2.13,-0.56 0.7,-1.8 -1.6,-1.61 2.04,-4.03 -0.47,-0.83 -3.91,-2.35 -2,-2.83 -4.67,-2.62 -3.17,-1.25 -1.64,-1.34 -5.12,1.85 -1.85,2.38 -1.77,-0.4 -2.27,-1.98 -1.38,-0.29 -3.17,0.67 -2.98,-0.72 -0.99,0.31 -0.63,0.3 -0.06,1.03 0.89,1.57 -0.52,1.06 -4.1,3.22 -1.66,0.07 -0.05,-2.47 -0.66,-2.55 0.7,-2.93 -0.15,-1.43 -1.66,-1.67 -5.43,-2.8 -6.9,16.74 2.48,4.48 1.39,0.88 0.58,-1.6 1.31,-1.25 7.76,-4.22 1.26,-0.22 1.85,-1.28 1.13,-0.54 0.36,0.51 -0.02,0.17 -2,0.95 -1.01,1.6 -0.07,0.26 -0.83,-0.53 -2.25,0.98 -3.18,2.51 -0.34,0.75 -1.98,-0.45 -1.05,0.82 -0.79,3.14 0.26,1.54 2.63,4.5 3.18,3.14 1.12,-0.53 3.01,-1.34 2.97,0.41 0.74,-3.16 1.15,-2.15 -0.02,-0.38 0.4,-0.3 0,0.01 0.38,0.12 -0.23,0.14 -0.24,1.9 -1.12,2.27 1,2.13 1.91,0.63 1.63,-0.27 1.58,-3.18 1.6,0.1 0.19,-0.25 0,0.01 2.99,1.54 1.12,0.67 0.19,0.48 -1.19,-0.34 0.27,0.77 0.1,1.32 -1.33,-0.35 0.97,-0.67 -0.33,-1.34 -1.12,-0.72 -3.13,-0.29 -0.6,0.14 0.09,1.63 -0.55,1.13 -2.34,1.97 1,-1.58 -1.79,0.15 -2.1,-0.55 -4.44,-0.67 -1.96,0.19 -0.12,0.84 -1.62,1.08 -1.26,1.67 2.77,3.96 3.04,2.61 6.04,2.63 5.09,0.29 0.02,-0.65 -1.19,-1.39 -0.95,-2.9 -0.26,-0.45 0.07,-0.74 0.47,-0.12 -0.19,0.82 1,2.2 0.83,-0.6 0.36,0 -0.07,0.22 -0.95,1.08 0.26,0.5 2.65,1.12 0.57,-0.21 1.65,-4.8 0.84,-1.46 0.96,-0.62 -0.64,-0.33 3.2,0.12 0.48,0.15 1.05,-0.46 0.46,-1.13 0.74,-0.38 1.12,0.17 0.95,0.91 0.61,-0.66 0.09,0.23 -0.12,0.75 -0.89,0.04 -1.38,-0.94 -1.01,1.68 -1.58,0.79 -1.81,-0.12 0.22,0.86 -0.96,-0.98 -1.32,0.36 -0.55,3.02 0.27,1.32 0.58,1.08 0.45,0.72 3.36,1.09 -0.3,0.8 -1.55,-1.12 -0.65,0.36 -0.03,0.7 -0.07,0.22 -0.49,0.13 0.32,-1.47 -0.31,-0.12 -0.43,-0.34 -0.45,-0.46 -0.45,0.48 -0.74,0.5 -0.36,0.53 -0.79,0.12 -1.12,0.57 0.91,0.46 2.05,-0.1 -2.97,0.96 -0.4,0.63 -1,-1.61 -0.6,0.05 -0.28,-0.02 -2.53,0.15 -1.17,0.63 -0.07,-0.39 -0.69,-0.07 -0.41,-0.31 -0.67,0.22 -0.83,-0.43 0.05,2.44 1.91,7.63 -0.24,1.66 2.08,2.26 2.05,-0.88 2.65,-0.17 -0.89,-1.35 -0.09,-1.12 0.15,-0.24 0.5,-2.38 0.29,-0.03 -0.15,0.6 0.15,0.41 -0.52,2.69 0.88,0.55 -0.1,1.53 -0.8,0.31 2.1,2.1 2.9,1.66 3.05,0.71 2.69,1.6 1,1.1 2.32,-0.4 0.94,0.37 7.48,-4.1 2.62,0.42 3.3,-1.64 1.48,-3.07 0.75,-0.5 2.11,1.28 0.99,1.66 1.89,0.67 2.31,-0.62 1.23,-1.99 3.01,0.24 1.62,-0.56 2.83,-1.56 -0.26,-2.31 0.36,-0.95 1.47,0.08 0.79,0.6 2.11,-0.52 2.01,-4.1 2.74,-0.49 3.49,0.44 5.08,-2.19 1.2,-0.85 -0.77,-2.47 -0.57,-1.04 0.21,-0.44 3.52,-1.81 0.19,-5.3 0.7,-1.48 2.05,-1.42 0.89,-1.75 0.82,-3.18 -1.09,-3.54 0.23,-0.35 1.01,-1.17 1.92,-3.9 0.34,-2.63 1.76,-4.69 2.5,-4.55 0.38,-6.01 1.27,-3.65 -1.18,-3.74 z"
- title="Delta"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-DE" />
-<path
- d="m 319.74165,453.93874 -0.17,0.91 0.65,1.54 4.01,3.68 1.78,0.74 1.41,-0.59 0.99,-2.05 1.25,-8.23 3.45,-0.4 2.95,0.25 1.92,-0.93 1.77,-2.88 3.41,-0.37 1.02,-2.31 1.76,1.3 0.84,4.26 1.7,2.27 0,0 0.49,2.89 1.99,2.62 2.7,1.87 0.5,1.71 1.28,1.12 -0.1,1.94 0.52,0.37 0.41,1.5 1.38,1 0.24,1.05 -0.83,1.7 -2.19,0.37 -1.65,1.63 0.01,1.6 1.86,2.6 -0.02,1.4 -6.92,8.39 -0.8,1.47 -0.1,2.59 -0.68,2.3 -0.84,0.91 -2.18,-1.26 -1.88,0.29 -0.28,1.31 -2.2,1.71 -2.16,0.77 -1.34,2.08 -2.69,-4.5 -2.62,0.18 -2.27,1.08 -0.19,0.98 1.14,1.8 -0.08,2.42 -1.98,2.29 -0.34,1.35 -1.46,1.26 0.36,2.66 -2.34,3.11 -0.38,2.39 0,0 -1.34,-0.21 -3.21,-2.33 -0.7,-1.04 -0.22,-2.19 -1.24,-1.86 -14.09,-0.86 -0.94,-1.03 -0.05,-0.73 0.55,-2.86 -0.07,-4.36 0,0 3.63,-1.01 1.99,1.7 0.77,0.09 2.11,2.51 0.73,0.07 0.65,-1.44 -0.8,-2.92 -0.15,-2.64 2.67,-2.73 0.8,-1.73 -0.99,-6.64 -0.62,-2.55 -1.08,-1.07 0.02,-1.23 2.74,-6.11 0.01,-5.82 -0.65,-1.15 -0.38,-3.29 -1.48,-4.9 6.45,0.55 z"
- title="Ebonyi"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-EB" />
-<path
- d="m 208.35165,395.48874 0.77,0.64 1.75,-0.37 0.7,0.36 0.28,0.68 -0.38,0.89 0.46,0.65 2.18,-0.25 0.27,0.8 -0.96,1.85 -0.23,1.93 0.28,1.05 1.08,0.78 2.13,0.53 5.94,-2.93 1.56,2.1 0.65,-0.07 1.26,1.41 0.55,-0.06 1.96,2.23 2.26,-0.19 0.74,-0.51 2.56,0.15 1.06,2.01 0.07,1.22 0.85,0.61 0.48,1.74 0.74,0.56 -0.24,0.51 0.66,1.63 3.75,-0.84 0.43,0.38 1.46,-0.99 1.87,-0.41 1.75,1.41 0.55,2.12 1.45,1.08 0.79,2.01 0.15,3.41 -0.31,1.92 -1.62,3.94 0.06,4.16 -1.91,4.82 -2.16,3.55 1.28,2.15 -0.93,5.52 0.89,2.6 1.41,2.01 1.03,6.03 0,0 0.07,0.29 0,0 -1.88,2.03 -4.09,-0.38 -3.73,0.81 -8.19,5.11 -7.35,3.1 -4.03,4.53 -0.65,0.04 -2.58,-3.94 -1.01,-0.41 -1.66,-0.32 -1.79,1.59 -0.89,2.02 -0.15,2.37 0.4,0.75 1.46,0.81 0.54,4.82 2.03,3.58 1.96,2.42 1.88,1.46 2.23,0.81 0.28,1.74 -0.69,3.24 -1.55,1.91 -1.62,1.66 -3.08,2.03 -2.3,3.07 -2.77,1.99 -1.81,0.6 -5.24,1.04 -2.13,-0.57 0.7,-1.8 -1.6,-1.61 2.03,-4.03 -0.47,-0.83 -3.9,-2.35 -2,-2.83 -4.68,-2.62 -3.16,-1.25 -1.64,-1.34 -5.12,1.85 -1.85,2.38 -1.77,-0.4 -2.27,-1.98 -1.38,-0.29 -3.17,0.67 -2.97,-0.72 -0.99,0.31 -0.64,0.3 -0.06,1.03 0.89,1.57 -0.52,1.06 -4.09,3.23 -1.66,0.07 -0.05,-2.47 -0.66,-2.55 0.71,-2.93 -0.15,-1.43 -1.66,-1.67 -5.43,-2.79 0,0 0.39,-1.16 -1.23,-2.26 -1.33,-1.04 -1.56,-0.09 -1.65,-2.94 -1.94,-1.36 -0.7,-0.06 -0.44,-0.91 0.25,-0.59 -0.28,0.44 0.8,-0.7 0.96,-3.63 0.58,-0.61 2.95,-0.87 0.84,-3.74 1.74,-1.71 0.84,-1.96 0.35,-1.72 -0.57,-1.45 -1.4,-2.28 -1.23,-0.64 0,-2.84 0.81,-0.98 -0.1,-2.22 0.49,-0.96 1.75,-1.62 0.45,-1.03 1.73,-0.8 0.79,-2.27 0.96,-0.69 0.09,-1.95 0.45,-0.78 2.2,-1.01 2.13,0.4 2.28,-0.38 1.68,0.36 6.64,0.11 3.29,-0.38 1.64,0.34 1.74,2.08 -2.01,2.26 2.1,5.46 0.74,-0.03 3.77,-3.16 1.34,0.12 1.19,1.48 0.81,0.35 2.68,-1.02 1.51,-3.39 0.95,-4.96 0.25,-0.25 1.19,0.51 0.01,-1.63 0.88,-0.52 -0.15,-0.81 -1.18,-1.28 0.61,-4.64 1.24,-1.66 1.52,-0.73 0.37,-0.85 -0.32,-0.84 3.23,-6.89 -0.15,-1.39 0.47,-1.04 1.76,-1.83 2.15,-1.05 1.43,-3.54 -0.43,-0.28 -0.77,-2.48 0.87,-2.89 -2.01,-0.82 -0.4,-0.84 0.18,-1.39 1.41,-1.72 1.56,0.14 0.89,-0.6 z"
- title="Edo"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-ED" />
-<path
- d="m 148.66165,367.10874 0.41,-0.17 0.61,1.67 1.03,0.49 4.48,-1.25 0.95,0.37 1.47,2.06 0.95,0.49 2.33,-0.23 2.3,0.62 1.95,-0.58 1.29,0.55 1.04,-2.16 -0.29,-0.63 0.82,-2.22 4.11,-1.34 5.76,-0.09 0,0 -1.09,0.42 -0.03,4.28 0.55,0.45 2.48,-1.42 3.67,-0.64 2.31,0.27 0.56,0.7 -0.28,1.37 -1.34,0.64 -2.29,3.01 -0.08,1.56 1.32,3.75 1.32,0.96 1.28,0.03 1.85,1.69 6.82,2.39 0,0 -1.52,2.4 -0.82,0.3 -1.5,-1.25 -1.86,0.39 -0.85,2.06 -2.18,1.45 -2.4,2.48 -1.13,2.14 -1.71,8.1 -1.7,3.92 -3.05,4.43 -5.53,3.49 -2.27,-0.59 -1.09,-2.68 0.16,-0.86 -1.04,-3.19 -1.42,-2.22 -1.55,-0.52 -6.97,0.31 -7.78,-0.44 -4.55,1.45 0,0 -0.83,-1.7 -0.84,-3.79 -2.85,-6.11 -0.69,-4.78 1.19,-3.99 -0.81,-2.81 0.12,-1.4 1.9,-4.25 1.62,-1.5 2.18,-0.94 1.99,-1.64 z"
- title="Ekiti"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-EK" />
-<path
- d="m 262.67165,444.90874 2.73,-5.01 0.91,0.25 0.18,2.28 0.74,0.05 1.33,2.01 0.69,0.34 1.24,-0.33 4.97,-5.39 5.98,-3.86 6.18,-7.42 2.44,-0.91 2.14,-2.1 3.31,-0.76 2.44,0.75 1.11,1.62 0,0 -0.13,0.53 2.74,6.51 2.89,3.35 3.58,2.76 2.92,1.52 2.1,-0.73 2.21,-2.11 2.81,0.35 1.52,1.15 1.42,2.14 0.9,5.62 -2.28,6.42 0,0 -1.79,0.36 -6.45,-0.55 1.48,4.9 0.38,3.29 0.65,1.15 -0.01,5.82 -2.74,6.11 -0.02,1.23 1.08,1.07 0.62,2.55 0.99,6.64 -0.8,1.73 -2.67,2.73 0.15,2.64 0.8,2.92 -0.65,1.44 -0.73,-0.07 -2.11,-2.51 -0.77,-0.09 -1.99,-1.7 -3.63,1.01 0,0 -0.33,-1.46 -2.05,-1.34 -2.71,-0.27 -4.83,0.89 -0.6,-0.77 0,0 -0.83,-0.17 0.04,-0.54 -1.12,-0.74 -1.08,-0.09 -1.66,0.96 -2.39,-1.4 -0.76,-0.98 -0.18,-1.51 -1.88,-3.79 0.35,-2.15 -1.33,-0.63 -0.59,-2.58 -0.61,-0.13 -1.89,1.13 -0.72,-0.74 0.5,-1.62 -0.41,-1.37 0.82,-0.29 0.3,-0.96 -1.31,-1.85 -1.34,-3.64 -1.42,-1.8 -3.85,-1.16 -0.39,-0.54 0.43,-2.35 0.62,-0.83 -0.24,-0.96 1.85,-2.48 1.69,-1.14 0.75,-1.08 1.25,-3.45 -0.36,-0.79 -3.73,-1.7 -2.05,-0.08 -2.44,-1.41 -3.83,0.13 -0.09,-3.62 z"
- title="Enugu"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-EN" />
-<path
- d="m 287.74165,288.29874 6.12,-0.63 3.2,0.32 1.52,0.85 1.13,-0.85 1.81,-3.04 1.06,-0.54 1.07,0.43 1.47,3.11 0.94,0.31 1.18,-0.79 0,0 -0.07,2.44 -0.42,0.62 -1.03,0.07 -0.53,0.61 -2.11,6.52 -0.08,5.62 0.51,2.19 -0.55,7 -1.98,5.27 -1.52,7.95 -0.79,0.36 -1.08,3.4 -1.04,1.64 -3.78,4.62 -6.96,3.64 -4.63,1.06 -2.91,1.2 -11.13,1.75 0,0 -1.4,0.46 -7.46,-0.15 0,0 -1.83,0.21 -1.42,-0.47 -1.95,-4.91 0.46,-1.37 -0.75,-30.21 0.36,-13.66 0.34,-0.38 2.68,-0.33 11.03,-0.47 1.76,0.63 9.19,8.1 0.94,-0.24 z"
- title="Federal Capital Territory"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-FC" />
-<path
- d="m 517.00165,163.43874 0.91,-0.88 4.17,-1.51 4.04,0.17 2.98,1.01 2.18,1.29 8.49,6.26 4.75,6.4 3.42,3.58 -1,1.54 1.58,-1.02 3.68,3.38 0.67,4.87 -1.2,11.85 0.77,6.45 0.3,0.51 6.78,-0.01 0,0 1.35,3.3 -0.62,3.02 -5.18,7.56 0.81,2.83 2.43,3.51 1.83,1.82 5.66,2.34 3.13,6.17 1.81,1.6 3.91,2.2 0,0 -0.68,10.23 0.52,3.7 -1.1,2.33 -5.75,4 -9.4,5.66 -3.37,1.43 -6.2,0.91 0,0 -6.37,0.47 -12.46,-0.02 -5.9,0.6 -3.57,-0.71 0,0 0.58,-0.16 0.13,-0.95 -1.69,-2.12 -2.58,-5.28 -0.61,-6.19 -1.23,-3.79 -9.15,-7.09 -2.5,-1.41 -4.29,-4.38 -0.33,-1.62 1.31,-1.91 1.99,-0.92 3.9,-0.63 0.83,-1.76 -0.4,-2.86 0.48,-8.63 -2.08,-4.94 -7.2,-2.62 -0.88,-1.15 -0.87,-7.15 -1.14,-1.71 -7.38,-2.99 0.2,-1.38 3.61,-5.07 2.61,-7.43 0.97,-4.94 1.38,-2.03 1.44,-1.36 3.91,-0.88 1.49,-0.76 2.01,-1.75 2.57,-3.7 6.04,-3.28 2.71,-3.76 z"
- title="Gombe"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-GO" />
-<path
- d="m 283.98165,497.48874 2.01,1.69 5.34,1.78 1.04,1.45 0.47,1.35 0.38,8.47 -1.23,0.77 1.51,2.44 -0.28,2.05 0.36,3.45 -0.43,2.01 -0.89,0.9 -1.18,3.04 -1.82,1.68 -2.1,3.87 -3.09,10.25 0,0 -2.57,0.95 -4.52,-1.13 -2.13,0.04 -4.15,1.06 -4.69,-1.11 -6.72,0.14 -2.14,-0.41 -2.16,-1.65 -1.72,-3.4 -1.84,-1.3 -0.26,-1.37 1.09,-2.76 0.52,-4.63 -0.45,-1.66 -2.12,-0.77 -3.46,0.67 -1.51,-0.44 2.75,-13.09 0,0 2.09,-0.83 3,-3.83 1.62,-0.8 4.51,1.92 2.68,-0.27 2.37,-4.61 0.93,-3.55 1.78,-1.04 6.31,-1.16 5.38,1.25 z"
- title="Imo"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-IM" />
-<path
- d="m 434.10165,67.298745 1.79,1.18 6,0.73 3.14,-1.8 2.1,-3.99 5.32,-2.59 3.16,-0.63 2.82,-1.37 6.33,-1.96 2.21,1.25 2.13,4.78 0.69,4.35 1.46,2.53 1.12,-0.72 5.86,-1.86 4.99,2.22 2.03,-0.61 1.85,0.88 2.21,3.4 1.76,11.53 0.87,2.9 0,0 -11.06,6.93 -0.12,-1.39 -0.83,-1.64 -0.99,-0.82 -3.48,0.55 -4.54,1.95 -6.71,20.589995 0.57,1.88 0.03,2.25 -1.19,0.94 -6.23,2.51 -10.94,3.73 -5.47,3.04 -6.16,0.46 -3.22,4.54 -0.49,4.26 1.35,0.63 2.61,-0.04 2.12,-1.03 2.75,-0.27 1.81,0.5 1.46,4.42 0.52,4.32 -2.51,5 0.55,1.74 1.18,1.11 3.84,-0.94 0.47,2.57 1.05,2.5 5.3,7.42 2.99,1.85 6.39,0.77 5.72,1.27 8.87,0.56 1.04,1.46 -1.1,2.72 -1.85,1.39 -1.44,0.78 -4.04,0.99 -2.53,1.36 -1.53,1.91 -0.04,1.8 1.11,3.43 -1.86,0.57 -2.46,-0.62 -1.86,-1.36 -1.56,-0.17 -5.6,1.39 -5.7,-1.19 -1.35,-1.36 -0.81,-2.05 0.83,-7.85 -0.54,-2.15 -2.67,-4.9 -1.14,-0.3 -3.57,0.91 -7.7,0.48 -3.13,-0.21 -1.78,-3.67 -2.3,-0.73 -3.35,1.46 -7.43,-2.41 -6,-1.1 -1,0.19 0,0 -0.08,-2.24 1.08,-3.72 7.12,-6.88 -0.89,-1.15 -2.09,-0.53 -2.83,-2.64 -1.48,-2.75 -0.5,-2 -1.09,-0.99 -5.06,0.15 -0.2,-1.96 0.5,-2.09 3.36,-4.69 0.19,-2.05 1.06,-1.84 -0.19,-2.46 -2.28,-7.18 -1.25,0.53 -1.47,1.75 -2.32,1.42 -1.82,0.18 -1.37,-0.25 -0.01,-2.57 -0.57,-1.44 -3.14,0.25 -1.9,1.19 0,-1.03 -1.65,-0.72 0.53,-1.72 1.18,-1.39 0.08,-5.61 -0.8,-2.94 -0.92,-0.81 -1.85,-0.56 -5.44,-0.56 -0.83,-0.42 -1.02,-1.389995 0.57,-2.01 -1.1,-3.08 -3.81,-2.12 -1.13,-1.38 -0.45,-5.92 -7.78,-2.02 -3.77,0.35 -3.99,1.93 -1.73,1.35 -0.62,2.6 -1.87,3.61 -1.07,-1.12 -0.1,-1.96 -3.51,-6.28 0,0 -1.24,-2.62 -0.83,-0.7 -4.94,-0.12 -2.86,-0.93 -0.59,-0.72 -0.07,-3.85 0.75,-3.4 -0.02,-2.69 0.46,-0.3 10.39,-1.38 5.37,0.99 9.22,-0.78 1.17,1.23 1.41,4.68 0.68,0.94 2.66,1.67 1.99,0.52 2.62,-1.51 0.64,1.56 1.49,0.7 3.68,-0.55 4.18,-1.74 3.19,-2.58 1.03,-2.63 0.58,-0.75 2,-0.88 0.01,-0.86 0,0 1.27,-0.39 10.06,0.44 9.02,1.42 5.24,-0.75 6.06,0.78 10.03,0.45 z"
- title="Jigawa"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-JI" />
-<path
- d="m 316.55165,159.39874 3.09,0.02 2.44,-0.67 4.18,-3.83 4.8,-2.84 1.65,0 4.08,-1.24 1.22,0.19 1.13,0.82 0.32,1.25 -2.11,4.02 0.53,2.57 1.04,1.18 3.53,1.83 3.75,1.23 3.51,4.13 1.53,0.55 2.78,-0.03 2.45,0.59 5.38,4.43 3.59,6.42 0.38,3.88 -1.01,2.44 -1.01,4.91 1.2,6.05 -0.2,1.73 -0.72,1.1 -3.55,0.96 -0.55,0.79 0.6,2.08 1.06,1.07 7.02,0.97 1.98,2.75 1.6,1.05 3,0.64 1.05,-0.29 0,0 -0.53,3.96 -2.35,4.2 0.27,0.73 2.79,1.75 2.53,2.71 0,0 -0.37,0.29 -0.21,2.9 -0.55,1.43 -1.32,1.56 -2.19,0.73 -1.9,1.4 -2.13,4.97 -0.22,2.71 1.36,2.82 0.75,3.52 -2.39,1.97 -0.34,1.1 0.18,1.97 -0.7,7.81 0.53,2.1 -0.42,1.07 -1.91,1.55 -0.4,3.08 -1.76,1.28 0.21,4.74 -1.05,1.4 0.1,1.16 3.26,5.28 2.57,3.08 1.71,1.21 1,2.09 0.12,3.41 -1.67,3.94 0,0 -1.09,0.57 -2.65,5.61 -3.31,5.4 -0.82,0.72 -1.61,0.42 -2.47,-0.13 -0.6,-1.9 -5.34,-5.91 -3.81,-0.24 -1.5,-1.25 -1.33,-0.22 -1.29,0.98 -0.89,1.9 -4.16,4.75 -2.35,1.6 -1.15,0.21 -1.34,-0.96 -0.4,-1.31 0.05,-9.7 -1.03,-1.61 -4.22,-2.44 -0.32,-3.25 -2.93,-2.67 -1.1,-0.39 -1.01,0.35 -1.65,2.12 -0.94,2.54 -2.31,2.1 -1.1,0 -1.75,-1.06 -1.34,0.25 -2.44,-1.79 -0.93,-0.14 -1.5,0.61 -0.7,-0.79 -0.6,-1.88 -0.75,-0.11 -1.34,1.02 0,0 -1.18,0.79 -0.94,-0.31 -1.47,-3.11 -1.07,-0.43 -1.06,0.54 -1.81,3.04 -1.13,0.85 -1.52,-0.85 -3.2,-0.32 -6.12,0.63 0,0 -1.23,-0.42 -2.46,0.6 1.38,-4.13 -3.39,-2.78 0.09,-2.32 0.56,-0.93 2.45,-1.29 0.79,-0.87 0.6,-2.79 3.09,-3.17 -0.58,-1.88 -3,-1.62 0.83,-3.02 -3.62,-1.36 -1.13,-0.77 -0.17,-0.91 0.29,-0.64 0.88,-0.42 3.23,-0.41 0.63,-1.51 -0.1,-3.09 -0.92,-3.88 -0.16,-5.06 -0.33,-1.01 -1.37,-0.67 -12.87,0.08 -6.67,-2.49 -1.71,-1.66 -1.03,-1.98 0.91,-1.24 2.17,-1.36 1.62,-1.68 0.85,-1.48 4.24,-2.6 1.02,-1.79 0.31,-1.98 -3.23,-1.75 -4.83,-1.66 1.35,-4.14 0.05,-2.57 -1.98,-3.8 -1.61,-0.44 -2.25,0.67 -1.39,-0.14 -0.28,-4.5 -0.48,-1.92 -0.61,-0.51 -4.73,-0.5 -1.18,1.2 0.67,2.39 -0.64,0.98 -3.97,-0.56 -7.63,2.86 -1.04,-2.66 -1.02,-1 -2.91,0.13 -2.1,0.61 -2.46,1.5 -5.59,4.5 -5.38,7.01 -1.41,0.89 -1.43,-0.6 -1.22,-3.52 -3.05,-2 -0.22,-1.37 0.33,-2.31 1.84,-1.8 -0.24,-3.81 0.74,-2 -0.14,-1.48 -1.44,-2.38 0.4,-4.79 3.04,-5.38 0,0 1.68,-0.12 1.28,-0.76 2.86,-4.16 5.27,-4.71 5.64,-0.95 7.94,0.57 4.71,-0.62 2.33,-1.51 3.04,-3.1 1.51,-3.23 0.64,-3.55 1.71,-3.41 0.85,-1.14 2.75,-1.77 2.34,-2.38 1.01,0.03 0,0 4.41,0.88 1.94,-0.18 1.36,0.9 0.79,1.74 -0.23,1.07 -2.89,2.69 -0.39,1.32 6.35,1.93 4.25,4.29 1.75,0.23 2.69,-1.52 1.38,-1.91 -1.81,-3.36 -0.12,-2.04 3.45,-1.09 1.95,0.11 2.77,1.1 1.4,-0.09 0.58,-0.54 -0.01,-1.39 1.2,-2.97 3.06,-2.59 1.39,-0.28 6.78,2.29 2.05,1.73 0.97,1.58 1.57,0.78 5.62,-2.24 0.84,-2.05 z"
- title="Kaduna"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-KD" />
-<path
- d="m 90.771651,42.718745 6.62,-0.14 1.86,0.74 4.629999,-1.58 0.76,0.31 1.65,2.12 3.19,1.82 1.06,1.1 9.56,3.12 2.95,2.07 3.06,0.68 1.82,-0.43 0.63,-0.56 2.49,-3.69 1.16,-0.31 1.08,0.88 0.4,1.25 -1.62,3.93 0.09,2.4 -1.42,2.98 -0.42,3.7 1.86,2.15 1.8,4.28 -0.18,3.32 -1.3,6.06 0.04,2.04 1.68,5.52 -0.24,8.02 -0.64,1.56 -1.02,0.04 -3.17,-2.04 -2.68,0.02 -3.95,1.18 -1.28,1.48 -1.01,3.779995 -0.14,9.94 0.79,13.05 -2.12,9.79 -2.61,5.63 -1.16,4.77 2.55,3.65 0.76,0.51 2.78,0.29 1.71,-1.35 2.4,-3 12,-5.45 1.69,-0.12 1.89,0.86 2.04,-0.72 0.77,1.75 0.94,0.07 1.62,-0.97 0,0 0.86,-0.48 1.82,0 4.11,2.25 6.34,-1.46 0.82,-2.32 1.06,-0.62 0.79,-0.15 0.91,0.64 2.09,0.31 3.61,-0.65 1.08,0.57 1.69,3.3 2.87,0.11 3.65,2.41 5.47,-0.76 3.79,0.5 2.49,-0.59 1.22,-0.81 4.85,0.62 4.35,1.77 1.41,2.15 -0.01,2.47 -2.05,6.49 0,1.2 5.38,2.71 1.93,3.01 1.38,7.58 0.21,5.48 0,0 -1.36,-1.1 -1.85,-0.36 -3.42,2.76 -1.28,2.2 -3.93,0.41 -12.1,5.08 -10.67,0.69 -1.64,-1.25 -0.36,-4.02 0.37,-4.81 -0.48,-1.78 -3.75,-2.47 -0.81,-1.26 -0.98,-6.51 -1.69,-1.6 -2.84,-0.71 -3.64,-0.04 -9.86,1.59 -7.87,1.83 -4.43,1.62 -4.85,2.59 -1.37,2.07 0.16,1.54 0.87,1.26 3.63,2.01 5.4,2.19 5.36,0.53 1.05,2.01 1.71,-0.03 0.78,0.74 1.12,6.56 -0.25,1.07 -2.18,1.45 -0.63,1.47 0.49,1.45 2.74,1.63 1.17,1.36 -0.07,2.07 -1.01,1.49 -3.8,0.97 -5.22,2.64 -5,-0.52 -1.55,0.42 -0.9,0.75 -0.04,9.59 -0.45,1.37 1.25,2.83 1.81,1.97 1.86,3.03 0.75,2.44 -0.28,1.53 -1.77,2.13 -2.64,1.57 -3.38,0.26 -7.42,2.5 -0.5,5.85 -0.56,0.48 -4.32,-0.46 -1.42,-0.99 -0.02,-2.28 1.03,-3.28 0.29,-3.94 -2.93,-2.66 -1.12,-2.41 0.18,-6.32 1.46,-3.26 1.84,-2 1.48,-1.01 3.92,-1.44 4.62,-4.43 2.43,-10.71 0.2,-4.05 -0.51,-0.74 -2.89,-1.06 -1.58,0.1 -8.4,-5.7 -5.24,-1.69 -2.94,0.07 -4.5,0.85 -6.189999,-0.36 -12.17,0.81 -1.86,-0.29 -3.49,-1.42 -11.04,-6.08 -2.89,-0.36 -0.89,0.52 0,0 -1.29,-0.01 -12.13,-10.28 4.33,-20.39 2.12,-4.71 4.89,-4.18 -0.82,-3.26 -2.42,-1.82 -0.57,-4.87 3.17,-3.84 -2.36,-8.76 0.39,-5.22 1.27,-4.3 -0.93,-15.849995 10.82,-9.33 7.73,-6.05 9.53,-14.62 2.08,-9.63 z"
- title="Kebbi"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-KE" />
-<path
- d="m 347.91165,83.288745 3.51,6.28 0.1,1.96 1.07,1.12 1.87,-3.61 0.62,-2.6 1.73,-1.35 3.99,-1.93 3.77,-0.35 7.78,2.02 0.45,5.92 1.13,1.38 3.81,2.12 1.1,3.08 -0.57,2.01 1.02,1.389995 0.83,0.42 5.44,0.56 1.85,0.56 0.92,0.81 0.8,2.94 -0.08,5.61 -1.18,1.39 -0.53,1.72 1.65,0.72 0,1.03 1.9,-1.19 3.14,-0.25 0.57,1.44 0.01,2.57 1.37,0.25 1.82,-0.18 2.32,-1.42 1.47,-1.75 1.25,-0.53 2.28,7.18 0.19,2.46 -1.06,1.84 -0.19,2.05 -3.36,4.69 -0.5,2.09 0.2,1.96 5.06,-0.15 1.09,0.99 0.5,2 1.48,2.75 2.83,2.64 2.09,0.53 0.89,1.15 -7.12,6.88 -1.08,3.72 0.08,2.24 0,0 -5.52,2.17 -1.14,-0.09 -1.14,-1.07 -1.69,0.3 -2.48,1.57 -0.67,1.1 -4.74,4.17 -2.65,4.11 -2.74,3.21 -2.04,0.51 -2.7,-0.16 -1.02,0.43 -1.6,4.57 -0.45,3.5 0.4,6.89 0.45,1.99 3.86,4.33 0.77,1.67 0.08,2 -1.33,3.85 -2.59,4.09 -0.99,0.56 0,0 -1.05,0.29 -3,-0.64 -1.6,-1.05 -1.98,-2.75 -7.02,-0.97 -1.06,-1.07 -0.6,-2.08 0.55,-0.79 3.55,-0.96 0.72,-1.1 0.2,-1.73 -1.2,-6.05 1.01,-4.91 1.01,-2.44 -0.38,-3.88 -3.59,-6.42 -5.38,-4.43 -2.45,-0.59 -2.78,0.03 -1.53,-0.55 -3.51,-4.13 -3.75,-1.23 -3.53,-1.83 -1.04,-1.18 -0.53,-2.57 2.11,-4.02 -0.32,-1.25 -1.13,-0.82 -1.22,-0.19 -4.08,1.24 -1.65,0 -4.8,2.84 -4.18,3.83 -2.44,0.67 -3.09,-0.02 0,0 -3.6,-2.68 -1.11,-2.26 -0.78,-3.61 1.52,-2.67 0.07,-2.21 1.82,-1.63 3.75,-1.03 2.45,-1.7 2.71,-0.07 0.95,-0.58 -3.14,-7.8 0.67,-4.06 -2.09,-4.58 0.86,-6.33 -0.7,-12.32 0.27,-2.89 2.18,-2.28 4.25,-2.369995 7.64,-2.38 3.68,-1.93 0.78,-0.85 1.13,-4.39 2.14,-4.61 1.28,-0.52 z"
- title="Kano"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-KN" />
-<path
- d="m 219.65165,323.91874 2.2,0.57 2.77,1.58 3.52,3.25 2.77,4.32 2.55,8.25 3.71,2.3 2.71,2.69 5.47,7.27 2.72,2.54 1.63,0.25 0.33,-0.35 0.62,-2.89 1.24,-2.53 0.19,-0.26 0.99,0.88 0.46,-0.09 0.06,-2.97 3.57,-1.74 1.12,-3.25 0,0 7.46,0.15 1.4,-0.46 0,0 -0.6,2.64 -1.55,2.66 0,0.86 0.82,1.69 2.19,2.66 0.54,6.17 -1.17,4.71 -0.04,4.69 -1.61,1.67 -0.85,2.12 -0.17,3.74 0.69,0.56 4.26,-2.95 9.26,-4.07 12.4,-3.37 7.07,-0.7 3.58,0.68 7.7,0.57 0,0 -0.32,2.84 0.54,5.87 1.88,3.22 2.7,2.61 0.73,1.85 0.01,6.9 0.57,6.81 1.24,5.53 1.27,1.05 3.31,-0.32 1.48,0.47 -0.36,1.81 -1.23,1.21 -0.47,1.29 -0.42,3.93 -1.94,5.83 -3.3,3.11 -6.44,3.12 -0.96,1.44 -0.34,4.42 -1.76,0 -1.35,-1.05 -0.82,0.1 -3.37,-3.29 -0.84,-0.58 -0.41,0.5 0,0 -1.11,-1.62 -2.44,-0.75 -3.31,0.76 -2.14,2.1 -2.44,0.91 -6.18,7.42 -5.98,3.86 -4.97,5.39 -1.24,0.33 -0.69,-0.34 -1.33,-2.01 -0.74,-0.05 -0.18,-2.28 -0.91,-0.25 -2.73,5.01 0,0 0,0 0,0 -1.34,1.87 -1.54,0.86 -2.24,2.31 -1.24,4.12 -0.06,2.73 -1.84,2.51 -1.43,0.89 -3.59,-0.66 -1.67,0.77 0,0 -1.03,-6.03 -1.41,-2.01 -0.89,-2.6 0.93,-5.52 -1.28,-2.15 2.16,-3.55 1.91,-4.82 -0.06,-4.16 1.62,-3.94 0.31,-1.92 -0.15,-3.41 -0.79,-2.01 -1.45,-1.08 -0.55,-2.12 -1.75,-1.41 -1.87,0.41 -1.46,0.99 -0.43,-0.38 -3.75,0.84 -0.66,-1.63 0.24,-0.51 -0.74,-0.56 -0.48,-1.74 -0.85,-0.61 -0.07,-1.22 -1.06,-2.01 -2.56,-0.15 -0.74,0.51 -2.26,0.19 -1.96,-2.23 -0.55,0.06 -1.26,-1.41 -0.65,0.07 -1.56,-2.1 -5.94,2.93 -2.13,-0.53 -1.08,-0.78 -0.28,-1.05 0.23,-1.93 0.96,-1.85 -0.27,-0.8 -2.18,0.25 -0.46,-0.65 0.38,-0.89 -0.28,-0.68 -0.7,-0.36 -1.75,0.37 -0.77,-0.64 0,0 -0.23,-0.78 -4.74,-4.17 -2.04,-2.7 0.71,-4.14 -2.51,-0.43 -4.62,0.88 0,0 -6.82,-2.39 -1.85,-1.69 -1.28,-0.03 -1.32,-0.96 -1.32,-3.75 0.08,-1.56 2.29,-3.01 1.34,-0.64 0.28,-1.37 -0.56,-0.7 -2.31,-0.27 -3.67,0.64 -2.48,1.42 -0.55,-0.45 0.03,-4.28 1.09,-0.42 0,0 0.75,-1.44 -0.82,-2.41 -4.76,-2.58 -0.13,-0.59 -2.42,-1.81 -0.07,-0.67 -2.41,-2.45 -1.92,-3.7 0.17,-0.99 2.14,-2.43 2.29,-3.91 3.71,-4.04 3.6,-2.29 1.77,2.62 2.17,1.76 7.04,3.01 1.84,0.08 2.76,1.08 3.71,-0.21 2.13,0.69 3.92,-0.12 6.3,1.52 3.03,-0.5 1.57,-3.76 0.64,-6.49 2.31,-7.79 z"
- title="Kogi"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-KO" />
-<path
- d="m 322.66165,35.138745 9.16,1.35 5.19,1.38 3.58,1.94 2.92,2.5 2.73,0.73 9.89,9.64 3.29,-0.88 2.92,0.38 3.03,1.55 2.29,1.75 1.85,2.11 1.04,2.44 2.96,1.37 5.26,1.27 12.11,3.92 0,0 -0.01,0.86 -2,0.88 -0.58,0.75 -1.03,2.63 -3.19,2.58 -4.18,1.74 -3.68,0.55 -1.49,-0.7 -0.64,-1.56 -2.62,1.51 -1.99,-0.52 -2.66,-1.67 -0.68,-0.94 -1.41,-4.68 -1.17,-1.23 -9.22,0.78 -5.37,-0.99 -10.39,1.38 -0.46,0.3 0.02,2.69 -0.75,3.4 0.07,3.85 0.59,0.72 2.86,0.93 4.94,0.12 0.83,0.7 1.24,2.62 0,0 -4.63,0.36 -1.28,0.52 -2.14,4.61 -1.13,4.39 -0.78,0.85 -3.68,1.93 -7.64,2.38 -4.25,2.369995 -2.18,2.28 -0.27,2.89 0.7,12.32 -0.86,6.33 2.09,4.58 -0.67,4.06 3.14,7.8 -0.95,0.58 -2.71,0.07 -2.45,1.7 -3.75,1.03 -1.82,1.63 -0.07,2.21 -1.52,2.67 0.78,3.61 1.11,2.26 3.6,2.68 0,0 -0.99,1.1 -0.84,2.05 -5.62,2.24 -1.57,-0.78 -0.97,-1.58 -2.05,-1.73 -6.78,-2.29 -1.39,0.28 -3.06,2.59 -1.2,2.97 0.01,1.39 -0.58,0.54 -1.4,0.09 -2.77,-1.1 -1.95,-0.11 -3.45,1.09 0.12,2.04 1.81,3.36 -1.38,1.91 -2.69,1.52 -1.75,-0.23 -4.25,-4.29 -6.35,-1.93 0.39,-1.32 2.89,-2.69 0.23,-1.07 -0.79,-1.74 -1.36,-0.9 -1.94,0.18 -4.41,-0.88 0,0 0.02,-2.33 1.25,-6.1 -0.9,-3.69 -1.91,-1.9 -0.16,-1.07 0.45,-3.76 1.56,-4.14 0.65,-4 1.5,-0.84 6.61,-0.13 1.28,0.87 4.88,-3.97 0.55,-3.2 3.34,0.81 1.89,-1.62 -0.5,-1.95 -1.16,-1.43 -2.68,-2.29 -2.53,-1.16 -1.26,-1.21 1.82,-3.63 1.09,-5.16 -0.95,-2.47 0.13,-1.68 -0.69,-3.05 -2.5,-5.199995 0.4,-3.57 -1.31,-3.21 -0.39,-4.75 -1,-5.17 0.07,-6.05 -0.99,-6.17 1.44,-10.82 0,0 4.86,-1.57 5.28,-5.36 8.7,0.78 3.58,-0.74 23.4,-14.15 1.28,-0.33 z"
- title="Katsina"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-KT" />
-<path
- d="m 62.361651,236.35874 5.38,-0.92 11.32,-0.35 3.62,0.93 13.98,15.86 1.99,3.1 5.609999,6.48 2.29,1.58 1.7,-0.18 1.04,0.48 0.27,2.94 -0.73,4.65 0.06,5.38 0.88,3.68 1.3,0.39 7.57,-0.79 0.84,0.74 0.43,1.62 -0.19,3.43 0.35,1.4 0.66,1.02 3.21,2.41 3.04,0.39 1.07,0.55 0.9,2.11 0.74,5.45 1.89,1.32 2,-0.01 9.16,-3.56 2.41,-0.16 6.35,3.01 1.42,1.1 6.35,7.23 2.25,0.69 3.96,-1.16 4.52,0.81 3.73,1.61 0.64,-0.27 11.77,7.32 5.19,3.67 0.93,1.49 1.46,0.71 1.84,0.6 4.92,0.32 3.39,-0.91 7.52,-0.31 8.26,1.71 0,0 -2.46,3.35 -2.31,7.79 -0.64,6.49 -1.57,3.76 -3.03,0.5 -6.3,-1.52 -3.92,0.12 -2.13,-0.69 -3.71,0.21 -2.76,-1.08 -1.84,-0.08 -7.04,-3.01 -2.17,-1.76 -1.77,-2.62 -3.6,2.29 -3.71,4.04 -2.29,3.91 -2.14,2.43 -0.17,0.99 1.92,3.7 2.41,2.45 0.07,0.67 2.42,1.81 0.13,0.59 4.76,2.58 0.82,2.41 -0.75,1.44 0,0 -5.76,0.09 -4.11,1.34 -0.82,2.22 0.29,0.63 -1.04,2.16 -1.29,-0.55 -1.95,0.58 -2.3,-0.62 -2.33,0.23 -0.95,-0.49 -1.47,-2.06 -0.95,-0.37 -4.48,1.25 -1.03,-0.49 -0.61,-1.67 -0.41,0.17 0,0 -0.39,-0.54 -1.67,0.8 -3.49,0.13 -1.48,-3.17 -2.18,-0.58 -4.74,1.7 -2.65,-0.38 0.08,0.88 -0.18,-0.85 -0.36,0.09 -3.55,1.61 -2.6,0.31 -8.27,-0.22 0,0 -0.49,-0.66 -1.45,-0.07 -0.71,-0.94 -1.9,-4.81 -0.39,-2.77 -0.78,-0.66 -0.03,-0.8 -3.46,-2.25 -2.95,-4.24 -1.22,-3.44 -0.09,-2.1 -0.79,-2.77 -1.97,-2.63 -2.999999,-7.11 -1.66,-1.91 -1.32,-5.29 -0.81,-1.58 1.03,-4.5 2.08,-1.55 0.35,-1.6 0.57,-0.59 3.159999,-2.09 2.34,-3.16 -0.16,-1.3 -1.31,-0.78 -2.829999,1.8 -2.21,0.08 -3.83,-1.08 -1.1,0.13 -2.4,-1.54 -5.7,-1.74 -3.25,-2.42 -1.69,-2.04 -0.54,-2.48 -4.08,-2.46 -2.04,0.09 -3.82,2.08 -1.69,3.71 -0.02,2.65 -0.45,1.11 -4.42,3.43 -6.64,2.92 -5.79,3.3 -2.49,1.94 -1.13,0.26 -3.01,2.21 -7,3.26 -0.93,0.15 -0.53,-0.75 -0.45,0.11 -0.91,-1.13 -0.69,-0.19 -2.57,0.27 -6.93,5.53 -1.66,0.66 -3.91,3.44 -0.19,0.99 -1.5,0.79 -4.08,0.72 -3.17,0.02 -3.19,2.78 0,0 0.56,-1.78 -0.59,-1.36 -0.01,-3.54 -0.71,-0.9 0.24,-1.44 0.55,-1.39 -0.39,-2.71 -0.97,-1.79 0.74,-1.4 1.43,-0.91 -0.4,-3.34 0.69,-0.23 0.34,-1.72 -0.2,-0.62 0.02,-0.88 0.69,-1.64 0.43,-1.56 -0.41,-0.76 -0.27,-0.77 -0.35,-0.78 0.13,-1.17 0.25,-1.73 0.16,-0.69 5.37,0.18 0.71,-0.16 1.05,-1.18 3.55,-0.56 0.66,0.82 1.24,0.45 1.49,-0.1 4.95,-1.73 0.25,-1.76 1.95,-3.88 0.17,-3.74 1.91,-1.88 -0.34,-5.82 -1.28,-4.01 0.31,-1.42 1.16,-1.88 2.47,-1.38 0.82,-1.83 2.59,-3.62 0.85,-3.1 1.04,-0.59 2.14,0.25 2.09,-1.73 0.1,-1.22 -1.34,-2.56 -0.32,-1.93 0.37,-1.34 1.11,-1.22 6.75,-2.7 3.39,0.24 1.14,-0.3 2.02,-2.06 0.12,-1.3 2.36,-2.59 0.57,-2.41 0.25,-4.97 0.85,-1.1 2.08,-0.86 z"
- title="Kwara"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-KW" />
-<path
- d="m 3.411651,463.64874 1.25,0.4 3.41,-0.43 1.94,0.89 3.46,-2.44 0,-1.61 0.41,-0.11 3.55,0.53 13.71,-0.19 1.06,-1.01 0.77,-3.95 2.08,-1.65 0.09,-2.35 1.36,-2.51 1.85,0.25 3.41,1.43 1.2,0.8 0.81,1.43 4.57,-0.48 -0.51,-1.45 1.59,-1.06 37.58,0.39 1.07,0.21 0.54,0.9 -2.73,2.88 -0.23,0.94 0.73,1.24 0.04,1.46 2.19,1.09 3.22,-2.16 3.45,-0.41 1.06,1.48 0.12,0.95 -1.12,1.06 -2.8,1.31 -0.56,1.03 0.22,0.7 0.92,0.74 2.77,0.77 1.13,1.31 0.58,0.14 1.12,-0.58 5.269999,0.65 0.35,1.25 -0.36,2.36 0,0 -9.529999,-1.15 -2.19,-0.67 -12.02,-1.84 -8.59,-0.46 -9.91,0.94 -15.11,0.16 -0.57,0.31 -0.19,1.32 -0.53,-0.1 0.24,0.34 -5.42,-0.82 -6.02,0.01 -21.6,0.73 -9.49,1.1 -0.36,-3.11 z"
- title="Lagos"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-LA" />
-<path
- d="m 307.24165,287.46874 1.34,-1.02 0.75,0.11 0.6,1.88 0.7,0.79 1.5,-0.61 0.93,0.14 2.44,1.79 1.34,-0.25 1.75,1.06 1.1,0 2.31,-2.1 0.94,-2.54 1.65,-2.12 1.01,-0.35 1.1,0.39 2.93,2.67 0.32,3.25 4.22,2.44 1.03,1.61 -0.05,9.7 0.4,1.31 1.34,0.96 1.15,-0.21 2.35,-1.6 4.16,-4.75 0.89,-1.9 1.29,-0.98 1.33,0.22 1.5,1.25 3.81,0.24 5.34,5.91 0.6,1.9 2.47,0.13 1.61,-0.42 0.82,-0.72 3.31,-5.4 2.65,-5.61 1.09,-0.57 0,0 1.69,1.65 2.42,0.11 2.08,0.85 0.63,4.48 1.93,3.41 2.16,0.98 5.32,0.56 3.7,0 2.77,-1.35 1.04,0.56 2.01,2.21 -0.79,2.93 -2.7,4.01 -2.11,1.98 -1.41,0.2 -1.46,1.05 -1.55,2.86 -1.55,1.36 -0.32,2.25 0.64,1.72 2.09,2.43 0.32,1.24 -0.3,5.41 1.44,2.07 5.15,2.71 3.66,1.3 8.19,-0.15 9.76,-2.79 10.36,4.33 2.52,2.07 1.46,2.68 0,0 -2.58,3.68 -2.74,0.82 -4.51,-0.95 -0.33,-0.41 -1.52,0.23 -1,-1.07 -1.73,-0.9 -1.86,0 -1.28,0.86 -1.33,2.14 -0.73,2.86 1.71,1.36 2.03,2.51 0.35,2.88 -0.54,0.65 1,2.68 -0.11,1.19 -11.23,7.21 -1.21,1.39 0,0 -11.79,-8.93 -0.01,0.7 -3.96,0.22 -4.88,-0.41 -6.86,-1.55 -10.09,-3.72 -2.68,-0.44 -2.59,0.18 -1.38,0.28 -3.95,2.2 -1.24,1.41 -1.02,2.86 0.08,2.52 4.7,11.64 -0.09,1.36 -1.14,1.1 -5.33,-2.23 -3.32,-2.8 -1.07,0.14 -5.25,-0.99 -4.92,-2.82 -8.71,-3.55 -8.51,-1.25 -9.13,-2.48 0,0 -7.7,-0.57 -3.58,-0.68 -7.07,0.7 -12.4,3.37 -9.26,4.07 -4.26,2.95 -0.69,-0.56 0.17,-3.74 0.85,-2.12 1.61,-1.67 0.04,-4.69 1.17,-4.71 -0.54,-6.17 -2.19,-2.66 -0.82,-1.69 0,-0.86 1.55,-2.66 0.6,-2.64 0,0 11.13,-1.75 2.91,-1.2 4.63,-1.06 6.96,-3.64 3.78,-4.62 1.04,-1.64 1.08,-3.4 0.79,-0.36 1.52,-7.95 1.98,-5.27 0.55,-7 -0.51,-2.19 0.08,-5.62 2.11,-6.52 0.53,-0.61 1.03,-0.07 0.42,-0.62 z"
- title="Nassarawa"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-NA" />
-<path
- d="m 65.001651,173.89874 0.89,-0.52 2.89,0.36 11.04,6.08 3.49,1.42 1.86,0.29 12.17,-0.81 6.189999,0.36 4.5,-0.85 2.94,-0.07 5.24,1.69 8.4,5.7 1.58,-0.1 2.89,1.06 0.51,0.74 -0.2,4.05 -2.43,10.71 -4.62,4.43 -3.92,1.44 -1.48,1.01 -1.84,2 -1.46,3.26 -0.18,6.32 1.12,2.41 2.93,2.66 -0.29,3.94 -1.03,3.28 0.02,2.28 1.42,0.99 4.32,0.46 0.56,-0.48 0.5,-5.85 7.42,-2.5 3.38,-0.26 2.64,-1.57 1.77,-2.13 0.28,-1.53 -0.75,-2.44 -1.86,-3.03 -1.81,-1.97 -1.25,-2.83 0.45,-1.37 0.04,-9.59 0.9,-0.75 1.55,-0.42 5,0.52 5.22,-2.64 3.8,-0.97 1.01,-1.49 0.07,-2.07 -1.17,-1.36 -2.74,-1.63 -0.49,-1.45 0.63,-1.47 2.18,-1.45 0.25,-1.07 -1.12,-6.56 -0.78,-0.74 -1.71,0.03 -1.05,-2.01 -5.36,-0.53 -5.4,-2.19 -3.63,-2.01 -0.87,-1.26 -0.16,-1.54 1.37,-2.07 4.85,-2.59 4.43,-1.62 7.87,-1.83 9.86,-1.59 3.64,0.04 2.84,0.71 1.69,1.6 0.98,6.51 0.81,1.26 3.75,2.47 0.48,1.78 -0.37,4.81 0.36,4.02 1.64,1.25 10.67,-0.69 12.1,-5.08 3.93,-0.41 1.28,-2.2 3.42,-2.76 1.85,0.36 1.36,1.1 0,0 3.32,4.4 3.8,6.64 1.59,4.09 -0.07,0.84 0,0 -3.04,5.38 -0.4,4.79 1.44,2.38 0.14,1.48 -0.74,2 0.24,3.81 -1.84,1.8 -0.33,2.31 0.22,1.37 3.05,2 1.22,3.52 1.43,0.6 1.41,-0.89 5.38,-7.01 5.59,-4.5 2.46,-1.5 2.1,-0.61 2.91,-0.13 1.02,1 1.04,2.66 7.63,-2.86 3.97,0.56 0.64,-0.98 -0.67,-2.39 1.18,-1.2 4.73,0.5 0.61,0.51 0.48,1.92 0.28,4.5 1.39,0.14 2.25,-0.67 1.61,0.44 1.98,3.8 -0.05,2.57 -1.35,4.14 4.83,1.66 3.23,1.75 -0.31,1.98 -1.02,1.79 -4.24,2.6 -0.85,1.48 -1.62,1.68 -2.17,1.36 -0.91,1.24 1.03,1.98 1.71,1.66 6.67,2.49 12.87,-0.08 1.37,0.67 0.33,1.01 0.16,5.06 0.92,3.88 0.1,3.09 -0.63,1.51 -3.23,0.41 -0.88,0.42 -0.29,0.64 0.17,0.91 1.13,0.77 3.62,1.36 -0.83,3.02 3,1.62 0.58,1.88 -3.09,3.17 -0.6,2.79 -0.79,0.87 -2.45,1.29 -0.56,0.93 -0.09,2.32 3.39,2.78 -1.38,4.13 2.46,-0.6 1.23,0.42 0,0 -8.65,12.34 -0.94,0.24 -9.19,-8.1 -1.76,-0.63 -11.03,0.47 -2.68,0.33 -0.34,0.38 -0.36,13.66 0.75,30.21 -0.46,1.37 1.95,4.91 1.42,0.47 1.83,-0.21 0,0 -1.12,3.25 -3.57,1.74 -0.06,2.97 -0.46,0.09 -0.99,-0.88 -0.19,0.26 -1.24,2.53 -0.62,2.89 -0.33,0.35 -1.63,-0.25 -2.72,-2.54 -5.47,-7.27 -2.71,-2.69 -3.71,-2.3 -2.55,-8.25 -2.77,-4.32 -3.52,-3.25 -2.77,-1.58 -2.2,-0.57 0,0 -8.26,-1.71 -7.52,0.31 -3.39,0.91 -4.92,-0.32 -1.84,-0.6 -1.46,-0.71 -0.93,-1.49 -5.19,-3.67 -11.77,-7.32 -0.64,0.27 -3.73,-1.61 -4.52,-0.81 -3.96,1.16 -2.25,-0.69 -6.35,-7.23 -1.42,-1.1 -6.35,-3.01 -2.41,0.16 -9.16,3.56 -2,0.01 -1.89,-1.32 -0.74,-5.45 -0.9,-2.11 -1.07,-0.55 -3.04,-0.39 -3.21,-2.41 -0.66,-1.02 -0.35,-1.4 0.19,-3.43 -0.43,-1.62 -0.84,-0.74 -7.57,0.79 -1.3,-0.39 -0.88,-3.68 -0.06,-5.38 0.73,-4.65 -0.27,-2.94 -1.04,-0.48 -1.7,0.18 -2.29,-1.58 -5.609999,-6.48 -1.99,-3.1 -13.98,-15.86 -3.62,-0.93 -11.32,0.35 -5.38,0.92 0,0 0.49,-3.02 -1.96,-0.7 -2.1,-2.02 -1.75,-3.54 3.08,-6.97 -0.14,-1.69 0.89,-1.14 2.58,-1.33 6.08,3.19 1,-3.12 0.25,-2.99 2.82,-6.43 -0.66,-6.2 -2.69,-1.9 -2.97,-5.6 1.21,-4.6 0.13,-2.04 -1.23,-5.05 -2.13,-0.82 0.42,-1.95 -0.28,-1.95 0.51,-1.95 z"
- title="Niger"
- fill="blue"
- stroke="#888888"
- stroke-width="2"
- id="NG-NI" />
-<path
- d="m 0.96165097,375.38874 5.97000003,-4.29 3.49,-0.21 1.9,0.93 1.24,1.79 0.41,1.43 0.15,6.48 0.56,2.36 1.31,2.17 0.84,0.13 0.94,-5.56 0.57,-1.25 0.47,-0.45 1.37,0 0.88,0.61 0.54,1.75 -0.16,3.09 -1.74,5.98 -0.41,-0.24 -0.51,0.57 0.52,3.66 2.12,2.51 3.05,2.47 1.02,3.04 3.2,4.51 3.01,2.36 2.34,1.13 4.05,0.28 1.74,-0.49 2.78,-3.97 1.14,-4.24 1.62,-1.48 2.6,0.29 1.75,4.34 1.59,1.13 1.02,-0.26 1.13,-1.11 2.47,-0.6 6.2,0.22 1.17,1.89 0.33,5.66 0.41,0.71 2.98,1.22 0.64,1.1 -0.1,2.22 1.1,2.7 0.41,2.87 -3.97,4.01 -0.33,1.13 0.37,0.28 6.09,-0.25 2.7,-0.58 3.04,0.13 3.18,-1.24 1.51,-1.37 5.89,-0.88 0,0 2.74,-1.08 1.4,-1.11 0.94,0.39 0.52,0.84 0.59,4.28 1.97,-0.01 3.85,-1.98 3.389999,0.59 2.97,7.11 3.06,-1.96 1.1,-0.02 1.15,0.69 2.12,-0.92 4.16,-0.26 0.31,0.13 -0.3,1.01 0,0 -0.75,5.5 -1.06,3.26 -2.35,2.1 -2.06,0.97 -3.63,3.28 -2.98,4.92 0.03,3.41 2.01,1.97 4.81,0.81 1.83,-0.13 1.42,-1.06 1.65,-2.27 1.76,-0.51 0.65,0.78 -0.02,4.47 0.85,3.57 -0.72,1.81 -2.44,0.66 -0.77,1.14 -1.12,0.68 -2.4,0.11 -1.32,1.34 0.98,0.43 2.79,-0.25 3.3,1.74 0.21,1.08 -0.82,1.72 -4.01,-0.28 0,0 -5,-2.24 -4.38,-0.93 0,0 0.36,-2.36 -0.35,-1.25 -5.269999,-0.65 -1.12,0.58 -0.58,-0.14 -1.13,-1.31 -2.77,-0.77 -0.92,-0.74 -0.22,-0.7 0.56,-1.03 2.8,-1.31 1.12,-1.06 -0.12,-0.95 -1.06,-1.48 -3.45,0.41 -3.22,2.16 -2.19,-1.09 -0.04,-1.46 -0.73,-1.24 0.23,-0.94 2.73,-2.88 -0.54,-0.9 -1.07,-0.21 -37.58,-0.39 -1.59,1.06 0.51,1.45 -4.57,0.48 -0.81,-1.43 -1.2,-0.8 -3.41,-1.43 -1.85,-0.25 -1.36,2.51 -0.09,2.35 -2.08,1.65 -0.77,3.95 -1.06,1.01 -13.71,0.19 -3.55,-0.53 -0.41,0.11 0,1.61 -3.46,2.44 -1.94,-0.89 -3.41,0.43 -1.25,-0.4 0,0 0.42,-3.28 1.13,-1.18 0.63,-1.54 -1.34,-3.74 1.3,-2.16 2.11,-1.8 0.2,-2.74 -0.21,-0.96 -2.14,-0.28 -0.78,-0.39 -0.41,-0.86 -0.17,-1.82 1.2,-1.9 -0.34,-1.07 0.48,-3.46 -0.22,-0.98 -1.3,-0.14 -0.54,-0.61 0.15,-2.86 1.4,-1.61 3.06,-1.78 -2.46,-2.23 -0.48,-0.96 1.87,-2.2 0.59,-1.92 -0.66,-4.66 -1.53,-1.66 -0.12,-9.69 2.37,-0.08 0.82,-0.48 0.04,-0.72 -0.42,-3.5 -2.68,-2.04 -0.22,-1.76 -0.98,-1.52 -0.3,-4.2 0.25,-8.96 -0.3,-0.95 -0.82,-0.35 -0.97,-2.58 -1.69000003,-2.17 z"
- title="Ogun"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-OG" />
-<path
- d="m 194.92165,384.14874 4.62,-0.88 2.51,0.43 -0.71,4.14 2.04,2.7 4.74,4.17 0.23,0.78 0,0 -2.45,3.49 -0.9,0.6 -1.56,-0.14 -1.41,1.72 -0.18,1.38 0.4,0.84 2.02,0.82 -0.88,2.89 0.77,2.49 0.42,0.28 -1.43,3.54 -2.15,1.05 -1.76,1.83 -0.47,1.04 0.15,1.39 -3.23,6.89 0.32,0.83 -0.37,0.85 -1.51,0.73 -1.24,1.67 -0.62,4.63 1.18,1.28 0.16,0.82 -0.88,0.51 -0.01,1.63 -1.19,-0.51 -0.25,0.25 -0.95,4.96 -1.51,3.39 -2.68,1.03 -0.81,-0.36 -1.19,-1.48 -1.34,-0.12 -3.77,3.16 -0.74,0.03 -2.1,-5.46 2.01,-2.25 -1.74,-2.09 -1.64,-0.34 -3.29,0.39 -6.64,-0.11 -1.68,-0.36 -2.28,0.38 -2.12,-0.39 -2.2,1.01 -0.46,0.78 -0.09,1.96 -0.95,0.68 -0.79,2.27 -1.73,0.8 -0.45,1.04 -1.76,1.61 -0.49,0.96 0.09,2.22 -0.8,0.99 0,2.84 1.23,0.64 1.39,2.28 0.58,1.45 -0.36,1.72 -0.83,1.96 -1.74,1.71 -0.85,3.74 -2.94,0.86 -0.58,0.62 -0.96,3.62 -0.8,0.7 0.28,-0.44 -0.25,0.6 0.44,0.91 0.7,0.05 1.94,1.36 1.65,2.94 1.56,0.1 1.33,1.04 1.24,2.26 -0.39,1.16 0,0 -6.9,16.74 0,0 -4.86,-5.94 -9.17,-9.24 -14.82,-11.96 -2.7,-1.66 0,0 4,0.28 0.83,-1.73 -0.21,-1.07 -3.3,-1.74 -2.79,0.25 -0.98,-0.43 1.32,-1.35 2.4,-0.1 1.11,-0.68 0.78,-1.14 2.44,-0.66 0.72,-1.82 -0.84,-3.57 0.01,-4.47 -0.64,-0.78 -1.77,0.51 -1.65,2.27 -1.42,1.06 -1.83,0.13 -4.8,-0.81 -2.01,-1.96 -0.03,-3.41 2.98,-4.92 3.63,-3.28 2.06,-0.96 2.35,-2.1 1.07,-3.25 0.74,-5.51 0,0 2.67,-1.42 2.15,-4.97 4.29,-3.44 2.32,-0.02 2.51,1.24 2.91,2.22 1.81,0.03 0.64,-1.26 -0.23,-1.63 0.41,-2.11 -0.46,-3.98 1.56,-6.54 0.84,-0.57 5.86,-1.59 -0.62,-2.4 0,0 4.55,-1.45 7.78,0.43 6.97,-0.31 1.55,0.53 1.42,2.21 1.03,3.19 -0.16,0.86 1.09,2.69 2.28,0.59 5.53,-3.5 3.04,-4.43 1.71,-3.92 1.7,-8.1 1.13,-2.14 2.4,-2.48 2.18,-1.45 0.85,-2.06 1.86,-0.38 1.5,1.24 0.82,-0.3 1.49,-2.44 z"
- title="Ondo"
- fill="green"
- stroke="#888888"
- stroke-width="2"
-
- id="NG-ON" />
-<path
- d="m 117.18165,366.88874 8.27,0.22 2.6,-0.31 3.55,-1.61 0.36,-0.09 0.18,0.85 -0.08,-0.88 2.65,0.38 4.74,-1.7 2.18,0.58 1.48,3.17 3.49,-0.13 1.67,-0.8 0.39,0.54 0,0 -1.52,5.3 -1.99,1.64 -2.18,0.94 -1.62,1.5 -1.9,4.25 -0.12,1.4 0.81,2.81 -1.19,3.99 0.69,4.78 2.85,6.11 0.84,3.79 0.83,1.7 0,0 0.62,2.41 -5.86,1.58 -0.84,0.58 -1.56,6.54 0.46,3.98 -0.4,2.11 0.23,1.63 -0.64,1.26 -1.81,-0.03 -2.91,-2.22 -2.51,-1.24 -2.32,0.01 -4.28,3.45 -2.15,4.96 -2.67,1.43 0,0 0.3,-1.01 -0.31,-0.13 -4.16,0.26 -2.12,0.92 -1.15,-0.69 -1.1,0.02 -3.06,1.96 -2.97,-7.11 -3.389999,-0.59 -3.85,1.98 -1.97,0.01 -0.59,-4.28 -0.52,-0.84 -0.94,-0.39 -1.4,1.11 -2.74,1.08 0,0 2.34,-9.84 0.43,-5.29 1.67,-8.72 -0.87,-0.49 -3.05,-4.88 -3.11,-2.33 -0.27,-0.93 -0.14,-0.88 1.15,-1.09 0.78,-1.76 0.87,-9.27 0.6,-0.28 4.3,1.34 2.32,-0.75 0.78,-0.99 0.13,-2.3 1.06,-0.57 2.81,-3.32 3.009999,1.84 3.59,5.56 2.13,-0.93 0.65,-1.43 2.05,-1.16 0.98,-1.39 0.28,0.39 1.83,-1.51 2.29,-0.76 0.25,0.38 0.99,-1.34 0.31,-1.28 z"
- title="Osun"
- fill="white"
- stroke="#888888"
- stroke-width="2"
- id="NG-OS" />
-<path
- d="m 5.381651,335.88874 3.19,-2.78 3.17,-0.02 4.08,-0.72 1.5,-0.79 0.19,-0.99 3.91,-3.44 1.66,-0.66 6.93,-5.53 2.57,-0.27 0.69,0.19 0.91,1.13 0.45,-0.11 0.53,0.75 0.93,-0.15 7,-3.26 3.01,-2.21 1.13,-0.26 2.49,-1.94 5.79,-3.3 6.64,-2.92 4.42,-3.43 0.45,-1.11 0.02,-2.65 1.69,-3.71 3.82,-2.08 2.04,-0.09 4.08,2.46 0.54,2.48 1.69,2.04 3.25,2.42 5.7,1.74 2.4,1.54 1.1,-0.13 3.83,1.08 2.21,-0.08 2.829999,-1.8 1.31,0.78 0.16,1.3 -2.34,3.16 -3.159999,2.09 -0.57,0.59 -0.35,1.6 -2.08,1.55 -1.03,4.5 0.81,1.58 1.32,5.29 1.66,1.91 2.999999,7.11 1.97,2.63 0.79,2.77 0.09,2.1 1.22,3.44 2.95,4.24 3.46,2.25 0.03,0.8 0.78,0.66 0.39,2.77 1.9,4.81 0.71,0.94 1.45,0.07 0.49,0.66 0,0 0.53,3.2 -0.31,1.28 -0.99,1.34 -0.25,-0.38 -2.29,0.76 -1.83,1.51 -0.28,-0.39 -0.98,1.39 -2.05,1.16 -0.65,1.43 -2.13,0.93 -3.59,-5.56 -3.009999,-1.84 -2.81,3.32 -1.06,0.57 -0.13,2.3 -0.78,0.99 -2.32,0.75 -4.3,-1.34 -0.6,0.28 -0.87,9.27 -0.78,1.76 -1.15,1.09 0.14,0.88 0.27,0.93 3.11,2.33 3.05,4.88 0.87,0.49 -1.67,8.72 -0.43,5.29 -2.34,9.84 0,0 -5.89,0.88 -1.51,1.37 -3.18,1.24 -3.04,-0.13 -2.7,0.58 -6.09,0.25 -0.37,-0.28 0.33,-1.13 3.97,-4.01 -0.41,-2.87 -1.1,-2.7 0.1,-2.22 -0.64,-1.1 -2.98,-1.22 -0.41,-0.71 -0.33,-5.66 -1.17,-1.89 -6.2,-0.22 -2.47,0.6 -1.13,1.11 -1.02,0.26 -1.59,-1.13 -1.75,-4.34 -2.6,-0.29 -1.62,1.48 -1.14,4.24 -2.78,3.97 -1.74,0.49 -4.05,-0.28 -2.34,-1.13 -3.01,-2.36 -3.2,-4.51 -1.02,-3.04 -3.05,-2.47 -2.12,-2.51 -0.52,-3.66 0.51,-0.57 0.41,0.24 1.74,-5.98 0.16,-3.09 -0.54,-1.75 -0.88,-0.61 -1.37,0 -0.47,0.45 -0.57,1.25 -0.94,5.56 -0.84,-0.13 -1.31,-2.17 -0.56,-2.36 -0.15,-6.48 -0.41,-1.43 -1.24,-1.79 -1.9,-0.93 -3.49,0.21 -5.97000003,4.29 0,0 1.07000003,-2.08 0.73,-4.3 1.33,-4.15 -0.3,-1.12 0.37,-2.7 1.13,-2.26 0.36,-2.89 -2.44,-3.06 -1.17,-3.99 0.08,-2.02 1.05,-1.87 -0.44,-2.05 0.48,-0.7 1.25,-0.3 1.37,-2.88 -0.43,-0.44 0.73,-0.97 0.01,-1.07 z"
- title="Oyo"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-OY" />
-<path
- d="m 379.00165,223.49874 1.53,-0.49 3.18,0.08 2.78,0.88 2.61,4.16 0.78,4.8 -0.04,12.38 10.97,-2.19 1.06,0.21 1.8,1.92 0.97,3.13 0.26,5.94 -0.23,1.17 -2.38,4.47 -0.09,1.69 0.6,0.85 3.92,1.42 0.79,0.71 0.9,1.16 1.65,4.07 1.56,1.34 1.51,0.53 4.8,0.27 5.47,1.48 10.04,-0.59 4.39,-1.41 2.89,-5.21 4.76,-1.3 0.5,-1.67 -0.27,-1.74 -3.17,-4.06 0.3,-1.44 3.03,-1.78 7.6,3.95 2.57,0.51 9.26,4.93 11.07,4.74 6.18,4.04 6.36,3.43 0,0 1.56,3.94 0.21,2.15 -0.51,4.08 0.76,5.96 2.3,3.86 1.05,6.02 -0.55,1.33 0.3,2.25 0.43,0 0.21,5.54 -1.78,3.08 -12.18,5.86 -1.9,-0.11 -9.52,2.1 -2.49,1.44 -2.06,4.19 -4.74,5.72 -7.11,3.76 -7.68,7.65 -2.43,1.19 -4.41,1.01 -4.11,0.54 -3.85,-0.25 0,0 -1.46,-2.68 -2.52,-2.07 -10.36,-4.33 -9.76,2.79 -8.19,0.15 -3.66,-1.3 -5.15,-2.71 -1.44,-2.07 0.3,-5.41 -0.32,-1.24 -2.09,-2.43 -0.64,-1.72 0.32,-2.25 1.55,-1.36 1.55,-2.86 1.46,-1.05 1.41,-0.2 2.11,-1.98 2.7,-4.01 0.79,-2.93 -2.01,-2.21 -1.04,-0.56 -2.77,1.35 -3.7,0 -5.32,-0.56 -2.16,-0.98 -1.93,-3.41 -0.63,-4.48 -2.08,-0.85 -2.42,-0.11 -1.69,-1.65 0,0 1.67,-3.94 -0.12,-3.41 -1,-2.09 -1.71,-1.21 -2.57,-3.08 -3.26,-5.28 -0.1,-1.16 1.05,-1.4 -0.21,-4.74 1.76,-1.28 0.4,-3.08 1.91,-1.55 0.42,-1.07 -0.53,-2.1 0.7,-7.81 -0.18,-1.97 0.34,-1.1 2.39,-1.97 -0.75,-3.52 -1.36,-2.82 0.22,-2.71 2.13,-4.97 1.9,-1.4 2.19,-0.73 1.32,-1.56 0.55,-1.43 0.21,-2.9 z"
- title="Plateau"
- fill="red"
- stroke="#888888"
- stroke-width="2"
- id="NG-PL" />
-<path
- d="m 277.72165,584.56874 -1.46,1.39 0.02,0.77 -0.62,-0.24 0.22,-1.42 1.44,-0.82 0.4,0.32 z m -3.14,-1.84 -1.72,-0.98 -0.55,0.15 -0.55,0.15 -0.21,-0.69 0.86,-0.79 -0.31,-0.67 0.31,-0.65 -0.07,-1.05 -0.57,-0.81 -0.91,-0.17 -0.22,0.16 -0.71,-1.7 -0.27,-0.17 0.14,-0.46 -0.86,-0.86 -0.27,0.36 -0.96,0.15 -0.19,0.82 0.57,1.03 0.5,1.05 0.41,2.04 -0.48,-0.23 -0.45,0.63 1.07,3.48 -0.14,1.27 1.17,4.04 -0.24,0.22 0.77,0.46 2.06,-0.43 0.4,-0.45 0.13,-0.58 1.75,0.49 0.03,-2.23 0.67,-1.56 -1.16,-2.02 z m -3.8,-10.26 0.41,0.46 2.18,0.09 0.19,-0.91 -0.41,-0.31 -1.69,0.3 -0.68,0.37 z m 1.27,-2.46 0.36,1.13 0.52,0.19 -0.29,-1.9 -0.59,0.58 z m 7.2,9.74 -1.44,-2.86 -1,-0.7 -1.63,-0.81 -0.27,-0.12 -0.84,0.65 0.65,0.09 1.31,1.13 0.14,0.21 -0.23,0.46 0.52,0.93 0.12,1.92 1.29,1.2 0.91,0.17 0.67,-1.41 -0.2,-0.86 z m 5.92,6.12 -2.08,-2.62 -1.31,1.63 0.79,0.79 0.81,-0.24 0.38,0.91 0.76,0 0.22,0.62 1.17,-0.5 1.08,1.08 1.86,-1.49 -0.62,-0.55 -3.06,0.37 z m -19.91,-6.61 -1.12,0.53 -0.28,1.32 1.14,0.4 1.44,1.08 1.03,2.28 -0.29,-3.36 -0.36,-0.15 0.26,-1.49 -1.82,-0.61 z m 18.13,2.56 -2.37,-1.62 -1.55,-2.35 -0.03,-0.27 -0.48,-1.7 -0.48,0.43 -0.4,-0.36 0.43,-0.67 -0.03,-1.49 -0.12,-0.07 -0.57,1.85 -2.25,-0.7 -0.53,-0.1 -0.88,-1.08 -0.07,-1.52 -0.36,-0.29 -0.07,-0.46 -0.26,-0.17 -0.15,-0.65 0.5,-0.79 -0.98,-1.22 -0.81,0.53 -0.34,0.89 0.65,1.54 -2.06,0.77 -0.41,0.36 -0.93,0.38 -0.52,0.05 -1,0.77 -0.46,0.62 -0.09,-1.51 -0.58,0.74 -0.22,0.51 1,1.65 0.55,2.45 -1.31,0.45 -0.53,0.21 -1.38,-1.61 -0.71,-1.9 -1.45,-2.41 -1.5,-0.51 0.56,-1.55 -0.68,-2.22 0.98,-0.81 0.35,-0.48 -0.53,-0.67 -1.81,-0.24 -1.81,-1.11 -0.28,1.59 -0.89,0.57 -0.33,-0.77 -1.27,-0.14 -0.34,-0.34 -0.64,0.19 -0.77,0.03 -0.62,-0.87 -0.19,-0.14 -0.55,0.41 0.19,0.99 -0.14,0.33 0.46,0.31 1.27,1.27 -0.12,1.53 0.98,4.64 3.22,3.31 0.02,1.18 -1.81,1.46 -0.1,0.58 1.82,6.56 0.55,3.32 2.41,2.48 -0.29,0.33 -7.24,0.69 -2.24,-0.75 -0.09,-2.71 -0.24,-2.54 0.14,-0.46 -0.03,-0.17 -0.46,-2.71 -0.19,-0.75 1.94,-3.67 -0.19,-2.67 -0.67,0.15 -0.68,0.1 -3.96,-2.6 -1.2,-4.38 -1.38,-1.87 -1.99,-0.02 -6.54,2.54 -1.04,-0.26 -0.35,-1.94 0.42,-1.46 -3.31,-1.44 -0.5,-0.83 0.07,-4.34 1.9,-2.67 0.76,-2.05 0.03,-1.27 -1.29,0.16 -0.84,-0.78 1.33,-4.44 4.49,-7.84 2.77,0.17 0.55,-0.5 0.75,-2.49 1.54,-0.79 -0.23,-1.81 1.58,-1.07 0.95,-1.48 -0.03,-1.94 -0.63,-1.54 -0.76,-0.58 -1.92,-0.83 -2.94,0.49 -1.04,-0.28 -0.57,-1.04 0.21,-0.44 3.52,-1.81 0.19,-5.3 0.7,-1.48 2.05,-1.42 0.89,-1.75 0.82,-3.18 -1.09,-3.54 0.23,-0.35 1.11,1.28 2.4,0.21 -2.75,13.08 1.51,0.44 3.47,-0.67 2.12,0.78 0.44,1.66 -0.52,4.62 -1.09,2.76 0.26,1.37 1.84,1.3 1.72,3.41 2.16,1.65 2.14,0.41 6.72,-0.14 4.7,1.12 4.15,-1.07 2.13,-0.03 4.51,1.13 2.57,-0.95 0.55,0.05 0.66,1.72 0.06,2.78 -2.4,4.19 -3.41,4.33 -1.37,3.71 -0.16,1.09 0.6,1.11 1.45,1.41 1.8,0.27 3.13,-0.59 1.11,-0.64 2.79,-0.12 3.28,1.22 1.81,-0.42 2.94,1.4 2.35,1.79 1.95,3.49 0.63,2.3 -0.96,4.27 0.58,4.55 -0.51,0.32 -0.04,0.64 0.61,1.17 -1.22,0.77 -0.84,-0.72 -0.17,-0.98 -1.22,-0.27 -0.55,-0.26 -0.26,0.46 -1.39,1.18 -0.58,-0.24 -0.26,-0.36 -0.38,-0.02 -0.71,0.39 -1.5,-2.36 -1.27,0.96 -0.93,-0.36 -1.6,-0.5 -0.65,-1.03 -0.67,0.19 -0.74,-0.86 -0.62,0.51 -0.19,0.79 -0.89,0.33 0.34,1.08 0.27,1.03 0.24,0.6 0.78,0.6 0.77,-0.24 0.57,0.08 0.86,-0.31 -0.17,1.75 -1.77,0.17 -1.44,0.53 -0.74,-1.2 -0.1,-0.33 -1.05,-1.17 -0.15,-0.94 0.11,-0.22 z m 21.52,4.31 -0.69,-0.39 -0.43,-0.03 -0.88,-0.36 -0.02,-0.02 -0.4,-0.36 -0.42,0.46 -0.32,-0.13 0.35,-0.54 -0.88,-1.49 -0.9,0.53 -1.04,-0.9 -0.36,-0.34 -0.17,-0.51 -1.39,0.01 -0.26,0.28 -1.23,0.87 -1.33,-0.05 -0.46,0.04 -0.43,-0.23 -0.63,-0.63 -0.53,-0.31 -0.09,-0.81 -1.24,0.34 -1.03,0.02 0.02,-0.42 -1.25,-0.34 -0.91,-0.46 -1.34,-0.09 -0.48,0.24 -0.23,0.58 -0.02,0.79 1.72,0 0.09,0.08 1.17,1.07 0.23,0.67 0.36,1.37 0.84,0.31 0.16,-0.4 0.34,0.28 1.07,0.03 0.06,0.22 -1.84,0.74 -0.43,0.15 -0.69,2.4 5.47,0.77 4.18,-0.92 5.93,-0.14 -0.19,-1.22 0.52,-1.16 z m -48.68,-18.07 0.79,-0.17 0.92,-0.79 0.08,-1.12 1.29,0.9 1.6,0.63 -0.96,1.17 0.43,1.85 0.27,0.32 -0.03,0.58 -0.6,0.94 0.22,0.64 1.01,0.31 1.26,1.35 2.07,4.36 -0.93,0.61 -0.42,0.84 0.15,0.91 3.15,1.85 0.6,2.9 0.88,1.32 -0.12,1.39 0.48,1.61 1.48,1.13 -1.12,1.39 -0.96,0.36 -0.86,-0.5 -0.6,0.41 -6.38,-1.39 -0.81,-2.54 0.53,-0.62 -0.6,0.02 -1.36,-3.89 -0.81,-1.9 0.1,-2.06 1.63,-1.56 -0.17,-1.35 -1.81,-1.66 -1.69,-1.15 -0.76,-4.06 -0.29,-0.58 0.02,-1.82 -0.77,-1.08 1.24,-0.74 0.88,0.63 0.67,0 0.3,0.56 z"
- title="Rivers"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-RI" />
-<path
- d="m 178.43165,0.2287449 12.88,5.68 20.53,7.2500001 4,2.35 4.64,-1.49 3.65,-0.02 8.54,4.12 15.88,15.56 5.98,10.42 0,0 -3.03,2.6 -7.1,4 -9.51,-1.28 -1.9,-0.66 -1.7,-2.05 -2.27,-0.68 -4.97,-0.19 -0.59,5.48 -0.73,1.89 -0.5,0.22 -2.7,-1.44 -2.79,0 -4.85,1.56 -2.11,1.82 -0.11,0.7 0.78,5.14 0.07,8.44 -1.35,1 -4.04,1.64 -10.02,0.79 -6.09,0.95 -5.83,8.58 -1.88,1.87 -3.07,1.91 0.06,2.88 1.43,4.64 0.65,4.25 -0.74,3.029995 -2.46,1.7 -6.11,0.53 -1.28,-0.29 -4.8,0.64 -2.64,-0.31 -4.47,0.33 -9.33,-1.67 -0.92,0.6 -0.93,4.51 0.1,18.21 -0.66,13.78 0,0 -1.62,0.97 -0.94,-0.07 -0.77,-1.75 -2.04,0.72 -1.89,-0.86 -1.69,0.12 -12,5.45 -2.4,3 -1.71,1.35 -2.78,-0.29 -0.76,-0.51 -2.55,-3.65 1.16,-4.77 2.61,-5.63 2.12,-9.79 -0.79,-13.05 0.14,-9.94 1.01,-3.779995 1.28,-1.48 3.95,-1.18 2.68,-0.02 3.17,2.04 1.02,-0.04 0.64,-1.56 0.24,-8.02 -1.68,-5.52 -0.04,-2.04 1.3,-6.06 0.18,-3.32 -1.8,-4.28 -1.86,-2.15 0.42,-3.7 1.42,-2.98 -0.09,-2.4 1.62,-3.93 -0.4,-1.25 -1.08,-0.88 -1.16,0.31 -2.49,3.69 -0.63,0.56 -1.82,0.43 -3.06,-0.68 -2.95,-2.07 -9.56,-3.12 -1.06,-1.1 -3.19,-1.82 -1.65,-2.12 -0.76,-0.31 -4.629999,1.58 -1.86,-0.74 -6.62,0.14 0,0 0.09,-16.44 4.14,-0.02 16.559999,-14.58 25.12,-5.0100001 2.41,2.14 5.71,0.48 6.45,-0.72 4.85,0.56 5.33,-0.16 5.25,-6.26"
- title="Sokoto"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-SO" />
-<path
- d="m 488.91165,275.87874 4.59,-2.65 5.85,0.78 10.59,-4.85 6.44,1.09 3.99,0.03 0,0 3.57,0.71 5.9,-0.6 12.46,0.02 6.37,-0.47 0,0 5.45,10.18 1.46,1.92 4.65,1.08 2.08,1.29 5.26,9.82 -0.46,2.17 0.34,3.84 2.66,2.94 4.14,1.47 2.02,3.84 0.26,1.81 -1,3.62 -5.99,11.44 0.38,5.78 -0.44,2.08 -6.12,5.22 -8.63,11.52 -5.08,5.48 -3.8,3.22 -4.14,4.78 -0.82,1.58 2.52,6.73 2.91,4.7 2.71,2.45 2.72,-1.99 2.83,-4.01 1.64,-0.38 1.42,0.43 1.52,1.12 2.5,3.15 4.32,3.84 2.15,2.6 1.04,2.02 -0.58,5.49 0.74,1.73 0.38,3.54 1.94,4.62 -0.05,1.56 1.22,0.88 0,0 -4.94,5.48 -1.09,1.94 -0.89,2.92 0.38,5.92 0.92,3.32 1.33,2.12 -0.18,1.29 -0.98,0.73 -4.04,-0.35 -0.68,0.46 -2.06,0.06 -0.18,1.64 -1.72,0.75 -1.54,1.93 -1.91,0.43 -1.09,4.21 -2.12,0.65 -1.37,2.72 0.06,0.5 0.94,-0.05 0.46,0.44 0.09,1.77 0.88,0.11 0.19,0.89 -0.99,0.43 -0.62,1.15 0.94,1.52 -0.08,1.04 -1.92,1.11 -0.22,3.22 -1.46,1.44 -0.57,1.91 -1.81,0.78 -1.77,-0.83 -0.6,0.54 -1.24,0.15 -0.46,0.64 0.46,0.88 -0.18,1.73 -0.44,0.5 -3.75,0.68 -0.42,0.22 -0.2,1.37 -1.37,-0.18 -3.03,-2.03 -2.25,1.01 -0.67,-0.7 -3.01,-0.66 -1.42,-1.22 -0.58,0.05 -1.22,1.41 -2.03,-0.08 0.24,-8.73 -2.03,-2.16 -2.24,-0.11 -2.36,2.14 -2.84,-0.48 -1.86,-0.85 -1.43,-3.38 -1.18,-2.19 -1.22,-0.81 -1.17,-0.07 -1.31,-2.11 -0.12,-0.73 1.66,-4.79 -2.66,-1.84 -1.49,-0.2 -0.6,0.74 -1.69,-2.15 -1.03,-0.08 -1.5,-1.61 -0.77,-0.07 -0.36,-1.52 -1.25,-0.63 -0.4,0.46 -1.47,-0.36 -1.85,-1.58 0.52,-1.93 -0.4,-2.09 -1.65,-1.31 -0.76,4.76 0.08,2.89 -1.39,6.02 -0.88,1 -1.67,0.57 -0.34,0.87 -0.64,0.11 -0.94,-0.97 -15.69,1.52 -2.64,-3.08 0.62,-1.75 -0.85,-2.06 -0.19,-1.18 0.07,-0.81 -0.89,-0.32 -8.2,7.4 -0.64,1.12 -2.44,1.72 -1.12,1.84 -4.62,4.63 -1.34,-0.72 -2.2,-0.1 -1.6,-0.22 -0.8,-0.61 -0.9,2.13 0.3,0.79 -0.76,0.97 -0.38,1.8 0.36,2.03 -0.28,1.07 -0.6,0.37 -1.02,2.82 -1.35,5.37 -0.5,0.39 -0.68,-0.34 -1.32,0.37 -1.03,-1.32 -0.44,0.46 0,0 1.9,-8.19 0.03,-8.76 0.33,-1.08 -0.61,-0.73 2.11,-11.5 3.31,-6.16 3.44,-3.25 3.09,-1.94 0.92,-1.43 -0.29,-5.92 2.38,-5.89 0.59,-3.23 -0.56,-1.78 0.26,-1.04 -1.17,-1.36 0.14,-0.65 -8.37,-7.57 -4.44,-5.65 -5.14,-4.9 -7.48,-1.77 -8.18,-0.48 -7.47,0.95 -6.12,2.63 -1.9,-0.57 3.79,-5.97 0,0 1.21,-1.39 11.23,-7.21 0.11,-1.19 -1,-2.68 0.54,-0.65 -0.35,-2.88 -2.03,-2.51 -1.71,-1.36 0.73,-2.86 1.33,-2.14 1.28,-0.86 1.86,0 1.73,0.9 1,1.07 1.52,-0.23 0.33,0.41 4.51,0.95 2.74,-0.82 2.58,-3.68 0,0 3.85,0.25 4.11,-0.54 4.41,-1.01 2.43,-1.19 7.68,-7.65 7.11,-3.76 4.74,-5.72 2.06,-4.19 2.49,-1.44 9.52,-2.1 1.9,0.11 12.18,-5.86 1.78,-3.08 -0.21,-5.54 -0.43,0 -0.3,-2.25 0.55,-1.33 -1.05,-6.02 -2.3,-3.86 -0.76,-5.96 0.51,-4.08 -0.21,-2.15 z"
- title="Taraba"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-TA" />
-<path
- d="m 526.42165,32.448745 12.45,0.19 9.56,1.2 10.76,4.18 11.69,2.55 2.73,1.51 6.09,5.17 4.78,3 1.58,0.14 0.3,-0.82 1,-0.28 1.65,0.65 0.62,-0.52 -0.55,-1.18 1.49,0.16 1.7,0.94 1.66,-0.42 0.83,0.71 0.63,1.07 1.04,-0.62 2.85,0.61 0.74,0.5 0.93,0.12 0.99,-0.01 0,0 -0.08,4.21 -1.49,8.02 1.23,3.85 1.45,1.82 4.8,3.84 0.48,3.74 -1.84,4.21 -2.37,3.08 -7.06,6.31 -0.55,2.2 1.72,3.83 -0.05,5.789995 -2.54,16.29 -0.13,3.5 1.69,7.44 -4.72,9.14 0.15,1.94 0.64,0.36 4.91,-0.21 3.13,3.75 0.84,3.33 -0.99,2.11 -4.54,4.43 -3.3,5.9 -2.89,3.35 -0.9,2.86 0.04,2.97 0.76,4.15 -0.24,2.94 -2.09,3.08 -6.11,3.65 -11.21,3.02 -2.66,1.92 -1.72,2.83 -0.61,2.77 0.28,8.39 -3.41,4.53 -3.04,0.69 0,0 -6.78,0.01 -0.3,-0.51 -0.77,-6.45 1.2,-11.85 -0.67,-4.87 -3.68,-3.38 -1.58,1.02 1,-1.54 -3.42,-3.58 -4.75,-6.4 -8.49,-6.26 -2.18,-1.29 -2.98,-1.01 -4.04,-0.17 -4.17,1.51 -0.91,0.88 0,0 -3.04,-0.37 -1.63,-1.53 0.99,-6.78 1.05,-2.72 0.23,-4.92 -8.35,-20.91 -0.2,-3.87 -0.95,-2.71 -0.33,-2.7 -0.21,-6.74 -3.16,-4.66 0.19,-1.81 -0.77,-7.079995 -1.14,-2.93 -7.74,-6.19 0,0 -0.87,-2.9 -1.76,-11.53 -2.21,-3.4 -1.85,-0.88 -2.03,0.61 -4.99,-2.22 -5.86,1.86 -1.12,0.72 -1.46,-2.53 -0.69,-4.35 -2.13,-4.78 -2.21,-1.25 -6.33,1.96 -2.82,1.37 -3.16,0.63 -5.32,2.59 -2.1,3.99 -3.14,1.8 -6,-0.73 -1.79,-1.18 0,0 7.38,-7.5 3.25,-4.6 4.08,-3.51 5.19,-5.85 3.98,-2.54 9.05,-4.06 16.06,-0.94 12.55,-4.7 19.58,-1.07 z"
- title="Yobe"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-YO" />
-<path
- d="m 258.59165,50.268745 5.45,6.52 5.08,-0.11 3.34,-0.61 0,0 -1.44,10.82 0.99,6.17 -0.07,6.05 1,5.17 0.39,4.75 1.31,3.21 -0.4,3.57 2.5,5.199995 0.69,3.05 -0.13,1.68 0.95,2.47 -1.09,5.16 -1.82,3.63 1.26,1.21 2.53,1.16 2.68,2.29 1.16,1.43 0.5,1.95 -1.89,1.62 -3.34,-0.81 -0.55,3.2 -4.88,3.97 -1.28,-0.87 -6.61,0.13 -1.5,0.84 -0.65,4 -1.56,4.14 -0.45,3.76 0.16,1.07 1.91,1.9 0.9,3.69 -1.25,6.1 -0.02,2.33 0,0 -1.01,-0.03 -2.34,2.38 -2.75,1.77 -0.85,1.14 -1.71,3.41 -0.64,3.55 -1.51,3.23 -3.04,3.1 -2.33,1.51 -4.71,0.62 -7.94,-0.57 -5.64,0.95 -5.27,4.71 -2.86,4.16 -1.28,0.76 -1.68,0.12 0,0 0.07,-0.84 -1.59,-4.09 -3.8,-6.64 -3.32,-4.4 0,0 -0.21,-5.48 -1.38,-7.58 -1.93,-3.01 -5.38,-2.71 0,-1.2 2.05,-6.49 0.01,-2.47 -1.41,-2.15 -4.35,-1.77 -4.85,-0.62 -1.22,0.81 -2.49,0.59 -3.79,-0.5 -5.47,0.76 -3.65,-2.41 -2.87,-0.11 -1.69,-3.3 -1.08,-0.57 -3.61,0.65 -2.09,-0.31 -0.91,-0.64 -0.79,0.15 -1.06,0.62 -0.82,2.32 -6.34,1.46 -4.11,-2.25 -1.82,0 -0.86,0.48 0,0 0.66,-13.78 -0.1,-18.21 0.93,-4.51 0.92,-0.6 9.33,1.67 4.47,-0.33 2.64,0.31 4.8,-0.64 1.28,0.29 6.11,-0.53 2.46,-1.7 0.74,-3.029995 -0.65,-4.25 -1.43,-4.64 -0.06,-2.88 3.07,-1.91 1.88,-1.87 5.83,-8.58 6.09,-0.95 10.02,-0.79 4.04,-1.64 1.35,-1 -0.07,-8.44 -0.78,-5.14 0.11,-0.7 2.11,-1.82 4.85,-1.56 2.79,0 2.7,1.44 0.5,-0.22 0.73,-1.89 0.59,-5.48 4.97,0.19 2.27,0.68 1.7,2.05 1.9,0.66 9.51,1.28 7.1,-4 3.03,-2.6 0,0 z"
- title="Zamfara"
- fill="orange"
- stroke="#888888"
- stroke-width="2"
- id="NG-ZA" />
- fill="orange"
- stroke="#888888"
- stroke-width="2"
-</svg>
-
-<!-- Indicator Matrix -->
-  <rect x="600" y="520" width="140" height="80" fill="#ffffff" stroke="#000000" stroke-width="2" />
-  <text x="630" y="540" font-family="Arial, sans-serif" font-size="12" fill="#000000">Indicator Matrix</text>
-  <!-- Sample data for indicator matrix -->
-  <rect x="640" y="550" width="20" height="20" fill="green" />
-  <rect x="670" y="550" width="20" height="20" fill="yellow" />
-  <rect x="700" y="550" width="20" height="20" fill="red" />
-  <text x="635" y="590" font-family="Arial, sans-serif" font-size="12" fill="#000000">Low</text>
-  <text x="660" y="590" font-family="Arial, sans-serif" font-size="12" fill="#000000">Medium</text>
-  <text x="705" y="590" font-family="Arial, sans-serif" font-size="12" fill="#000000">High</text>
-
-  `;
-};
-
-
-
-const generateMotaEngilMap = () => {
-  // Your dynamic SVG generation logic for Mota-Engil map goes here
-  return `
-  <div class="map-container">
-  <svg width="800" height="610">   
-
-  <rect x="10" y="10" width="740" height="900" fill="#f0f0f0" stroke="#ccc" stroke-width="2" />
-  
-  <text x="400" y="30" font-family="Arial, sans-serif" font-size="20" fill="#000000" text-anchor="middle">Security Incident Map</text>
-
-  <svg id="nigerian-map" x="20" y="20" width="750" height="650" viewBox="0 100 800 500">
-
- <path
- d="m 291.01165,491.65874 0.6,0.77 4.83,-0.89 2.71,0.27 2.05,1.34 0.33,1.46 0,0 0.07,4.36 -0.55,2.86 0.05,0.73 0.94,1.03 14.09,0.86 1.24,1.86 0.22,2.19 0.7,1.04 3.21,2.33 1.34,0.21 0,0 1.08,1.29 -0.59,3.72 0.15,3.78 1.37,4.63 0.73,1.68 1.71,2 0.76,2.55 -0.6,1.21 -3.42,-0.76 0,0 -2.69,-2.61 -2.54,-0.84 -2.76,-2.14 -0.58,-2.11 -1.19,-1.47 -3.4,-0.91 -2.42,0.14 -0.28,0.91 0.53,3.51 -1.84,5.1 0.32,0.45 2.23,-0.16 -0.7,2.44 -0.73,0.9 -6.08,-0.16 -1.1,0.98 -0.07,0.75 1.07,1.94 -1.21,5.81 -0.03,2.4 0.66,2.49 -1.17,2.89 -2.52,1.94 0.09,0.77 -0.47,0.64 0.22,1.47 0.59,0.67 0.02,1.17 -0.67,1.62 1.79,3.37 0.13,1.85 0,0 -2.36,-1.79 -2.94,-1.41 -1.8,0.43 -3.28,-1.22 -2.79,0.12 -1.11,0.64 -3.13,0.58 -1.8,-0.27 -1.45,-1.41 -0.59,-1.1 0.16,-1.1 1.37,-3.7 3.42,-4.33 2.39,-4.19 -0.05,-2.78 -0.66,-1.72 -0.54,-0.05 0,0 3.09,-10.25 2.1,-3.87 1.82,-1.68 1.18,-3.04 0.89,-0.9 0.43,-2.01 -0.36,-3.45 0.28,-2.05 -1.51,-2.44 1.23,-0.77 -0.38,-8.47 -0.47,-1.35 -1.04,-1.45 -5.34,-1.78 -2.01,-1.69 0,0 1.27,-2.22 1.36,-1.3 z"
- title="Abia"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-AB" />
-
-
-<path
- d="m 682.64165,187.16874 -0.13,1.83 -0.82,1.76 -1.02,1.57 -1.1,0.83 -1.77,2.9 -1.36,4.89 -2.66,2.45 -0.48,1.1 -0.61,3.01 0.72,3.61 0.77,1.06 0,1.7 -1.61,1.66 -0.26,4.61 -0.97,1.67 0.13,3.45 -0.78,1.94 -2.05,2.57 -0.26,3.02 -1.61,1.04 -1.44,2.61 -5.87,1.16 -4.18,5.88 0.15,0.98 1.54,1.62 0.04,0.64 -1.15,2.74 -1.85,1.39 -0.03,1.77 0.69,1.6 2.69,1.33 1.01,1.59 -2.16,3.09 -0.13,2.25 -0.54,1.29 0.27,1.11 -1.08,1.47 0.33,0.78 -0.22,1.41 0.43,0.63 -0.74,2.2 -1.02,1.64 -0.97,-0.13 -1.7,1.32 -8.01,0.82 -2.75,2.16 -1.62,0.29 -3.76,3.39 -3.76,1.98 0.09,1.34 2.37,0.27 0.49,0.42 0.09,7.48 -0.73,0.69 -0.83,4.41 0.84,2.07 -1.16,4.03 0.3,1.32 -2.81,4.8 -2.64,2.3 -0.01,1 0.71,0.99 -0.82,2.05 1.27,3.92 -1.13,1.85 -1.09,0.38 -1.67,-0.23 -1.46,0.54 -0.57,1.1 -0.16,2.73 -0.98,0.74 -0.99,1.85 -2.18,0.19 -3.4,2.76 -0.83,0.12 -5.88,-1.64 -0.66,0.66 -0.24,1.71 -1.18,1.16 -0.81,3.05 -1.77,2.34 -2.33,0.14 -1.12,0.89 -2.47,-0.28 -1.85,1.21 -1.91,0.33 -0.72,0.82 -0.68,4.04 1.44,5.22 0.58,5.77 -0.06,1.04 -0.77,0.56 -2.43,4.51 0.62,2.51 0.22,3.73 -4.13,6.35 -3.49,3.09 -1.76,3.01 -0.48,2 -1.12,1.47 -0.41,3.45 -1.11,1.56 0.69,6.14 0.65,1.8 -2.93,1.48 -1.96,0.27 -2.75,3.14 0,0 -1.22,-0.88 0.05,-1.56 -1.94,-4.62 -0.38,-3.54 -0.74,-1.73 0.58,-5.49 -1.04,-2.02 -2.15,-2.6 -4.32,-3.84 -2.5,-3.15 -1.52,-1.12 -1.42,-0.43 -1.64,0.38 -2.83,4.01 -2.72,1.99 -2.71,-2.45 -2.91,-4.7 -2.52,-6.73 0.82,-1.58 4.14,-4.78 3.8,-3.22 5.08,-5.48 8.63,-11.52 6.12,-5.22 0.44,-2.08 -0.38,-5.78 5.99,-11.44 1,-3.62 -0.26,-1.81 -2.02,-3.84 -4.14,-1.47 -2.66,-2.94 -0.34,-3.84 0.46,-2.17 -5.26,-9.82 -2.08,-1.29 -4.65,-1.08 -1.46,-1.92 -5.45,-10.18 0,0 6.2,-0.91 3.37,-1.43 9.4,-5.66 5.75,-4 1.1,-2.33 -0.52,-3.7 0.68,-10.23 0,0 6.34,0.97 2.7,-0.19 4.57,-1.32 1.74,-1.07 1.7,-1.9 3.73,-5.55 6.2,-7.06 2.51,-0.87 6.29,-0.49 5.9,-2.22 2.44,-2.62 0.82,-2.66 3.32,-0.14 2.35,-1.14 2.22,-3.7 2.1,-2.16 2.51,-1.47 8.52,0.79 2.87,1.03 2.58,1.55 2.84,3.11 2.43,1.15 2.38,1.02 4.39,-0.01 1.14,-1.22 1.48,-7.76 2.71,-5.68 1.22,-3.64 0.88,-4.1 0.28,-8.01 3.09,-0.43 0.62,0.74 3.75,1.14 3.86,-0.29 5.62,-1.74 0,0 z"
- title="Adamawa"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-AD" />
-
-
-<path
- d="m 302.91165,585.31874 0,0.01 0,0 -0.02,-0.02 0,0 0.02,0.01 z m 7.57,-0.7 0.97,0.5 0.92,-0.19 0.88,-0.14 0.33,0.28 -3.58,0.75 -0.49,-0.59 0.97,-0.61 z m 40.31,-7.56 0.88,2.09 -0.76,0.82 -1.07,0.22 -0.22,-1.24 0.56,-0.1 0.35,-0.9 0.26,-0.89 z m -51.56,-11.07 -0.12,-1.85 -1.79,-3.36 0.67,-1.63 -0.02,-1.17 -0.59,-0.67 -0.22,-1.47 0.47,-0.65 -0.09,-0.77 2.52,-1.94 1.18,-2.89 -0.66,-2.49 0.02,-2.41 1.21,-5.81 -1.07,-1.94 0.07,-0.75 1.1,-0.98 6.09,0.16 0.73,-0.9 0.7,-2.44 -2.23,0.16 -0.32,-0.45 1.84,-5.1 -0.53,-3.51 0.29,-0.91 2.42,-0.14 3.4,0.91 1.19,1.47 0.58,2.11 2.75,2.14 2.54,0.84 2.69,2.61 0,0 -0.85,0.1 -1.15,2.45 0.66,1.79 0.84,0.31 0.78,1.94 4.77,-0.56 4.96,2.68 0.4,2.1 -0.61,6.1 1.63,5.13 3.41,4.91 3.19,2.8 3.77,4.33 3.67,2.81 0.59,1.01 0,0 -0.43,2.16 0.79,0.44 0.03,2.5 -0.5,0.45 -0.41,-0.67 -0.07,0.58 1.19,1.17 -0.6,1.8 -0.74,0.19 0.1,1.03 -1.03,1.15 0.24,0.17 -1.05,2.38 -5.23,-0.63 -5.74,-0.07 -10.71,0.55 -12.05,1.68 -0.52,-0.46 -1.82,0.36 -0.93,-0.48 -0.88,0.36 -0.95,-0.09 -0.02,0.03 0.5,0.81 0.27,0.43 -3.32,1.32 -0.98,-1.7 -1.17,-0.65 -0.86,-0.19 -0.96,-1.06 0.38,-0.91 -0.09,-0.12 -0.53,0.5 -0.5,-0.38 0,0 -0.61,-1.17 0.04,-0.64 0.51,-0.32 -0.58,-4.55 0.96,-4.27 -0.63,-2.3 -1.98,-3.47 z"
- title="Akwa Ibom"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-AK" />
-
-
-<path
- d="m 262.67165,444.90874 0.44,0.4 0.09,3.62 3.83,-0.13 2.44,1.41 2.05,0.08 3.73,1.7 0.36,0.79 -1.25,3.45 -0.75,1.08 -1.69,1.14 -1.85,2.48 0.24,0.96 -0.62,0.83 -0.43,2.35 0.39,0.54 3.85,1.16 1.42,1.8 1.34,3.64 1.31,1.85 -0.3,0.96 -0.82,0.29 0.41,1.37 -0.5,1.62 0.72,0.74 1.89,-1.13 0.61,0.13 0.59,2.58 1.33,0.63 -0.35,2.15 1.88,3.79 0.18,1.51 0.76,0.98 2.39,1.4 1.66,-0.96 1.08,0.09 1.12,0.74 -0.04,0.54 0.83,0.17 0,0 -4.4,2.31 -1.36,1.3 -1.27,2.22 0,0 -5.32,1.42 -5.38,-1.25 -6.31,1.16 -1.78,1.04 -0.93,3.55 -2.37,4.61 -2.68,0.27 -4.51,-1.92 -1.62,0.8 -3,3.83 -2.09,0.83 0,0 -2.4,-0.21 -1.11,-1.28 0,0 1.01,-1.17 1.92,-3.9 0.34,-2.64 1.77,-4.69 2.5,-4.55 0.38,-6.01 1.28,-3.65 -1.23,-3.77 -1.48,-7.29 0.08,-1.37 -1.13,-1.13 -2.13,-9.57 0,0 -0.07,-0.29 0,0 1.67,-0.77 3.59,0.66 1.43,-0.89 1.84,-2.51 0.06,-2.73 1.24,-4.12 2.24,-2.31 1.54,-0.86 z"
- title="Anambra"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-AN" />
-
-
-<path
- d="m 491.94165,87.518745 7.74,6.19 1.14,2.93 0.77,7.079995 -0.19,1.81 3.16,4.66 0.21,6.74 0.33,2.7 0.95,2.71 0.2,3.87 8.35,20.91 -0.23,4.92 -1.05,2.72 -0.99,6.78 1.63,1.53 3.04,0.37 0,0 -0.8,0.24 -2.71,3.76 -6.04,3.28 -2.57,3.7 -2.01,1.75 -1.49,0.76 -3.91,0.88 -1.44,1.36 -1.38,2.03 -0.97,4.94 -2.61,7.43 -3.61,5.07 -0.2,1.38 7.38,2.99 1.14,1.71 0.87,7.15 0.88,1.15 7.2,2.62 2.08,4.94 -0.48,8.63 0.4,2.86 -0.83,1.76 -3.9,0.63 -1.99,0.92 -1.31,1.91 0.33,1.62 4.29,4.38 2.5,1.41 9.15,7.09 1.23,3.79 0.61,6.19 2.58,5.28 1.69,2.12 -0.13,0.95 -0.58,0.16 0,0 -3.99,-0.03 -6.44,-1.09 -10.59,4.85 -5.85,-0.78 -4.59,2.65 0,0 -6.36,-3.43 -6.18,-4.04 -11.07,-4.74 -9.26,-4.93 -2.57,-0.51 -7.6,-3.95 -3.03,1.78 -0.3,1.44 3.17,4.06 0.27,1.74 -0.5,1.67 -4.76,1.3 -2.89,5.21 -4.39,1.41 -10.04,0.59 -5.47,-1.48 -4.8,-0.27 -1.51,-0.53 -1.56,-1.34 -1.65,-4.07 -0.9,-1.16 -0.79,-0.71 -3.92,-1.42 -0.6,-0.85 0.09,-1.69 2.38,-4.47 0.23,-1.17 -0.26,-5.94 -0.97,-3.13 -1.8,-1.92 -1.06,-0.21 -10.97,2.19 0.04,-12.38 -0.78,-4.8 -2.61,-4.16 -2.78,-0.88 -3.18,-0.08 -1.53,0.49 0,0 -2.53,-2.71 -2.79,-1.75 -0.27,-0.73 2.35,-4.2 0.53,-3.96 0,0 0.99,-0.56 2.59,-4.09 1.33,-3.85 -0.08,-2 -0.77,-1.67 -3.86,-4.33 -0.45,-1.99 -0.4,-6.89 0.45,-3.5 1.6,-4.57 1.02,-0.43 2.7,0.16 2.04,-0.51 2.74,-3.21 2.65,-4.11 4.74,-4.17 0.67,-1.1 2.48,-1.57 1.69,-0.3 1.14,1.07 1.14,0.09 5.52,-2.17 0,0 1,-0.19 6,1.1 7.43,2.41 3.35,-1.46 2.3,0.73 1.78,3.67 3.13,0.21 7.7,-0.48 3.57,-0.91 1.14,0.3 2.67,4.9 0.54,2.15 -0.83,7.85 0.81,2.05 1.35,1.36 5.7,1.19 5.6,-1.39 1.56,0.17 1.86,1.36 2.46,0.62 1.86,-0.57 -1.11,-3.43 0.04,-1.8 1.53,-1.91 2.53,-1.36 4.04,-0.99 1.44,-0.78 1.85,-1.39 1.1,-2.72 -1.04,-1.46 -8.87,-0.56 -5.72,-1.27 -6.39,-0.77 -2.99,-1.85 -5.3,-7.42 -1.05,-2.5 -0.47,-2.57 -3.84,0.94 -1.18,-1.11 -0.55,-1.74 2.51,-5 -0.52,-4.32 -1.46,-4.42 -1.81,-0.5 -2.75,0.27 -2.12,1.03 -2.61,0.04 -1.35,-0.63 0.49,-4.26 3.22,-4.54 6.16,-0.46 5.47,-3.04 10.94,-3.73 6.23,-2.51 1.19,-0.94 -0.03,-2.25 -0.57,-1.88 6.71,-20.589995 4.54,-1.95 3.48,-0.55 0.99,0.82 0.83,1.64 0.12,1.39 z"
- title="Bauchi"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-BA" />
-<path
- d="m 309.66165,367.75874 9.13,2.48 8.51,1.25 8.71,3.55 4.92,2.82 5.25,0.99 1.07,-0.14 3.32,2.8 5.33,2.23 1.14,-1.1 0.09,-1.36 -4.7,-11.64 -0.08,-2.52 1.02,-2.86 1.24,-1.41 3.95,-2.2 1.38,-0.28 2.59,-0.18 2.68,0.44 10.09,3.72 6.86,1.55 4.88,0.41 3.96,-0.22 0.01,-0.7 11.79,8.93 0,0 -3.79,5.97 1.9,0.57 6.12,-2.63 7.47,-0.95 8.18,0.48 7.48,1.77 5.14,4.9 4.44,5.65 8.37,7.57 -0.14,0.65 1.17,1.36 -0.26,1.04 0.56,1.78 -0.59,3.23 -2.38,5.89 0.29,5.92 -0.92,1.43 -3.09,1.94 -3.44,3.25 -3.31,6.16 -2.11,11.5 0.61,0.73 -0.33,1.08 -0.03,8.76 -1.9,8.19 0,0 -0.72,0.3 -2.12,-0.73 -0.78,1.42 0.1,2 -2.82,1.74 -1.79,0.22 -2.78,-0.44 0,0 -0.65,-1.55 -4.88,-6.63 -5.53,-5.73 -1.49,-0.72 -3.09,-0.22 -9.57,2.24 -4.38,-0.44 -1.21,-0.89 0.66,-4.77 -0.56,-1.64 -8.64,-5.38 -5.43,-1.69 -2.11,-0.07 -2.31,0.59 -2.11,0.67 -1.52,1.2 0.77,4.5 -3.14,1.92 -3.13,0.83 -3.84,-0.14 -2.06,-0.67 -1.92,0.45 -1.36,1.75 -2.36,1.96 -2.99,0.49 0,0 -1.7,-2.27 -0.84,-4.26 -1.76,-1.3 -1.02,2.31 -3.41,0.37 -1.77,2.88 -1.92,0.93 -2.95,-0.25 -3.45,0.4 -1.25,8.23 -0.99,2.05 -1.41,0.59 -1.78,-0.74 -4.01,-3.68 -0.65,-1.54 0.17,-0.91 0,0 2.28,-6.42 -0.9,-5.62 -1.42,-2.14 -1.52,-1.15 -2.81,-0.35 -2.21,2.11 -2.1,0.73 -2.92,-1.52 -3.58,-2.76 -2.89,-3.35 -2.74,-6.51 0.13,-0.53 0,0 0.41,-0.5 0.84,0.58 3.37,3.29 0.82,-0.1 1.35,1.05 1.76,0 0.34,-4.42 0.96,-1.44 6.44,-3.12 3.3,-3.11 1.94,-5.83 0.42,-3.93 0.47,-1.29 1.23,-1.21 0.36,-1.81 -1.48,-0.47 -3.31,0.32 -1.27,-1.05 -1.24,-5.53 -0.57,-6.81 -0.01,-6.9 -0.73,-1.85 -2.7,-2.61 -1.88,-3.22 -0.54,-5.87 z"
- title="Benue"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-BE" />
-<path
- d="m 662.15165,11.078745 0.7,5.65 -0.83,3 3.49,6.26 -0.2,2.52 -0.46,0.49 0.28,-2.17 -1.04,1.33 -0.22,1.92 2.38,2.55 2.46,0.61 -0.65,0.67 0.28,0.54 0.78,0.19 4.46,7.53 2.83,3.08 1.05,0.22 1.72,0.96 1.63,1.2 3.87,0.75 0.26,0.86 -0.58,-0.01 -0.56,1.1 -0.2,-1.04 -0.66,0.58 -0.74,-0.04 1.44,1.6 0.27,1.76 3.88,-1.16 2.31,-2.61 2.47,-2.02 1.6,-0.67 -1.08,1.76 0.15,0.45 0.65,-0.19 0.57,2.34 -0.33,0.22 -0.67,-1.38 -0.85,0.48 -0.57,1.23 -2.02,0.57 0.67,1.88 -1.19,1.13 -1.86,3.73 0.41,0.77 1.37,-0.45 -0.07,2.44 -0.58,1.15 0.85,0.04 -0.34,1.36 -1.15,1.54 0.4,0.57 1.57,-0.43 0.29,0.55 -2.63,1.39 1.97,0.5 -0.15,0.89 1.2,0.05 -0.75,0.85 -1.32,0.33 0.12,0.42 1.24,-0.23 0.12,0.6 -0.48,0.44 -0.23,-0.37 -1.01,0.23 0.24,0.75 0.74,-0.12 -0.85,1.67 1.51,0.21 0.22,1.34 -0.57,0.74 0.26,1.25 0.97,0.22 0.53,1.21 -0.24,1.15 1.95,0.55 0.34,1.46 0.61,0.52 1.61,-0.95 0.46,0.2 0.71,1.91 1.22,0.71 0.31,1.08 2.16,0.77 -0.03,1.1 0.67,1 -0.37,1.19 0.71,0.64 1.11,0.55 1.41,-0.5 2,0.26 -0.27,1.04 0.83,0.06 0.39,-0.69 1.81,-0.07 1.47,-0.81 2.46,-0.08 0.17,1.22 1.07,0.09 -0.12,0.91 -1.25,0.32 0.22,0.53 -0.38,0.64 0.95,0.28 2.25,2.61 3.42,-0.53 1.03,-0.05 0.43,0.81 1.72,-0.87 2.93,0.87 3.5,-0.35 0.68,0.31 0.85,0.12 1.61,0.34 0.79,1.2 1.27,0.34 0.34,0.87 -0.67,0.02 0.08,1.119995 2.17,1.01 0.7,1.37 -0.72,1.39 2.99,0.77 0.76,1.5 -0.54,0.46 1.13,0.54 0.78,0.12 0.12,-0.49 0.97,-0.08 0.51,-0.51 1.33,2.51 -1.37,1.29 -0.32,1.8 -0.74,0.87 0.68,2 -1.72,1.16 -0.06,1.57 2.2,3.78 -1.21,1.74 0.23,1.35 -2.32,2.77 0.01,1.5 0.29,3.79 -0.7,1.23 -2.81,2.15 -0.06,0.55 1.26,1.72 2.01,1.13 2.16,2.18 0.44,2.16 -0.62,4.68 -1.26,0.93 -6.36,2.57 -3.88,0.9 -1.7,3.09 -8.09,3.17 -3.28,2.07 -1.93,2.65 -4.46,1.94 -2.32,0.04 -2.72,-2.37 -2.52,-0.44 -1.07,-0.83 -1.07,0.16 -0.61,0.76 -0.58,2.32 -2.08,2.36 -0.78,2.68 -0.72,1.05 -1.46,0.96 0.24,1.49 -0.65,0.21 -1.08,1.68 -2.32,2.04 -1.21,2.91 -3.24,1.61 -2.42,0.54 -0.77,0.75 -0.19,1.74 0,0 -5.62,1.74 -3.86,0.29 -3.75,-1.14 -0.62,-0.74 -3.09,0.43 -0.28,8.01 -0.88,4.1 -1.22,3.64 -2.71,5.68 -1.48,7.76 -1.14,1.22 -4.39,0.01 -2.38,-1.02 -2.43,-1.15 -2.84,-3.11 -2.58,-1.55 -2.87,-1.03 -8.52,-0.79 -2.51,1.47 -2.1,2.16 -2.22,3.7 -2.35,1.14 -3.32,0.14 -0.82,2.66 -2.44,2.62 -5.9,2.22 -6.29,0.49 -2.51,0.87 -6.2,7.06 -3.73,5.55 -1.7,1.9 -1.74,1.07 -4.57,1.32 -2.7,0.19 -6.34,-0.97 0,0 -3.91,-2.2 -1.81,-1.6 -3.13,-6.17 -5.66,-2.34 -1.83,-1.82 -2.43,-3.51 -0.81,-2.83 5.18,-7.56 0.62,-3.02 -1.35,-3.3 0,0 3.04,-0.69 3.41,-4.53 -0.28,-8.39 0.61,-2.77 1.72,-2.83 2.66,-1.92 11.21,-3.02 6.11,-3.65 2.09,-3.08 0.24,-2.94 -0.76,-4.15 -0.04,-2.97 0.9,-2.86 2.89,-3.35 3.3,-5.9 4.54,-4.43 0.99,-2.11 -0.84,-3.33 -3.13,-3.75 -4.91,0.21 -0.64,-0.36 -0.15,-1.94 4.72,-9.14 -1.69,-7.44 0.13,-3.5 2.54,-16.29 0.05,-5.789995 -1.72,-3.83 0.55,-2.2 7.06,-6.31 2.37,-3.08 1.84,-4.21 -0.48,-3.74 -4.8,-3.84 -1.45,-1.82 -1.23,-3.85 1.49,-8.02 0.08,-4.21 0,0 1.45,-0.12 4.38,0.88 0.03,-1.19 0.59,-0.41 0.07,-0.74 0.19,-1.71 1.48,-1.33 1.14,0.24 1.35,-0.73 -0.34,-1.16 0.73,-1.08 -0.23,-0.32 -0.89,-0.19 0.4,-1.13 0.77,-1.33 0.8,-1.78 0.64,-0.6 2.28,0.35 1.38,-0.87 0.96,0.09 0.61,0.74 0.96,-1.11 0.23,-1.44 1.34,-0.23 1.47,-0.29 0.29,-0.46 -0.34,-0.4 0.98,-1.17 2.11,-0.48 0.62,-1.24 1.37,-0.78 0.16,-0.79 0.58,-0.74 0.4,-0.74 -0.02,-0.86 1.1,-0.43 0.43,-1.02 -0.81,-0.31 0.57,-0.61 1.23,0.63 -0.29,-1.57 1.1,0.12 0.06,0.47 0.85,0.29 1.1,-0.14 1.87,-1.67 1.02,-0.37 0.32,0.38 1.98,-0.1 1.39,-1.33 1.02,0.49 0.05,-1.08 1.08,-0.36 1.02,0.09 -0.89,1.17 1.47,0.79 0.92,-1.31 1.35,1.04 -0.2,-1.31 1.48,-0.51 -0.31,2.08 0.92,0.12 0.45,-0.97 1.15,-0.25 0.92,1.39 0.96,-2.53 1.66,-0.84 0.02,-0.44 -0.55,-0.19 0.19,-0.71 1.19,0.2 0.64,-0.8 -0.64,-0.17 -0.4,-1.02 1.68,-1.6 -0.06,-0.58 1.49,-0.67 -0.05,-0.93 1.05,-1.06 1.24,-0.24 0.39,-1.06 z"
- title="Borno"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-BO" />
-<path
- d="m 251.22165,579.30874 -0.21,-0.62 -0.68,0.1 -3.96,-2.6 -1.2,-4.38 -1.38,-1.87 -1.99,-0.02 -6.54,2.54 -1.04,-0.26 -0.35,-1.94 0.42,-1.46 -3.31,-1.44 -0.5,-0.83 0.07,-4.34 1.9,-2.67 0.76,-2.05 0.03,-1.27 -1.29,0.16 -0.84,-0.78 1.33,-4.44 4.49,-7.84 2.77,0.17 0.55,-0.5 0.75,-2.49 1.54,-0.79 -0.23,-1.81 1.58,-1.07 0.95,-1.48 -0.03,-1.94 -0.63,-1.54 -0.76,-0.58 -1.92,-0.83 -2.94,0.49 -1.04,-0.28 0.77,2.47 -1.2,0.85 -5.08,2.19 -3.49,-0.44 -2.74,0.49 -2.01,4.1 -2.11,0.52 -0.79,-0.6 -1.47,-0.08 -0.36,0.95 0.26,2.31 -2.83,1.56 -1.62,0.56 -3.01,-0.24 -1.23,1.99 -2.31,0.62 -1.89,-0.67 -0.99,-1.66 -2.11,-1.28 -0.75,0.5 -1.48,3.07 -3.3,1.64 -2.62,-0.42 -7.48,4.1 -0.94,-0.37 -2.32,0.4 -1,-1.1 -2.69,-1.6 -3.05,-0.71 -2.9,-1.66 -2.1,-2.1 -0.56,0.72 -0.72,-0.57 -1.43,0.53 -0.36,-0.5 -1.63,0.84 2.36,4.61 1.91,5.81 -0.34,0.79 0.95,1.52 0.35,1.86 4.06,6.77 0.19,1.44 0.94,0.55 0.01,0.17 0.05,1.1 7.5,10.38 1.19,0.62 -0.02,0.75 2.77,1.35 -0.27,0.41 1.05,0.75 0.12,0.65 2.56,1.59 0.19,-0.39 0.31,0.34 -0.22,0.24 0.02,0.34 2.61,2.16 0.48,-0.02 -0.14,-0.77 -0.45,-0.21 1.58,-0.46 -0.76,0.7 0.33,0.72 -0.26,0.27 0.07,0.51 2.32,1.7 5.07,2.36 0.19,-2 -0.79,-0.51 -0.55,-1.25 0.34,0.12 0.29,0.89 0.79,0.22 -0.12,-0.7 0.41,0.03 -0.02,0.7 0.52,0.17 0.26,0.77 -0.62,1.18 0.26,0.43 -0.34,1.3 0.4,0.29 5.18,1.32 0.19,-2.23 0.65,-0.58 0.38,3.84 8.34,-0.7 -0.64,-2.4 1.03,-3.05 0.65,-1.1 -0.29,-1.37 -1.91,-1.15 0.48,-0.05 1.19,0.27 0.96,1.58 0.6,-1.13 -0.55,-0.79 0.09,-2.14 -0.84,-1.35 0.31,-0.74 0.17,1.03 0.69,0.55 0.03,0.38 0.74,2.02 -0.1,3.1 2.72,-2.47 -0.58,-0.63 0.1,-1.94 1.91,-0.6 0.5,-0.63 0.69,1.61 0.12,1.29 -0.48,1.03 0.6,1.32 0.05,1.61 1.34,0.26 1.08,1.51 0.48,-0.05 -0.19,0.33 0.22,0.43 2.17,-0.48 0.19,0.34 -0.62,0.65 1.53,0.79 8.46,-0.91 0.02,-0.48 -0.4,-0.51 -0.07,-0.77 -0.1,-0.34 0.67,-0.86 0.6,-0.58 -0.52,2.04 0.22,0.39 2.03,1.76 0.96,-0.98 3.53,-0.38 -0.5,-2.47 -0.09,-0.38 -0.38,-1.13 -1.15,-0.75 -0.19,-0.99 0.02,-0.19 0.29,-1.06 -0.53,-2.25 -0.41,-0.55 0.35,-0.36 0.76,0.9 1.25,4.2 0.38,-0.58 -0.65,-5.23 1.7,-3.39 0.26,-1.83 z m -78.3,-19.41 0,0 0.01,0.01 -0.01,-0.01 z m 59.51,37.48 -8.22,0.99 -2.8,-0.1 -0.22,-0.7 1.36,-2.52 0.15,-0.02 0.45,0.04 0.14,-1.3 1.98,-2.19 0.12,-0.31 0.43,-0.89 0.45,-0.19 -0.59,-0.77 -0.18,-1.3 0.55,-0.35 1.03,-0.19 0.9,1.34 -0.5,1.33 0.78,1.62 -0.22,1.57 1.63,0.44 0.65,0.92 2.11,2.58 z"
- title="Bayelsa"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-BY" />
-<path
- d="m 348.48165,451.12874 2.99,-0.49 2.36,-1.96 1.36,-1.75 1.92,-0.45 2.06,0.67 3.84,0.14 3.13,-0.83 3.14,-1.92 -0.77,-4.5 1.52,-1.2 2.11,-0.67 2.31,-0.59 2.11,0.07 5.43,1.69 8.64,5.38 0.56,1.64 -0.66,4.77 1.21,0.89 4.38,0.44 9.57,-2.24 3.09,0.22 1.49,0.72 5.53,5.73 4.88,6.63 0.65,1.55 0,0 -2.17,8.34 -5.15,-2.21 -0.78,1.84 -0.02,1.98 -0.58,0.73 -1.08,0.94 -2.8,4.86 -3.23,0.94 -1.63,1.19 -1.2,1.18 -0.95,2.5 -0.99,0.97 -8.72,7.77 -3.81,2.73 -1.12,0.33 -1.64,2.3 -1.69,0.87 -1.3,1.48 0.4,0.86 1.36,1.04 -1.05,1.48 0.4,0.83 -0.45,0.96 -1.47,1.87 -0.57,-0.58 0.05,1.5 5.1,5.64 0.31,1.76 -2.4,4.05 -0.64,2.4 -1.12,1.36 0.21,3.89 -1.81,5.88 0.15,6.56 -2.54,4.2 -1.89,0.77 -0.08,0.84 -1.34,1.04 -1.22,3.3 -1.25,1.04 0.97,1.02 -0.9,0.35 -0.98,1.24 0.05,0.57 -1.01,0.38 0.09,1.76 -1.97,0.75 -1.02,1.25 -0.02,0.96 1.2,1.14 0.34,1.53 -2.42,1.46 -1.09,-0.24 -0.68,-0.72 -1.03,0.82 -0.64,1.52 -0.75,0.53 -0.16,1.47 0.67,0.07 0.6,-1.75 0.26,2.51 -0.36,0.56 -0.43,-0.67 -0.6,0.14 0.58,1.44 -1.48,0.27 0.06,0.76 -1.78,0.29 -1.47,-0.6 0.51,-1.77 1.07,-0.12 -1.27,-1.61 -0.8,1.22 -1.16,0.48 -2.07,-0.46 -0.65,-1.15 0.77,-0.7 0.21,-0.16 -0.31,-0.91 -1.36,0.41 -1.13,-0.63 -2.38,2.18 0,0 -0.59,-1.01 -3.67,-2.81 -3.78,-4.34 -3.18,-2.8 -3.41,-4.91 -1.63,-5.13 0.61,-6.1 -0.39,-2.1 -4.96,-2.68 -4.77,0.56 -0.79,-1.94 -0.83,-0.31 -0.66,-1.79 1.15,-2.45 0.85,-0.1 0,0 3.42,0.76 0.6,-1.21 -0.76,-2.55 -1.71,-2 -0.73,-1.68 -1.37,-4.63 -0.15,-3.78 0.59,-3.72 -1.08,-1.29 0,0 0.38,-2.39 2.34,-3.11 -0.36,-2.66 1.46,-1.26 0.34,-1.35 1.98,-2.29 0.08,-2.42 -1.14,-1.8 0.19,-0.98 2.27,-1.08 2.62,-0.18 2.69,4.5 1.34,-2.08 2.16,-0.77 2.2,-1.71 0.28,-1.31 1.88,-0.29 2.18,1.26 0.84,-0.91 0.68,-2.3 0.1,-2.59 0.8,-1.47 6.92,-8.39 0.02,-1.4 -1.86,-2.6 -0.01,-1.6 1.65,-1.63 2.19,-0.37 0.83,-1.7 -0.24,-1.05 -1.38,-1 -0.41,-1.5 -0.52,-0.37 0.1,-1.94 -1.28,-1.12 -0.5,-1.71 -2.7,-1.87 -1.99,-2.62 z"
- title="Cross River"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-CR" />
-<path
- d="m 252.45165,479.95874 -1.48,-7.29 0.08,-1.37 -1.13,-1.13 -2.13,-9.57 -1.88,2.04 -4.1,-0.38 -3.73,0.81 -8.19,5.12 -7.35,3.1 -4.03,4.53 -0.64,0.05 -2.58,-3.94 -1.01,-0.42 -1.67,-0.31 -1.78,1.58 -0.89,2.03 -0.15,2.37 0.4,0.75 1.46,0.81 0.54,4.82 2.03,3.59 1.96,2.42 1.88,1.46 2.23,0.81 0.29,1.75 -0.7,3.24 -1.55,1.91 -1.63,1.66 -3.08,2.03 -2.29,3.07 -2.78,1.99 -1.81,0.6 -5.23,1.04 -2.13,-0.56 0.7,-1.8 -1.6,-1.61 2.04,-4.03 -0.47,-0.83 -3.91,-2.35 -2,-2.83 -4.67,-2.62 -3.17,-1.25 -1.64,-1.34 -5.12,1.85 -1.85,2.38 -1.77,-0.4 -2.27,-1.98 -1.38,-0.29 -3.17,0.67 -2.98,-0.72 -0.99,0.31 -0.63,0.3 -0.06,1.03 0.89,1.57 -0.52,1.06 -4.1,3.22 -1.66,0.07 -0.05,-2.47 -0.66,-2.55 0.7,-2.93 -0.15,-1.43 -1.66,-1.67 -5.43,-2.8 -6.9,16.74 2.48,4.48 1.39,0.88 0.58,-1.6 1.31,-1.25 7.76,-4.22 1.26,-0.22 1.85,-1.28 1.13,-0.54 0.36,0.51 -0.02,0.17 -2,0.95 -1.01,1.6 -0.07,0.26 -0.83,-0.53 -2.25,0.98 -3.18,2.51 -0.34,0.75 -1.98,-0.45 -1.05,0.82 -0.79,3.14 0.26,1.54 2.63,4.5 3.18,3.14 1.12,-0.53 3.01,-1.34 2.97,0.41 0.74,-3.16 1.15,-2.15 -0.02,-0.38 0.4,-0.3 0,0.01 0.38,0.12 -0.23,0.14 -0.24,1.9 -1.12,2.27 1,2.13 1.91,0.63 1.63,-0.27 1.58,-3.18 1.6,0.1 0.19,-0.25 0,0.01 2.99,1.54 1.12,0.67 0.19,0.48 -1.19,-0.34 0.27,0.77 0.1,1.32 -1.33,-0.35 0.97,-0.67 -0.33,-1.34 -1.12,-0.72 -3.13,-0.29 -0.6,0.14 0.09,1.63 -0.55,1.13 -2.34,1.97 1,-1.58 -1.79,0.15 -2.1,-0.55 -4.44,-0.67 -1.96,0.19 -0.12,0.84 -1.62,1.08 -1.26,1.67 2.77,3.96 3.04,2.61 6.04,2.63 5.09,0.29 0.02,-0.65 -1.19,-1.39 -0.95,-2.9 -0.26,-0.45 0.07,-0.74 0.47,-0.12 -0.19,0.82 1,2.2 0.83,-0.6 0.36,0 -0.07,0.22 -0.95,1.08 0.26,0.5 2.65,1.12 0.57,-0.21 1.65,-4.8 0.84,-1.46 0.96,-0.62 -0.64,-0.33 3.2,0.12 0.48,0.15 1.05,-0.46 0.46,-1.13 0.74,-0.38 1.12,0.17 0.95,0.91 0.61,-0.66 0.09,0.23 -0.12,0.75 -0.89,0.04 -1.38,-0.94 -1.01,1.68 -1.58,0.79 -1.81,-0.12 0.22,0.86 -0.96,-0.98 -1.32,0.36 -0.55,3.02 0.27,1.32 0.58,1.08 0.45,0.72 3.36,1.09 -0.3,0.8 -1.55,-1.12 -0.65,0.36 -0.03,0.7 -0.07,0.22 -0.49,0.13 0.32,-1.47 -0.31,-0.12 -0.43,-0.34 -0.45,-0.46 -0.45,0.48 -0.74,0.5 -0.36,0.53 -0.79,0.12 -1.12,0.57 0.91,0.46 2.05,-0.1 -2.97,0.96 -0.4,0.63 -1,-1.61 -0.6,0.05 -0.28,-0.02 -2.53,0.15 -1.17,0.63 -0.07,-0.39 -0.69,-0.07 -0.41,-0.31 -0.67,0.22 -0.83,-0.43 0.05,2.44 1.91,7.63 -0.24,1.66 2.08,2.26 2.05,-0.88 2.65,-0.17 -0.89,-1.35 -0.09,-1.12 0.15,-0.24 0.5,-2.38 0.29,-0.03 -0.15,0.6 0.15,0.41 -0.52,2.69 0.88,0.55 -0.1,1.53 -0.8,0.31 2.1,2.1 2.9,1.66 3.05,0.71 2.69,1.6 1,1.1 2.32,-0.4 0.94,0.37 7.48,-4.1 2.62,0.42 3.3,-1.64 1.48,-3.07 0.75,-0.5 2.11,1.28 0.99,1.66 1.89,0.67 2.31,-0.62 1.23,-1.99 3.01,0.24 1.62,-0.56 2.83,-1.56 -0.26,-2.31 0.36,-0.95 1.47,0.08 0.79,0.6 2.11,-0.52 2.01,-4.1 2.74,-0.49 3.49,0.44 5.08,-2.19 1.2,-0.85 -0.77,-2.47 -0.57,-1.04 0.21,-0.44 3.52,-1.81 0.19,-5.3 0.7,-1.48 2.05,-1.42 0.89,-1.75 0.82,-3.18 -1.09,-3.54 0.23,-0.35 1.01,-1.17 1.92,-3.9 0.34,-2.63 1.76,-4.69 2.5,-4.55 0.38,-6.01 1.27,-3.65 -1.18,-3.74 z"
- title="Delta"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-DE" />
-<path
- d="m 319.74165,453.93874 -0.17,0.91 0.65,1.54 4.01,3.68 1.78,0.74 1.41,-0.59 0.99,-2.05 1.25,-8.23 3.45,-0.4 2.95,0.25 1.92,-0.93 1.77,-2.88 3.41,-0.37 1.02,-2.31 1.76,1.3 0.84,4.26 1.7,2.27 0,0 0.49,2.89 1.99,2.62 2.7,1.87 0.5,1.71 1.28,1.12 -0.1,1.94 0.52,0.37 0.41,1.5 1.38,1 0.24,1.05 -0.83,1.7 -2.19,0.37 -1.65,1.63 0.01,1.6 1.86,2.6 -0.02,1.4 -6.92,8.39 -0.8,1.47 -0.1,2.59 -0.68,2.3 -0.84,0.91 -2.18,-1.26 -1.88,0.29 -0.28,1.31 -2.2,1.71 -2.16,0.77 -1.34,2.08 -2.69,-4.5 -2.62,0.18 -2.27,1.08 -0.19,0.98 1.14,1.8 -0.08,2.42 -1.98,2.29 -0.34,1.35 -1.46,1.26 0.36,2.66 -2.34,3.11 -0.38,2.39 0,0 -1.34,-0.21 -3.21,-2.33 -0.7,-1.04 -0.22,-2.19 -1.24,-1.86 -14.09,-0.86 -0.94,-1.03 -0.05,-0.73 0.55,-2.86 -0.07,-4.36 0,0 3.63,-1.01 1.99,1.7 0.77,0.09 2.11,2.51 0.73,0.07 0.65,-1.44 -0.8,-2.92 -0.15,-2.64 2.67,-2.73 0.8,-1.73 -0.99,-6.64 -0.62,-2.55 -1.08,-1.07 0.02,-1.23 2.74,-6.11 0.01,-5.82 -0.65,-1.15 -0.38,-3.29 -1.48,-4.9 6.45,0.55 z"
- title="Ebonyi"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-EB" />
-<path
- d="m 208.35165,395.48874 0.77,0.64 1.75,-0.37 0.7,0.36 0.28,0.68 -0.38,0.89 0.46,0.65 2.18,-0.25 0.27,0.8 -0.96,1.85 -0.23,1.93 0.28,1.05 1.08,0.78 2.13,0.53 5.94,-2.93 1.56,2.1 0.65,-0.07 1.26,1.41 0.55,-0.06 1.96,2.23 2.26,-0.19 0.74,-0.51 2.56,0.15 1.06,2.01 0.07,1.22 0.85,0.61 0.48,1.74 0.74,0.56 -0.24,0.51 0.66,1.63 3.75,-0.84 0.43,0.38 1.46,-0.99 1.87,-0.41 1.75,1.41 0.55,2.12 1.45,1.08 0.79,2.01 0.15,3.41 -0.31,1.92 -1.62,3.94 0.06,4.16 -1.91,4.82 -2.16,3.55 1.28,2.15 -0.93,5.52 0.89,2.6 1.41,2.01 1.03,6.03 0,0 0.07,0.29 0,0 -1.88,2.03 -4.09,-0.38 -3.73,0.81 -8.19,5.11 -7.35,3.1 -4.03,4.53 -0.65,0.04 -2.58,-3.94 -1.01,-0.41 -1.66,-0.32 -1.79,1.59 -0.89,2.02 -0.15,2.37 0.4,0.75 1.46,0.81 0.54,4.82 2.03,3.58 1.96,2.42 1.88,1.46 2.23,0.81 0.28,1.74 -0.69,3.24 -1.55,1.91 -1.62,1.66 -3.08,2.03 -2.3,3.07 -2.77,1.99 -1.81,0.6 -5.24,1.04 -2.13,-0.57 0.7,-1.8 -1.6,-1.61 2.03,-4.03 -0.47,-0.83 -3.9,-2.35 -2,-2.83 -4.68,-2.62 -3.16,-1.25 -1.64,-1.34 -5.12,1.85 -1.85,2.38 -1.77,-0.4 -2.27,-1.98 -1.38,-0.29 -3.17,0.67 -2.97,-0.72 -0.99,0.31 -0.64,0.3 -0.06,1.03 0.89,1.57 -0.52,1.06 -4.09,3.23 -1.66,0.07 -0.05,-2.47 -0.66,-2.55 0.71,-2.93 -0.15,-1.43 -1.66,-1.67 -5.43,-2.79 0,0 0.39,-1.16 -1.23,-2.26 -1.33,-1.04 -1.56,-0.09 -1.65,-2.94 -1.94,-1.36 -0.7,-0.06 -0.44,-0.91 0.25,-0.59 -0.28,0.44 0.8,-0.7 0.96,-3.63 0.58,-0.61 2.95,-0.87 0.84,-3.74 1.74,-1.71 0.84,-1.96 0.35,-1.72 -0.57,-1.45 -1.4,-2.28 -1.23,-0.64 0,-2.84 0.81,-0.98 -0.1,-2.22 0.49,-0.96 1.75,-1.62 0.45,-1.03 1.73,-0.8 0.79,-2.27 0.96,-0.69 0.09,-1.95 0.45,-0.78 2.2,-1.01 2.13,0.4 2.28,-0.38 1.68,0.36 6.64,0.11 3.29,-0.38 1.64,0.34 1.74,2.08 -2.01,2.26 2.1,5.46 0.74,-0.03 3.77,-3.16 1.34,0.12 1.19,1.48 0.81,0.35 2.68,-1.02 1.51,-3.39 0.95,-4.96 0.25,-0.25 1.19,0.51 0.01,-1.63 0.88,-0.52 -0.15,-0.81 -1.18,-1.28 0.61,-4.64 1.24,-1.66 1.52,-0.73 0.37,-0.85 -0.32,-0.84 3.23,-6.89 -0.15,-1.39 0.47,-1.04 1.76,-1.83 2.15,-1.05 1.43,-3.54 -0.43,-0.28 -0.77,-2.48 0.87,-2.89 -2.01,-0.82 -0.4,-0.84 0.18,-1.39 1.41,-1.72 1.56,0.14 0.89,-0.6 z"
- title="Edo"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-ED" />
-<path
- d="m 148.66165,367.10874 0.41,-0.17 0.61,1.67 1.03,0.49 4.48,-1.25 0.95,0.37 1.47,2.06 0.95,0.49 2.33,-0.23 2.3,0.62 1.95,-0.58 1.29,0.55 1.04,-2.16 -0.29,-0.63 0.82,-2.22 4.11,-1.34 5.76,-0.09 0,0 -1.09,0.42 -0.03,4.28 0.55,0.45 2.48,-1.42 3.67,-0.64 2.31,0.27 0.56,0.7 -0.28,1.37 -1.34,0.64 -2.29,3.01 -0.08,1.56 1.32,3.75 1.32,0.96 1.28,0.03 1.85,1.69 6.82,2.39 0,0 -1.52,2.4 -0.82,0.3 -1.5,-1.25 -1.86,0.39 -0.85,2.06 -2.18,1.45 -2.4,2.48 -1.13,2.14 -1.71,8.1 -1.7,3.92 -3.05,4.43 -5.53,3.49 -2.27,-0.59 -1.09,-2.68 0.16,-0.86 -1.04,-3.19 -1.42,-2.22 -1.55,-0.52 -6.97,0.31 -7.78,-0.44 -4.55,1.45 0,0 -0.83,-1.7 -0.84,-3.79 -2.85,-6.11 -0.69,-4.78 1.19,-3.99 -0.81,-2.81 0.12,-1.4 1.9,-4.25 1.62,-1.5 2.18,-0.94 1.99,-1.64 z"
- title="Ekiti"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-EK" />
-<path
- d="m 262.67165,444.90874 2.73,-5.01 0.91,0.25 0.18,2.28 0.74,0.05 1.33,2.01 0.69,0.34 1.24,-0.33 4.97,-5.39 5.98,-3.86 6.18,-7.42 2.44,-0.91 2.14,-2.1 3.31,-0.76 2.44,0.75 1.11,1.62 0,0 -0.13,0.53 2.74,6.51 2.89,3.35 3.58,2.76 2.92,1.52 2.1,-0.73 2.21,-2.11 2.81,0.35 1.52,1.15 1.42,2.14 0.9,5.62 -2.28,6.42 0,0 -1.79,0.36 -6.45,-0.55 1.48,4.9 0.38,3.29 0.65,1.15 -0.01,5.82 -2.74,6.11 -0.02,1.23 1.08,1.07 0.62,2.55 0.99,6.64 -0.8,1.73 -2.67,2.73 0.15,2.64 0.8,2.92 -0.65,1.44 -0.73,-0.07 -2.11,-2.51 -0.77,-0.09 -1.99,-1.7 -3.63,1.01 0,0 -0.33,-1.46 -2.05,-1.34 -2.71,-0.27 -4.83,0.89 -0.6,-0.77 0,0 -0.83,-0.17 0.04,-0.54 -1.12,-0.74 -1.08,-0.09 -1.66,0.96 -2.39,-1.4 -0.76,-0.98 -0.18,-1.51 -1.88,-3.79 0.35,-2.15 -1.33,-0.63 -0.59,-2.58 -0.61,-0.13 -1.89,1.13 -0.72,-0.74 0.5,-1.62 -0.41,-1.37 0.82,-0.29 0.3,-0.96 -1.31,-1.85 -1.34,-3.64 -1.42,-1.8 -3.85,-1.16 -0.39,-0.54 0.43,-2.35 0.62,-0.83 -0.24,-0.96 1.85,-2.48 1.69,-1.14 0.75,-1.08 1.25,-3.45 -0.36,-0.79 -3.73,-1.7 -2.05,-0.08 -2.44,-1.41 -3.83,0.13 -0.09,-3.62 z"
- title="Enugu"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-EN" />
-<path
- d="m 287.74165,288.29874 6.12,-0.63 3.2,0.32 1.52,0.85 1.13,-0.85 1.81,-3.04 1.06,-0.54 1.07,0.43 1.47,3.11 0.94,0.31 1.18,-0.79 0,0 -0.07,2.44 -0.42,0.62 -1.03,0.07 -0.53,0.61 -2.11,6.52 -0.08,5.62 0.51,2.19 -0.55,7 -1.98,5.27 -1.52,7.95 -0.79,0.36 -1.08,3.4 -1.04,1.64 -3.78,4.62 -6.96,3.64 -4.63,1.06 -2.91,1.2 -11.13,1.75 0,0 -1.4,0.46 -7.46,-0.15 0,0 -1.83,0.21 -1.42,-0.47 -1.95,-4.91 0.46,-1.37 -0.75,-30.21 0.36,-13.66 0.34,-0.38 2.68,-0.33 11.03,-0.47 1.76,0.63 9.19,8.1 0.94,-0.24 z"
- title="Federal Capital Territory"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-FC" />
-<path
- d="m 517.00165,163.43874 0.91,-0.88 4.17,-1.51 4.04,0.17 2.98,1.01 2.18,1.29 8.49,6.26 4.75,6.4 3.42,3.58 -1,1.54 1.58,-1.02 3.68,3.38 0.67,4.87 -1.2,11.85 0.77,6.45 0.3,0.51 6.78,-0.01 0,0 1.35,3.3 -0.62,3.02 -5.18,7.56 0.81,2.83 2.43,3.51 1.83,1.82 5.66,2.34 3.13,6.17 1.81,1.6 3.91,2.2 0,0 -0.68,10.23 0.52,3.7 -1.1,2.33 -5.75,4 -9.4,5.66 -3.37,1.43 -6.2,0.91 0,0 -6.37,0.47 -12.46,-0.02 -5.9,0.6 -3.57,-0.71 0,0 0.58,-0.16 0.13,-0.95 -1.69,-2.12 -2.58,-5.28 -0.61,-6.19 -1.23,-3.79 -9.15,-7.09 -2.5,-1.41 -4.29,-4.38 -0.33,-1.62 1.31,-1.91 1.99,-0.92 3.9,-0.63 0.83,-1.76 -0.4,-2.86 0.48,-8.63 -2.08,-4.94 -7.2,-2.62 -0.88,-1.15 -0.87,-7.15 -1.14,-1.71 -7.38,-2.99 0.2,-1.38 3.61,-5.07 2.61,-7.43 0.97,-4.94 1.38,-2.03 1.44,-1.36 3.91,-0.88 1.49,-0.76 2.01,-1.75 2.57,-3.7 6.04,-3.28 2.71,-3.76 z"
- title="Gombe"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-GO" />
-<path
- d="m 283.98165,497.48874 2.01,1.69 5.34,1.78 1.04,1.45 0.47,1.35 0.38,8.47 -1.23,0.77 1.51,2.44 -0.28,2.05 0.36,3.45 -0.43,2.01 -0.89,0.9 -1.18,3.04 -1.82,1.68 -2.1,3.87 -3.09,10.25 0,0 -2.57,0.95 -4.52,-1.13 -2.13,0.04 -4.15,1.06 -4.69,-1.11 -6.72,0.14 -2.14,-0.41 -2.16,-1.65 -1.72,-3.4 -1.84,-1.3 -0.26,-1.37 1.09,-2.76 0.52,-4.63 -0.45,-1.66 -2.12,-0.77 -3.46,0.67 -1.51,-0.44 2.75,-13.09 0,0 2.09,-0.83 3,-3.83 1.62,-0.8 4.51,1.92 2.68,-0.27 2.37,-4.61 0.93,-3.55 1.78,-1.04 6.31,-1.16 5.38,1.25 z"
- title="Imo"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-IM" />
-<path
- d="m 434.10165,67.298745 1.79,1.18 6,0.73 3.14,-1.8 2.1,-3.99 5.32,-2.59 3.16,-0.63 2.82,-1.37 6.33,-1.96 2.21,1.25 2.13,4.78 0.69,4.35 1.46,2.53 1.12,-0.72 5.86,-1.86 4.99,2.22 2.03,-0.61 1.85,0.88 2.21,3.4 1.76,11.53 0.87,2.9 0,0 -11.06,6.93 -0.12,-1.39 -0.83,-1.64 -0.99,-0.82 -3.48,0.55 -4.54,1.95 -6.71,20.589995 0.57,1.88 0.03,2.25 -1.19,0.94 -6.23,2.51 -10.94,3.73 -5.47,3.04 -6.16,0.46 -3.22,4.54 -0.49,4.26 1.35,0.63 2.61,-0.04 2.12,-1.03 2.75,-0.27 1.81,0.5 1.46,4.42 0.52,4.32 -2.51,5 0.55,1.74 1.18,1.11 3.84,-0.94 0.47,2.57 1.05,2.5 5.3,7.42 2.99,1.85 6.39,0.77 5.72,1.27 8.87,0.56 1.04,1.46 -1.1,2.72 -1.85,1.39 -1.44,0.78 -4.04,0.99 -2.53,1.36 -1.53,1.91 -0.04,1.8 1.11,3.43 -1.86,0.57 -2.46,-0.62 -1.86,-1.36 -1.56,-0.17 -5.6,1.39 -5.7,-1.19 -1.35,-1.36 -0.81,-2.05 0.83,-7.85 -0.54,-2.15 -2.67,-4.9 -1.14,-0.3 -3.57,0.91 -7.7,0.48 -3.13,-0.21 -1.78,-3.67 -2.3,-0.73 -3.35,1.46 -7.43,-2.41 -6,-1.1 -1,0.19 0,0 -0.08,-2.24 1.08,-3.72 7.12,-6.88 -0.89,-1.15 -2.09,-0.53 -2.83,-2.64 -1.48,-2.75 -0.5,-2 -1.09,-0.99 -5.06,0.15 -0.2,-1.96 0.5,-2.09 3.36,-4.69 0.19,-2.05 1.06,-1.84 -0.19,-2.46 -2.28,-7.18 -1.25,0.53 -1.47,1.75 -2.32,1.42 -1.82,0.18 -1.37,-0.25 -0.01,-2.57 -0.57,-1.44 -3.14,0.25 -1.9,1.19 0,-1.03 -1.65,-0.72 0.53,-1.72 1.18,-1.39 0.08,-5.61 -0.8,-2.94 -0.92,-0.81 -1.85,-0.56 -5.44,-0.56 -0.83,-0.42 -1.02,-1.389995 0.57,-2.01 -1.1,-3.08 -3.81,-2.12 -1.13,-1.38 -0.45,-5.92 -7.78,-2.02 -3.77,0.35 -3.99,1.93 -1.73,1.35 -0.62,2.6 -1.87,3.61 -1.07,-1.12 -0.1,-1.96 -3.51,-6.28 0,0 -1.24,-2.62 -0.83,-0.7 -4.94,-0.12 -2.86,-0.93 -0.59,-0.72 -0.07,-3.85 0.75,-3.4 -0.02,-2.69 0.46,-0.3 10.39,-1.38 5.37,0.99 9.22,-0.78 1.17,1.23 1.41,4.68 0.68,0.94 2.66,1.67 1.99,0.52 2.62,-1.51 0.64,1.56 1.49,0.7 3.68,-0.55 4.18,-1.74 3.19,-2.58 1.03,-2.63 0.58,-0.75 2,-0.88 0.01,-0.86 0,0 1.27,-0.39 10.06,0.44 9.02,1.42 5.24,-0.75 6.06,0.78 10.03,0.45 z"
- title="Jigawa"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-JI" />
-<path
- d="m 316.55165,159.39874 3.09,0.02 2.44,-0.67 4.18,-3.83 4.8,-2.84 1.65,0 4.08,-1.24 1.22,0.19 1.13,0.82 0.32,1.25 -2.11,4.02 0.53,2.57 1.04,1.18 3.53,1.83 3.75,1.23 3.51,4.13 1.53,0.55 2.78,-0.03 2.45,0.59 5.38,4.43 3.59,6.42 0.38,3.88 -1.01,2.44 -1.01,4.91 1.2,6.05 -0.2,1.73 -0.72,1.1 -3.55,0.96 -0.55,0.79 0.6,2.08 1.06,1.07 7.02,0.97 1.98,2.75 1.6,1.05 3,0.64 1.05,-0.29 0,0 -0.53,3.96 -2.35,4.2 0.27,0.73 2.79,1.75 2.53,2.71 0,0 -0.37,0.29 -0.21,2.9 -0.55,1.43 -1.32,1.56 -2.19,0.73 -1.9,1.4 -2.13,4.97 -0.22,2.71 1.36,2.82 0.75,3.52 -2.39,1.97 -0.34,1.1 0.18,1.97 -0.7,7.81 0.53,2.1 -0.42,1.07 -1.91,1.55 -0.4,3.08 -1.76,1.28 0.21,4.74 -1.05,1.4 0.1,1.16 3.26,5.28 2.57,3.08 1.71,1.21 1,2.09 0.12,3.41 -1.67,3.94 0,0 -1.09,0.57 -2.65,5.61 -3.31,5.4 -0.82,0.72 -1.61,0.42 -2.47,-0.13 -0.6,-1.9 -5.34,-5.91 -3.81,-0.24 -1.5,-1.25 -1.33,-0.22 -1.29,0.98 -0.89,1.9 -4.16,4.75 -2.35,1.6 -1.15,0.21 -1.34,-0.96 -0.4,-1.31 0.05,-9.7 -1.03,-1.61 -4.22,-2.44 -0.32,-3.25 -2.93,-2.67 -1.1,-0.39 -1.01,0.35 -1.65,2.12 -0.94,2.54 -2.31,2.1 -1.1,0 -1.75,-1.06 -1.34,0.25 -2.44,-1.79 -0.93,-0.14 -1.5,0.61 -0.7,-0.79 -0.6,-1.88 -0.75,-0.11 -1.34,1.02 0,0 -1.18,0.79 -0.94,-0.31 -1.47,-3.11 -1.07,-0.43 -1.06,0.54 -1.81,3.04 -1.13,0.85 -1.52,-0.85 -3.2,-0.32 -6.12,0.63 0,0 -1.23,-0.42 -2.46,0.6 1.38,-4.13 -3.39,-2.78 0.09,-2.32 0.56,-0.93 2.45,-1.29 0.79,-0.87 0.6,-2.79 3.09,-3.17 -0.58,-1.88 -3,-1.62 0.83,-3.02 -3.62,-1.36 -1.13,-0.77 -0.17,-0.91 0.29,-0.64 0.88,-0.42 3.23,-0.41 0.63,-1.51 -0.1,-3.09 -0.92,-3.88 -0.16,-5.06 -0.33,-1.01 -1.37,-0.67 -12.87,0.08 -6.67,-2.49 -1.71,-1.66 -1.03,-1.98 0.91,-1.24 2.17,-1.36 1.62,-1.68 0.85,-1.48 4.24,-2.6 1.02,-1.79 0.31,-1.98 -3.23,-1.75 -4.83,-1.66 1.35,-4.14 0.05,-2.57 -1.98,-3.8 -1.61,-0.44 -2.25,0.67 -1.39,-0.14 -0.28,-4.5 -0.48,-1.92 -0.61,-0.51 -4.73,-0.5 -1.18,1.2 0.67,2.39 -0.64,0.98 -3.97,-0.56 -7.63,2.86 -1.04,-2.66 -1.02,-1 -2.91,0.13 -2.1,0.61 -2.46,1.5 -5.59,4.5 -5.38,7.01 -1.41,0.89 -1.43,-0.6 -1.22,-3.52 -3.05,-2 -0.22,-1.37 0.33,-2.31 1.84,-1.8 -0.24,-3.81 0.74,-2 -0.14,-1.48 -1.44,-2.38 0.4,-4.79 3.04,-5.38 0,0 1.68,-0.12 1.28,-0.76 2.86,-4.16 5.27,-4.71 5.64,-0.95 7.94,0.57 4.71,-0.62 2.33,-1.51 3.04,-3.1 1.51,-3.23 0.64,-3.55 1.71,-3.41 0.85,-1.14 2.75,-1.77 2.34,-2.38 1.01,0.03 0,0 4.41,0.88 1.94,-0.18 1.36,0.9 0.79,1.74 -0.23,1.07 -2.89,2.69 -0.39,1.32 6.35,1.93 4.25,4.29 1.75,0.23 2.69,-1.52 1.38,-1.91 -1.81,-3.36 -0.12,-2.04 3.45,-1.09 1.95,0.11 2.77,1.1 1.4,-0.09 0.58,-0.54 -0.01,-1.39 1.2,-2.97 3.06,-2.59 1.39,-0.28 6.78,2.29 2.05,1.73 0.97,1.58 1.57,0.78 5.62,-2.24 0.84,-2.05 z"
- title="Kaduna"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-KD" />
-<path
- d="m 90.771651,42.718745 6.62,-0.14 1.86,0.74 4.629999,-1.58 0.76,0.31 1.65,2.12 3.19,1.82 1.06,1.1 9.56,3.12 2.95,2.07 3.06,0.68 1.82,-0.43 0.63,-0.56 2.49,-3.69 1.16,-0.31 1.08,0.88 0.4,1.25 -1.62,3.93 0.09,2.4 -1.42,2.98 -0.42,3.7 1.86,2.15 1.8,4.28 -0.18,3.32 -1.3,6.06 0.04,2.04 1.68,5.52 -0.24,8.02 -0.64,1.56 -1.02,0.04 -3.17,-2.04 -2.68,0.02 -3.95,1.18 -1.28,1.48 -1.01,3.779995 -0.14,9.94 0.79,13.05 -2.12,9.79 -2.61,5.63 -1.16,4.77 2.55,3.65 0.76,0.51 2.78,0.29 1.71,-1.35 2.4,-3 12,-5.45 1.69,-0.12 1.89,0.86 2.04,-0.72 0.77,1.75 0.94,0.07 1.62,-0.97 0,0 0.86,-0.48 1.82,0 4.11,2.25 6.34,-1.46 0.82,-2.32 1.06,-0.62 0.79,-0.15 0.91,0.64 2.09,0.31 3.61,-0.65 1.08,0.57 1.69,3.3 2.87,0.11 3.65,2.41 5.47,-0.76 3.79,0.5 2.49,-0.59 1.22,-0.81 4.85,0.62 4.35,1.77 1.41,2.15 -0.01,2.47 -2.05,6.49 0,1.2 5.38,2.71 1.93,3.01 1.38,7.58 0.21,5.48 0,0 -1.36,-1.1 -1.85,-0.36 -3.42,2.76 -1.28,2.2 -3.93,0.41 -12.1,5.08 -10.67,0.69 -1.64,-1.25 -0.36,-4.02 0.37,-4.81 -0.48,-1.78 -3.75,-2.47 -0.81,-1.26 -0.98,-6.51 -1.69,-1.6 -2.84,-0.71 -3.64,-0.04 -9.86,1.59 -7.87,1.83 -4.43,1.62 -4.85,2.59 -1.37,2.07 0.16,1.54 0.87,1.26 3.63,2.01 5.4,2.19 5.36,0.53 1.05,2.01 1.71,-0.03 0.78,0.74 1.12,6.56 -0.25,1.07 -2.18,1.45 -0.63,1.47 0.49,1.45 2.74,1.63 1.17,1.36 -0.07,2.07 -1.01,1.49 -3.8,0.97 -5.22,2.64 -5,-0.52 -1.55,0.42 -0.9,0.75 -0.04,9.59 -0.45,1.37 1.25,2.83 1.81,1.97 1.86,3.03 0.75,2.44 -0.28,1.53 -1.77,2.13 -2.64,1.57 -3.38,0.26 -7.42,2.5 -0.5,5.85 -0.56,0.48 -4.32,-0.46 -1.42,-0.99 -0.02,-2.28 1.03,-3.28 0.29,-3.94 -2.93,-2.66 -1.12,-2.41 0.18,-6.32 1.46,-3.26 1.84,-2 1.48,-1.01 3.92,-1.44 4.62,-4.43 2.43,-10.71 0.2,-4.05 -0.51,-0.74 -2.89,-1.06 -1.58,0.1 -8.4,-5.7 -5.24,-1.69 -2.94,0.07 -4.5,0.85 -6.189999,-0.36 -12.17,0.81 -1.86,-0.29 -3.49,-1.42 -11.04,-6.08 -2.89,-0.36 -0.89,0.52 0,0 -1.29,-0.01 -12.13,-10.28 4.33,-20.39 2.12,-4.71 4.89,-4.18 -0.82,-3.26 -2.42,-1.82 -0.57,-4.87 3.17,-3.84 -2.36,-8.76 0.39,-5.22 1.27,-4.3 -0.93,-15.849995 10.82,-9.33 7.73,-6.05 9.53,-14.62 2.08,-9.63 z"
- title="Kebbi"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-KE" />
-<path
- d="m 347.91165,83.288745 3.51,6.28 0.1,1.96 1.07,1.12 1.87,-3.61 0.62,-2.6 1.73,-1.35 3.99,-1.93 3.77,-0.35 7.78,2.02 0.45,5.92 1.13,1.38 3.81,2.12 1.1,3.08 -0.57,2.01 1.02,1.389995 0.83,0.42 5.44,0.56 1.85,0.56 0.92,0.81 0.8,2.94 -0.08,5.61 -1.18,1.39 -0.53,1.72 1.65,0.72 0,1.03 1.9,-1.19 3.14,-0.25 0.57,1.44 0.01,2.57 1.37,0.25 1.82,-0.18 2.32,-1.42 1.47,-1.75 1.25,-0.53 2.28,7.18 0.19,2.46 -1.06,1.84 -0.19,2.05 -3.36,4.69 -0.5,2.09 0.2,1.96 5.06,-0.15 1.09,0.99 0.5,2 1.48,2.75 2.83,2.64 2.09,0.53 0.89,1.15 -7.12,6.88 -1.08,3.72 0.08,2.24 0,0 -5.52,2.17 -1.14,-0.09 -1.14,-1.07 -1.69,0.3 -2.48,1.57 -0.67,1.1 -4.74,4.17 -2.65,4.11 -2.74,3.21 -2.04,0.51 -2.7,-0.16 -1.02,0.43 -1.6,4.57 -0.45,3.5 0.4,6.89 0.45,1.99 3.86,4.33 0.77,1.67 0.08,2 -1.33,3.85 -2.59,4.09 -0.99,0.56 0,0 -1.05,0.29 -3,-0.64 -1.6,-1.05 -1.98,-2.75 -7.02,-0.97 -1.06,-1.07 -0.6,-2.08 0.55,-0.79 3.55,-0.96 0.72,-1.1 0.2,-1.73 -1.2,-6.05 1.01,-4.91 1.01,-2.44 -0.38,-3.88 -3.59,-6.42 -5.38,-4.43 -2.45,-0.59 -2.78,0.03 -1.53,-0.55 -3.51,-4.13 -3.75,-1.23 -3.53,-1.83 -1.04,-1.18 -0.53,-2.57 2.11,-4.02 -0.32,-1.25 -1.13,-0.82 -1.22,-0.19 -4.08,1.24 -1.65,0 -4.8,2.84 -4.18,3.83 -2.44,0.67 -3.09,-0.02 0,0 -3.6,-2.68 -1.11,-2.26 -0.78,-3.61 1.52,-2.67 0.07,-2.21 1.82,-1.63 3.75,-1.03 2.45,-1.7 2.71,-0.07 0.95,-0.58 -3.14,-7.8 0.67,-4.06 -2.09,-4.58 0.86,-6.33 -0.7,-12.32 0.27,-2.89 2.18,-2.28 4.25,-2.369995 7.64,-2.38 3.68,-1.93 0.78,-0.85 1.13,-4.39 2.14,-4.61 1.28,-0.52 z"
- title="Kano"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-KN" />
-<path
- d="m 219.65165,323.91874 2.2,0.57 2.77,1.58 3.52,3.25 2.77,4.32 2.55,8.25 3.71,2.3 2.71,2.69 5.47,7.27 2.72,2.54 1.63,0.25 0.33,-0.35 0.62,-2.89 1.24,-2.53 0.19,-0.26 0.99,0.88 0.46,-0.09 0.06,-2.97 3.57,-1.74 1.12,-3.25 0,0 7.46,0.15 1.4,-0.46 0,0 -0.6,2.64 -1.55,2.66 0,0.86 0.82,1.69 2.19,2.66 0.54,6.17 -1.17,4.71 -0.04,4.69 -1.61,1.67 -0.85,2.12 -0.17,3.74 0.69,0.56 4.26,-2.95 9.26,-4.07 12.4,-3.37 7.07,-0.7 3.58,0.68 7.7,0.57 0,0 -0.32,2.84 0.54,5.87 1.88,3.22 2.7,2.61 0.73,1.85 0.01,6.9 0.57,6.81 1.24,5.53 1.27,1.05 3.31,-0.32 1.48,0.47 -0.36,1.81 -1.23,1.21 -0.47,1.29 -0.42,3.93 -1.94,5.83 -3.3,3.11 -6.44,3.12 -0.96,1.44 -0.34,4.42 -1.76,0 -1.35,-1.05 -0.82,0.1 -3.37,-3.29 -0.84,-0.58 -0.41,0.5 0,0 -1.11,-1.62 -2.44,-0.75 -3.31,0.76 -2.14,2.1 -2.44,0.91 -6.18,7.42 -5.98,3.86 -4.97,5.39 -1.24,0.33 -0.69,-0.34 -1.33,-2.01 -0.74,-0.05 -0.18,-2.28 -0.91,-0.25 -2.73,5.01 0,0 0,0 0,0 -1.34,1.87 -1.54,0.86 -2.24,2.31 -1.24,4.12 -0.06,2.73 -1.84,2.51 -1.43,0.89 -3.59,-0.66 -1.67,0.77 0,0 -1.03,-6.03 -1.41,-2.01 -0.89,-2.6 0.93,-5.52 -1.28,-2.15 2.16,-3.55 1.91,-4.82 -0.06,-4.16 1.62,-3.94 0.31,-1.92 -0.15,-3.41 -0.79,-2.01 -1.45,-1.08 -0.55,-2.12 -1.75,-1.41 -1.87,0.41 -1.46,0.99 -0.43,-0.38 -3.75,0.84 -0.66,-1.63 0.24,-0.51 -0.74,-0.56 -0.48,-1.74 -0.85,-0.61 -0.07,-1.22 -1.06,-2.01 -2.56,-0.15 -0.74,0.51 -2.26,0.19 -1.96,-2.23 -0.55,0.06 -1.26,-1.41 -0.65,0.07 -1.56,-2.1 -5.94,2.93 -2.13,-0.53 -1.08,-0.78 -0.28,-1.05 0.23,-1.93 0.96,-1.85 -0.27,-0.8 -2.18,0.25 -0.46,-0.65 0.38,-0.89 -0.28,-0.68 -0.7,-0.36 -1.75,0.37 -0.77,-0.64 0,0 -0.23,-0.78 -4.74,-4.17 -2.04,-2.7 0.71,-4.14 -2.51,-0.43 -4.62,0.88 0,0 -6.82,-2.39 -1.85,-1.69 -1.28,-0.03 -1.32,-0.96 -1.32,-3.75 0.08,-1.56 2.29,-3.01 1.34,-0.64 0.28,-1.37 -0.56,-0.7 -2.31,-0.27 -3.67,0.64 -2.48,1.42 -0.55,-0.45 0.03,-4.28 1.09,-0.42 0,0 0.75,-1.44 -0.82,-2.41 -4.76,-2.58 -0.13,-0.59 -2.42,-1.81 -0.07,-0.67 -2.41,-2.45 -1.92,-3.7 0.17,-0.99 2.14,-2.43 2.29,-3.91 3.71,-4.04 3.6,-2.29 1.77,2.62 2.17,1.76 7.04,3.01 1.84,0.08 2.76,1.08 3.71,-0.21 2.13,0.69 3.92,-0.12 6.3,1.52 3.03,-0.5 1.57,-3.76 0.64,-6.49 2.31,-7.79 z"
- title="Kogi"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-KO" />
-<path
- d="m 322.66165,35.138745 9.16,1.35 5.19,1.38 3.58,1.94 2.92,2.5 2.73,0.73 9.89,9.64 3.29,-0.88 2.92,0.38 3.03,1.55 2.29,1.75 1.85,2.11 1.04,2.44 2.96,1.37 5.26,1.27 12.11,3.92 0,0 -0.01,0.86 -2,0.88 -0.58,0.75 -1.03,2.63 -3.19,2.58 -4.18,1.74 -3.68,0.55 -1.49,-0.7 -0.64,-1.56 -2.62,1.51 -1.99,-0.52 -2.66,-1.67 -0.68,-0.94 -1.41,-4.68 -1.17,-1.23 -9.22,0.78 -5.37,-0.99 -10.39,1.38 -0.46,0.3 0.02,2.69 -0.75,3.4 0.07,3.85 0.59,0.72 2.86,0.93 4.94,0.12 0.83,0.7 1.24,2.62 0,0 -4.63,0.36 -1.28,0.52 -2.14,4.61 -1.13,4.39 -0.78,0.85 -3.68,1.93 -7.64,2.38 -4.25,2.369995 -2.18,2.28 -0.27,2.89 0.7,12.32 -0.86,6.33 2.09,4.58 -0.67,4.06 3.14,7.8 -0.95,0.58 -2.71,0.07 -2.45,1.7 -3.75,1.03 -1.82,1.63 -0.07,2.21 -1.52,2.67 0.78,3.61 1.11,2.26 3.6,2.68 0,0 -0.99,1.1 -0.84,2.05 -5.62,2.24 -1.57,-0.78 -0.97,-1.58 -2.05,-1.73 -6.78,-2.29 -1.39,0.28 -3.06,2.59 -1.2,2.97 0.01,1.39 -0.58,0.54 -1.4,0.09 -2.77,-1.1 -1.95,-0.11 -3.45,1.09 0.12,2.04 1.81,3.36 -1.38,1.91 -2.69,1.52 -1.75,-0.23 -4.25,-4.29 -6.35,-1.93 0.39,-1.32 2.89,-2.69 0.23,-1.07 -0.79,-1.74 -1.36,-0.9 -1.94,0.18 -4.41,-0.88 0,0 0.02,-2.33 1.25,-6.1 -0.9,-3.69 -1.91,-1.9 -0.16,-1.07 0.45,-3.76 1.56,-4.14 0.65,-4 1.5,-0.84 6.61,-0.13 1.28,0.87 4.88,-3.97 0.55,-3.2 3.34,0.81 1.89,-1.62 -0.5,-1.95 -1.16,-1.43 -2.68,-2.29 -2.53,-1.16 -1.26,-1.21 1.82,-3.63 1.09,-5.16 -0.95,-2.47 0.13,-1.68 -0.69,-3.05 -2.5,-5.199995 0.4,-3.57 -1.31,-3.21 -0.39,-4.75 -1,-5.17 0.07,-6.05 -0.99,-6.17 1.44,-10.82 0,0 4.86,-1.57 5.28,-5.36 8.7,0.78 3.58,-0.74 23.4,-14.15 1.28,-0.33 z"
- title="Katsina"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-KT" />
-<path
- d="m 62.361651,236.35874 5.38,-0.92 11.32,-0.35 3.62,0.93 13.98,15.86 1.99,3.1 5.609999,6.48 2.29,1.58 1.7,-0.18 1.04,0.48 0.27,2.94 -0.73,4.65 0.06,5.38 0.88,3.68 1.3,0.39 7.57,-0.79 0.84,0.74 0.43,1.62 -0.19,3.43 0.35,1.4 0.66,1.02 3.21,2.41 3.04,0.39 1.07,0.55 0.9,2.11 0.74,5.45 1.89,1.32 2,-0.01 9.16,-3.56 2.41,-0.16 6.35,3.01 1.42,1.1 6.35,7.23 2.25,0.69 3.96,-1.16 4.52,0.81 3.73,1.61 0.64,-0.27 11.77,7.32 5.19,3.67 0.93,1.49 1.46,0.71 1.84,0.6 4.92,0.32 3.39,-0.91 7.52,-0.31 8.26,1.71 0,0 -2.46,3.35 -2.31,7.79 -0.64,6.49 -1.57,3.76 -3.03,0.5 -6.3,-1.52 -3.92,0.12 -2.13,-0.69 -3.71,0.21 -2.76,-1.08 -1.84,-0.08 -7.04,-3.01 -2.17,-1.76 -1.77,-2.62 -3.6,2.29 -3.71,4.04 -2.29,3.91 -2.14,2.43 -0.17,0.99 1.92,3.7 2.41,2.45 0.07,0.67 2.42,1.81 0.13,0.59 4.76,2.58 0.82,2.41 -0.75,1.44 0,0 -5.76,0.09 -4.11,1.34 -0.82,2.22 0.29,0.63 -1.04,2.16 -1.29,-0.55 -1.95,0.58 -2.3,-0.62 -2.33,0.23 -0.95,-0.49 -1.47,-2.06 -0.95,-0.37 -4.48,1.25 -1.03,-0.49 -0.61,-1.67 -0.41,0.17 0,0 -0.39,-0.54 -1.67,0.8 -3.49,0.13 -1.48,-3.17 -2.18,-0.58 -4.74,1.7 -2.65,-0.38 0.08,0.88 -0.18,-0.85 -0.36,0.09 -3.55,1.61 -2.6,0.31 -8.27,-0.22 0,0 -0.49,-0.66 -1.45,-0.07 -0.71,-0.94 -1.9,-4.81 -0.39,-2.77 -0.78,-0.66 -0.03,-0.8 -3.46,-2.25 -2.95,-4.24 -1.22,-3.44 -0.09,-2.1 -0.79,-2.77 -1.97,-2.63 -2.999999,-7.11 -1.66,-1.91 -1.32,-5.29 -0.81,-1.58 1.03,-4.5 2.08,-1.55 0.35,-1.6 0.57,-0.59 3.159999,-2.09 2.34,-3.16 -0.16,-1.3 -1.31,-0.78 -2.829999,1.8 -2.21,0.08 -3.83,-1.08 -1.1,0.13 -2.4,-1.54 -5.7,-1.74 -3.25,-2.42 -1.69,-2.04 -0.54,-2.48 -4.08,-2.46 -2.04,0.09 -3.82,2.08 -1.69,3.71 -0.02,2.65 -0.45,1.11 -4.42,3.43 -6.64,2.92 -5.79,3.3 -2.49,1.94 -1.13,0.26 -3.01,2.21 -7,3.26 -0.93,0.15 -0.53,-0.75 -0.45,0.11 -0.91,-1.13 -0.69,-0.19 -2.57,0.27 -6.93,5.53 -1.66,0.66 -3.91,3.44 -0.19,0.99 -1.5,0.79 -4.08,0.72 -3.17,0.02 -3.19,2.78 0,0 0.56,-1.78 -0.59,-1.36 -0.01,-3.54 -0.71,-0.9 0.24,-1.44 0.55,-1.39 -0.39,-2.71 -0.97,-1.79 0.74,-1.4 1.43,-0.91 -0.4,-3.34 0.69,-0.23 0.34,-1.72 -0.2,-0.62 0.02,-0.88 0.69,-1.64 0.43,-1.56 -0.41,-0.76 -0.27,-0.77 -0.35,-0.78 0.13,-1.17 0.25,-1.73 0.16,-0.69 5.37,0.18 0.71,-0.16 1.05,-1.18 3.55,-0.56 0.66,0.82 1.24,0.45 1.49,-0.1 4.95,-1.73 0.25,-1.76 1.95,-3.88 0.17,-3.74 1.91,-1.88 -0.34,-5.82 -1.28,-4.01 0.31,-1.42 1.16,-1.88 2.47,-1.38 0.82,-1.83 2.59,-3.62 0.85,-3.1 1.04,-0.59 2.14,0.25 2.09,-1.73 0.1,-1.22 -1.34,-2.56 -0.32,-1.93 0.37,-1.34 1.11,-1.22 6.75,-2.7 3.39,0.24 1.14,-0.3 2.02,-2.06 0.12,-1.3 2.36,-2.59 0.57,-2.41 0.25,-4.97 0.85,-1.1 2.08,-0.86 z"
- title="Kwara"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-KW" />
-<path
- d="m 3.411651,463.64874 1.25,0.4 3.41,-0.43 1.94,0.89 3.46,-2.44 0,-1.61 0.41,-0.11 3.55,0.53 13.71,-0.19 1.06,-1.01 0.77,-3.95 2.08,-1.65 0.09,-2.35 1.36,-2.51 1.85,0.25 3.41,1.43 1.2,0.8 0.81,1.43 4.57,-0.48 -0.51,-1.45 1.59,-1.06 37.58,0.39 1.07,0.21 0.54,0.9 -2.73,2.88 -0.23,0.94 0.73,1.24 0.04,1.46 2.19,1.09 3.22,-2.16 3.45,-0.41 1.06,1.48 0.12,0.95 -1.12,1.06 -2.8,1.31 -0.56,1.03 0.22,0.7 0.92,0.74 2.77,0.77 1.13,1.31 0.58,0.14 1.12,-0.58 5.269999,0.65 0.35,1.25 -0.36,2.36 0,0 -9.529999,-1.15 -2.19,-0.67 -12.02,-1.84 -8.59,-0.46 -9.91,0.94 -15.11,0.16 -0.57,0.31 -0.19,1.32 -0.53,-0.1 0.24,0.34 -5.42,-0.82 -6.02,0.01 -21.6,0.73 -9.49,1.1 -0.36,-3.11 z"
- title="Lagos"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-LA" />
-<path
- d="m 307.24165,287.46874 1.34,-1.02 0.75,0.11 0.6,1.88 0.7,0.79 1.5,-0.61 0.93,0.14 2.44,1.79 1.34,-0.25 1.75,1.06 1.1,0 2.31,-2.1 0.94,-2.54 1.65,-2.12 1.01,-0.35 1.1,0.39 2.93,2.67 0.32,3.25 4.22,2.44 1.03,1.61 -0.05,9.7 0.4,1.31 1.34,0.96 1.15,-0.21 2.35,-1.6 4.16,-4.75 0.89,-1.9 1.29,-0.98 1.33,0.22 1.5,1.25 3.81,0.24 5.34,5.91 0.6,1.9 2.47,0.13 1.61,-0.42 0.82,-0.72 3.31,-5.4 2.65,-5.61 1.09,-0.57 0,0 1.69,1.65 2.42,0.11 2.08,0.85 0.63,4.48 1.93,3.41 2.16,0.98 5.32,0.56 3.7,0 2.77,-1.35 1.04,0.56 2.01,2.21 -0.79,2.93 -2.7,4.01 -2.11,1.98 -1.41,0.2 -1.46,1.05 -1.55,2.86 -1.55,1.36 -0.32,2.25 0.64,1.72 2.09,2.43 0.32,1.24 -0.3,5.41 1.44,2.07 5.15,2.71 3.66,1.3 8.19,-0.15 9.76,-2.79 10.36,4.33 2.52,2.07 1.46,2.68 0,0 -2.58,3.68 -2.74,0.82 -4.51,-0.95 -0.33,-0.41 -1.52,0.23 -1,-1.07 -1.73,-0.9 -1.86,0 -1.28,0.86 -1.33,2.14 -0.73,2.86 1.71,1.36 2.03,2.51 0.35,2.88 -0.54,0.65 1,2.68 -0.11,1.19 -11.23,7.21 -1.21,1.39 0,0 -11.79,-8.93 -0.01,0.7 -3.96,0.22 -4.88,-0.41 -6.86,-1.55 -10.09,-3.72 -2.68,-0.44 -2.59,0.18 -1.38,0.28 -3.95,2.2 -1.24,1.41 -1.02,2.86 0.08,2.52 4.7,11.64 -0.09,1.36 -1.14,1.1 -5.33,-2.23 -3.32,-2.8 -1.07,0.14 -5.25,-0.99 -4.92,-2.82 -8.71,-3.55 -8.51,-1.25 -9.13,-2.48 0,0 -7.7,-0.57 -3.58,-0.68 -7.07,0.7 -12.4,3.37 -9.26,4.07 -4.26,2.95 -0.69,-0.56 0.17,-3.74 0.85,-2.12 1.61,-1.67 0.04,-4.69 1.17,-4.71 -0.54,-6.17 -2.19,-2.66 -0.82,-1.69 0,-0.86 1.55,-2.66 0.6,-2.64 0,0 11.13,-1.75 2.91,-1.2 4.63,-1.06 6.96,-3.64 3.78,-4.62 1.04,-1.64 1.08,-3.4 0.79,-0.36 1.52,-7.95 1.98,-5.27 0.55,-7 -0.51,-2.19 0.08,-5.62 2.11,-6.52 0.53,-0.61 1.03,-0.07 0.42,-0.62 z"
- title="Nassarawa"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-NA" />
-<path
- d="m 65.001651,173.89874 0.89,-0.52 2.89,0.36 11.04,6.08 3.49,1.42 1.86,0.29 12.17,-0.81 6.189999,0.36 4.5,-0.85 2.94,-0.07 5.24,1.69 8.4,5.7 1.58,-0.1 2.89,1.06 0.51,0.74 -0.2,4.05 -2.43,10.71 -4.62,4.43 -3.92,1.44 -1.48,1.01 -1.84,2 -1.46,3.26 -0.18,6.32 1.12,2.41 2.93,2.66 -0.29,3.94 -1.03,3.28 0.02,2.28 1.42,0.99 4.32,0.46 0.56,-0.48 0.5,-5.85 7.42,-2.5 3.38,-0.26 2.64,-1.57 1.77,-2.13 0.28,-1.53 -0.75,-2.44 -1.86,-3.03 -1.81,-1.97 -1.25,-2.83 0.45,-1.37 0.04,-9.59 0.9,-0.75 1.55,-0.42 5,0.52 5.22,-2.64 3.8,-0.97 1.01,-1.49 0.07,-2.07 -1.17,-1.36 -2.74,-1.63 -0.49,-1.45 0.63,-1.47 2.18,-1.45 0.25,-1.07 -1.12,-6.56 -0.78,-0.74 -1.71,0.03 -1.05,-2.01 -5.36,-0.53 -5.4,-2.19 -3.63,-2.01 -0.87,-1.26 -0.16,-1.54 1.37,-2.07 4.85,-2.59 4.43,-1.62 7.87,-1.83 9.86,-1.59 3.64,0.04 2.84,0.71 1.69,1.6 0.98,6.51 0.81,1.26 3.75,2.47 0.48,1.78 -0.37,4.81 0.36,4.02 1.64,1.25 10.67,-0.69 12.1,-5.08 3.93,-0.41 1.28,-2.2 3.42,-2.76 1.85,0.36 1.36,1.1 0,0 3.32,4.4 3.8,6.64 1.59,4.09 -0.07,0.84 0,0 -3.04,5.38 -0.4,4.79 1.44,2.38 0.14,1.48 -0.74,2 0.24,3.81 -1.84,1.8 -0.33,2.31 0.22,1.37 3.05,2 1.22,3.52 1.43,0.6 1.41,-0.89 5.38,-7.01 5.59,-4.5 2.46,-1.5 2.1,-0.61 2.91,-0.13 1.02,1 1.04,2.66 7.63,-2.86 3.97,0.56 0.64,-0.98 -0.67,-2.39 1.18,-1.2 4.73,0.5 0.61,0.51 0.48,1.92 0.28,4.5 1.39,0.14 2.25,-0.67 1.61,0.44 1.98,3.8 -0.05,2.57 -1.35,4.14 4.83,1.66 3.23,1.75 -0.31,1.98 -1.02,1.79 -4.24,2.6 -0.85,1.48 -1.62,1.68 -2.17,1.36 -0.91,1.24 1.03,1.98 1.71,1.66 6.67,2.49 12.87,-0.08 1.37,0.67 0.33,1.01 0.16,5.06 0.92,3.88 0.1,3.09 -0.63,1.51 -3.23,0.41 -0.88,0.42 -0.29,0.64 0.17,0.91 1.13,0.77 3.62,1.36 -0.83,3.02 3,1.62 0.58,1.88 -3.09,3.17 -0.6,2.79 -0.79,0.87 -2.45,1.29 -0.56,0.93 -0.09,2.32 3.39,2.78 -1.38,4.13 2.46,-0.6 1.23,0.42 0,0 -8.65,12.34 -0.94,0.24 -9.19,-8.1 -1.76,-0.63 -11.03,0.47 -2.68,0.33 -0.34,0.38 -0.36,13.66 0.75,30.21 -0.46,1.37 1.95,4.91 1.42,0.47 1.83,-0.21 0,0 -1.12,3.25 -3.57,1.74 -0.06,2.97 -0.46,0.09 -0.99,-0.88 -0.19,0.26 -1.24,2.53 -0.62,2.89 -0.33,0.35 -1.63,-0.25 -2.72,-2.54 -5.47,-7.27 -2.71,-2.69 -3.71,-2.3 -2.55,-8.25 -2.77,-4.32 -3.52,-3.25 -2.77,-1.58 -2.2,-0.57 0,0 -8.26,-1.71 -7.52,0.31 -3.39,0.91 -4.92,-0.32 -1.84,-0.6 -1.46,-0.71 -0.93,-1.49 -5.19,-3.67 -11.77,-7.32 -0.64,0.27 -3.73,-1.61 -4.52,-0.81 -3.96,1.16 -2.25,-0.69 -6.35,-7.23 -1.42,-1.1 -6.35,-3.01 -2.41,0.16 -9.16,3.56 -2,0.01 -1.89,-1.32 -0.74,-5.45 -0.9,-2.11 -1.07,-0.55 -3.04,-0.39 -3.21,-2.41 -0.66,-1.02 -0.35,-1.4 0.19,-3.43 -0.43,-1.62 -0.84,-0.74 -7.57,0.79 -1.3,-0.39 -0.88,-3.68 -0.06,-5.38 0.73,-4.65 -0.27,-2.94 -1.04,-0.48 -1.7,0.18 -2.29,-1.58 -5.609999,-6.48 -1.99,-3.1 -13.98,-15.86 -3.62,-0.93 -11.32,0.35 -5.38,0.92 0,0 0.49,-3.02 -1.96,-0.7 -2.1,-2.02 -1.75,-3.54 3.08,-6.97 -0.14,-1.69 0.89,-1.14 2.58,-1.33 6.08,3.19 1,-3.12 0.25,-2.99 2.82,-6.43 -0.66,-6.2 -2.69,-1.9 -2.97,-5.6 1.21,-4.6 0.13,-2.04 -1.23,-5.05 -2.13,-0.82 0.42,-1.95 -0.28,-1.95 0.51,-1.95 z"
- title="Niger"
- fill="blue"
- stroke="#888888"
- stroke-width="2"
- id="NG-NI" />
-<path
- d="m 0.96165097,375.38874 5.97000003,-4.29 3.49,-0.21 1.9,0.93 1.24,1.79 0.41,1.43 0.15,6.48 0.56,2.36 1.31,2.17 0.84,0.13 0.94,-5.56 0.57,-1.25 0.47,-0.45 1.37,0 0.88,0.61 0.54,1.75 -0.16,3.09 -1.74,5.98 -0.41,-0.24 -0.51,0.57 0.52,3.66 2.12,2.51 3.05,2.47 1.02,3.04 3.2,4.51 3.01,2.36 2.34,1.13 4.05,0.28 1.74,-0.49 2.78,-3.97 1.14,-4.24 1.62,-1.48 2.6,0.29 1.75,4.34 1.59,1.13 1.02,-0.26 1.13,-1.11 2.47,-0.6 6.2,0.22 1.17,1.89 0.33,5.66 0.41,0.71 2.98,1.22 0.64,1.1 -0.1,2.22 1.1,2.7 0.41,2.87 -3.97,4.01 -0.33,1.13 0.37,0.28 6.09,-0.25 2.7,-0.58 3.04,0.13 3.18,-1.24 1.51,-1.37 5.89,-0.88 0,0 2.74,-1.08 1.4,-1.11 0.94,0.39 0.52,0.84 0.59,4.28 1.97,-0.01 3.85,-1.98 3.389999,0.59 2.97,7.11 3.06,-1.96 1.1,-0.02 1.15,0.69 2.12,-0.92 4.16,-0.26 0.31,0.13 -0.3,1.01 0,0 -0.75,5.5 -1.06,3.26 -2.35,2.1 -2.06,0.97 -3.63,3.28 -2.98,4.92 0.03,3.41 2.01,1.97 4.81,0.81 1.83,-0.13 1.42,-1.06 1.65,-2.27 1.76,-0.51 0.65,0.78 -0.02,4.47 0.85,3.57 -0.72,1.81 -2.44,0.66 -0.77,1.14 -1.12,0.68 -2.4,0.11 -1.32,1.34 0.98,0.43 2.79,-0.25 3.3,1.74 0.21,1.08 -0.82,1.72 -4.01,-0.28 0,0 -5,-2.24 -4.38,-0.93 0,0 0.36,-2.36 -0.35,-1.25 -5.269999,-0.65 -1.12,0.58 -0.58,-0.14 -1.13,-1.31 -2.77,-0.77 -0.92,-0.74 -0.22,-0.7 0.56,-1.03 2.8,-1.31 1.12,-1.06 -0.12,-0.95 -1.06,-1.48 -3.45,0.41 -3.22,2.16 -2.19,-1.09 -0.04,-1.46 -0.73,-1.24 0.23,-0.94 2.73,-2.88 -0.54,-0.9 -1.07,-0.21 -37.58,-0.39 -1.59,1.06 0.51,1.45 -4.57,0.48 -0.81,-1.43 -1.2,-0.8 -3.41,-1.43 -1.85,-0.25 -1.36,2.51 -0.09,2.35 -2.08,1.65 -0.77,3.95 -1.06,1.01 -13.71,0.19 -3.55,-0.53 -0.41,0.11 0,1.61 -3.46,2.44 -1.94,-0.89 -3.41,0.43 -1.25,-0.4 0,0 0.42,-3.28 1.13,-1.18 0.63,-1.54 -1.34,-3.74 1.3,-2.16 2.11,-1.8 0.2,-2.74 -0.21,-0.96 -2.14,-0.28 -0.78,-0.39 -0.41,-0.86 -0.17,-1.82 1.2,-1.9 -0.34,-1.07 0.48,-3.46 -0.22,-0.98 -1.3,-0.14 -0.54,-0.61 0.15,-2.86 1.4,-1.61 3.06,-1.78 -2.46,-2.23 -0.48,-0.96 1.87,-2.2 0.59,-1.92 -0.66,-4.66 -1.53,-1.66 -0.12,-9.69 2.37,-0.08 0.82,-0.48 0.04,-0.72 -0.42,-3.5 -2.68,-2.04 -0.22,-1.76 -0.98,-1.52 -0.3,-4.2 0.25,-8.96 -0.3,-0.95 -0.82,-0.35 -0.97,-2.58 -1.69000003,-2.17 z"
- title="Ogun"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-OG" />
-<path
- d="m 194.92165,384.14874 4.62,-0.88 2.51,0.43 -0.71,4.14 2.04,2.7 4.74,4.17 0.23,0.78 0,0 -2.45,3.49 -0.9,0.6 -1.56,-0.14 -1.41,1.72 -0.18,1.38 0.4,0.84 2.02,0.82 -0.88,2.89 0.77,2.49 0.42,0.28 -1.43,3.54 -2.15,1.05 -1.76,1.83 -0.47,1.04 0.15,1.39 -3.23,6.89 0.32,0.83 -0.37,0.85 -1.51,0.73 -1.24,1.67 -0.62,4.63 1.18,1.28 0.16,0.82 -0.88,0.51 -0.01,1.63 -1.19,-0.51 -0.25,0.25 -0.95,4.96 -1.51,3.39 -2.68,1.03 -0.81,-0.36 -1.19,-1.48 -1.34,-0.12 -3.77,3.16 -0.74,0.03 -2.1,-5.46 2.01,-2.25 -1.74,-2.09 -1.64,-0.34 -3.29,0.39 -6.64,-0.11 -1.68,-0.36 -2.28,0.38 -2.12,-0.39 -2.2,1.01 -0.46,0.78 -0.09,1.96 -0.95,0.68 -0.79,2.27 -1.73,0.8 -0.45,1.04 -1.76,1.61 -0.49,0.96 0.09,2.22 -0.8,0.99 0,2.84 1.23,0.64 1.39,2.28 0.58,1.45 -0.36,1.72 -0.83,1.96 -1.74,1.71 -0.85,3.74 -2.94,0.86 -0.58,0.62 -0.96,3.62 -0.8,0.7 0.28,-0.44 -0.25,0.6 0.44,0.91 0.7,0.05 1.94,1.36 1.65,2.94 1.56,0.1 1.33,1.04 1.24,2.26 -0.39,1.16 0,0 -6.9,16.74 0,0 -4.86,-5.94 -9.17,-9.24 -14.82,-11.96 -2.7,-1.66 0,0 4,0.28 0.83,-1.73 -0.21,-1.07 -3.3,-1.74 -2.79,0.25 -0.98,-0.43 1.32,-1.35 2.4,-0.1 1.11,-0.68 0.78,-1.14 2.44,-0.66 0.72,-1.82 -0.84,-3.57 0.01,-4.47 -0.64,-0.78 -1.77,0.51 -1.65,2.27 -1.42,1.06 -1.83,0.13 -4.8,-0.81 -2.01,-1.96 -0.03,-3.41 2.98,-4.92 3.63,-3.28 2.06,-0.96 2.35,-2.1 1.07,-3.25 0.74,-5.51 0,0 2.67,-1.42 2.15,-4.97 4.29,-3.44 2.32,-0.02 2.51,1.24 2.91,2.22 1.81,0.03 0.64,-1.26 -0.23,-1.63 0.41,-2.11 -0.46,-3.98 1.56,-6.54 0.84,-0.57 5.86,-1.59 -0.62,-2.4 0,0 4.55,-1.45 7.78,0.43 6.97,-0.31 1.55,0.53 1.42,2.21 1.03,3.19 -0.16,0.86 1.09,2.69 2.28,0.59 5.53,-3.5 3.04,-4.43 1.71,-3.92 1.7,-8.1 1.13,-2.14 2.4,-2.48 2.18,-1.45 0.85,-2.06 1.86,-0.38 1.5,1.24 0.82,-0.3 1.49,-2.44 z"
- title="Ondo"
- fill="green"
- stroke="#888888"
- stroke-width="2"
-
- id="NG-ON" />
-<path
- d="m 117.18165,366.88874 8.27,0.22 2.6,-0.31 3.55,-1.61 0.36,-0.09 0.18,0.85 -0.08,-0.88 2.65,0.38 4.74,-1.7 2.18,0.58 1.48,3.17 3.49,-0.13 1.67,-0.8 0.39,0.54 0,0 -1.52,5.3 -1.99,1.64 -2.18,0.94 -1.62,1.5 -1.9,4.25 -0.12,1.4 0.81,2.81 -1.19,3.99 0.69,4.78 2.85,6.11 0.84,3.79 0.83,1.7 0,0 0.62,2.41 -5.86,1.58 -0.84,0.58 -1.56,6.54 0.46,3.98 -0.4,2.11 0.23,1.63 -0.64,1.26 -1.81,-0.03 -2.91,-2.22 -2.51,-1.24 -2.32,0.01 -4.28,3.45 -2.15,4.96 -2.67,1.43 0,0 0.3,-1.01 -0.31,-0.13 -4.16,0.26 -2.12,0.92 -1.15,-0.69 -1.1,0.02 -3.06,1.96 -2.97,-7.11 -3.389999,-0.59 -3.85,1.98 -1.97,0.01 -0.59,-4.28 -0.52,-0.84 -0.94,-0.39 -1.4,1.11 -2.74,1.08 0,0 2.34,-9.84 0.43,-5.29 1.67,-8.72 -0.87,-0.49 -3.05,-4.88 -3.11,-2.33 -0.27,-0.93 -0.14,-0.88 1.15,-1.09 0.78,-1.76 0.87,-9.27 0.6,-0.28 4.3,1.34 2.32,-0.75 0.78,-0.99 0.13,-2.3 1.06,-0.57 2.81,-3.32 3.009999,1.84 3.59,5.56 2.13,-0.93 0.65,-1.43 2.05,-1.16 0.98,-1.39 0.28,0.39 1.83,-1.51 2.29,-0.76 0.25,0.38 0.99,-1.34 0.31,-1.28 z"
- title="Osun"
- fill="white"
- stroke="#888888"
- stroke-width="2"
- id="NG-OS" />
-<path
- d="m 5.381651,335.88874 3.19,-2.78 3.17,-0.02 4.08,-0.72 1.5,-0.79 0.19,-0.99 3.91,-3.44 1.66,-0.66 6.93,-5.53 2.57,-0.27 0.69,0.19 0.91,1.13 0.45,-0.11 0.53,0.75 0.93,-0.15 7,-3.26 3.01,-2.21 1.13,-0.26 2.49,-1.94 5.79,-3.3 6.64,-2.92 4.42,-3.43 0.45,-1.11 0.02,-2.65 1.69,-3.71 3.82,-2.08 2.04,-0.09 4.08,2.46 0.54,2.48 1.69,2.04 3.25,2.42 5.7,1.74 2.4,1.54 1.1,-0.13 3.83,1.08 2.21,-0.08 2.829999,-1.8 1.31,0.78 0.16,1.3 -2.34,3.16 -3.159999,2.09 -0.57,0.59 -0.35,1.6 -2.08,1.55 -1.03,4.5 0.81,1.58 1.32,5.29 1.66,1.91 2.999999,7.11 1.97,2.63 0.79,2.77 0.09,2.1 1.22,3.44 2.95,4.24 3.46,2.25 0.03,0.8 0.78,0.66 0.39,2.77 1.9,4.81 0.71,0.94 1.45,0.07 0.49,0.66 0,0 0.53,3.2 -0.31,1.28 -0.99,1.34 -0.25,-0.38 -2.29,0.76 -1.83,1.51 -0.28,-0.39 -0.98,1.39 -2.05,1.16 -0.65,1.43 -2.13,0.93 -3.59,-5.56 -3.009999,-1.84 -2.81,3.32 -1.06,0.57 -0.13,2.3 -0.78,0.99 -2.32,0.75 -4.3,-1.34 -0.6,0.28 -0.87,9.27 -0.78,1.76 -1.15,1.09 0.14,0.88 0.27,0.93 3.11,2.33 3.05,4.88 0.87,0.49 -1.67,8.72 -0.43,5.29 -2.34,9.84 0,0 -5.89,0.88 -1.51,1.37 -3.18,1.24 -3.04,-0.13 -2.7,0.58 -6.09,0.25 -0.37,-0.28 0.33,-1.13 3.97,-4.01 -0.41,-2.87 -1.1,-2.7 0.1,-2.22 -0.64,-1.1 -2.98,-1.22 -0.41,-0.71 -0.33,-5.66 -1.17,-1.89 -6.2,-0.22 -2.47,0.6 -1.13,1.11 -1.02,0.26 -1.59,-1.13 -1.75,-4.34 -2.6,-0.29 -1.62,1.48 -1.14,4.24 -2.78,3.97 -1.74,0.49 -4.05,-0.28 -2.34,-1.13 -3.01,-2.36 -3.2,-4.51 -1.02,-3.04 -3.05,-2.47 -2.12,-2.51 -0.52,-3.66 0.51,-0.57 0.41,0.24 1.74,-5.98 0.16,-3.09 -0.54,-1.75 -0.88,-0.61 -1.37,0 -0.47,0.45 -0.57,1.25 -0.94,5.56 -0.84,-0.13 -1.31,-2.17 -0.56,-2.36 -0.15,-6.48 -0.41,-1.43 -1.24,-1.79 -1.9,-0.93 -3.49,0.21 -5.97000003,4.29 0,0 1.07000003,-2.08 0.73,-4.3 1.33,-4.15 -0.3,-1.12 0.37,-2.7 1.13,-2.26 0.36,-2.89 -2.44,-3.06 -1.17,-3.99 0.08,-2.02 1.05,-1.87 -0.44,-2.05 0.48,-0.7 1.25,-0.3 1.37,-2.88 -0.43,-0.44 0.73,-0.97 0.01,-1.07 z"
- title="Oyo"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-OY" />
-<path
- d="m 379.00165,223.49874 1.53,-0.49 3.18,0.08 2.78,0.88 2.61,4.16 0.78,4.8 -0.04,12.38 10.97,-2.19 1.06,0.21 1.8,1.92 0.97,3.13 0.26,5.94 -0.23,1.17 -2.38,4.47 -0.09,1.69 0.6,0.85 3.92,1.42 0.79,0.71 0.9,1.16 1.65,4.07 1.56,1.34 1.51,0.53 4.8,0.27 5.47,1.48 10.04,-0.59 4.39,-1.41 2.89,-5.21 4.76,-1.3 0.5,-1.67 -0.27,-1.74 -3.17,-4.06 0.3,-1.44 3.03,-1.78 7.6,3.95 2.57,0.51 9.26,4.93 11.07,4.74 6.18,4.04 6.36,3.43 0,0 1.56,3.94 0.21,2.15 -0.51,4.08 0.76,5.96 2.3,3.86 1.05,6.02 -0.55,1.33 0.3,2.25 0.43,0 0.21,5.54 -1.78,3.08 -12.18,5.86 -1.9,-0.11 -9.52,2.1 -2.49,1.44 -2.06,4.19 -4.74,5.72 -7.11,3.76 -7.68,7.65 -2.43,1.19 -4.41,1.01 -4.11,0.54 -3.85,-0.25 0,0 -1.46,-2.68 -2.52,-2.07 -10.36,-4.33 -9.76,2.79 -8.19,0.15 -3.66,-1.3 -5.15,-2.71 -1.44,-2.07 0.3,-5.41 -0.32,-1.24 -2.09,-2.43 -0.64,-1.72 0.32,-2.25 1.55,-1.36 1.55,-2.86 1.46,-1.05 1.41,-0.2 2.11,-1.98 2.7,-4.01 0.79,-2.93 -2.01,-2.21 -1.04,-0.56 -2.77,1.35 -3.7,0 -5.32,-0.56 -2.16,-0.98 -1.93,-3.41 -0.63,-4.48 -2.08,-0.85 -2.42,-0.11 -1.69,-1.65 0,0 1.67,-3.94 -0.12,-3.41 -1,-2.09 -1.71,-1.21 -2.57,-3.08 -3.26,-5.28 -0.1,-1.16 1.05,-1.4 -0.21,-4.74 1.76,-1.28 0.4,-3.08 1.91,-1.55 0.42,-1.07 -0.53,-2.1 0.7,-7.81 -0.18,-1.97 0.34,-1.1 2.39,-1.97 -0.75,-3.52 -1.36,-2.82 0.22,-2.71 2.13,-4.97 1.9,-1.4 2.19,-0.73 1.32,-1.56 0.55,-1.43 0.21,-2.9 z"
- title="Plateau"
- fill="red"
- stroke="#888888"
- stroke-width="2"
- id="NG-PL" />
-<path
- d="m 277.72165,584.56874 -1.46,1.39 0.02,0.77 -0.62,-0.24 0.22,-1.42 1.44,-0.82 0.4,0.32 z m -3.14,-1.84 -1.72,-0.98 -0.55,0.15 -0.55,0.15 -0.21,-0.69 0.86,-0.79 -0.31,-0.67 0.31,-0.65 -0.07,-1.05 -0.57,-0.81 -0.91,-0.17 -0.22,0.16 -0.71,-1.7 -0.27,-0.17 0.14,-0.46 -0.86,-0.86 -0.27,0.36 -0.96,0.15 -0.19,0.82 0.57,1.03 0.5,1.05 0.41,2.04 -0.48,-0.23 -0.45,0.63 1.07,3.48 -0.14,1.27 1.17,4.04 -0.24,0.22 0.77,0.46 2.06,-0.43 0.4,-0.45 0.13,-0.58 1.75,0.49 0.03,-2.23 0.67,-1.56 -1.16,-2.02 z m -3.8,-10.26 0.41,0.46 2.18,0.09 0.19,-0.91 -0.41,-0.31 -1.69,0.3 -0.68,0.37 z m 1.27,-2.46 0.36,1.13 0.52,0.19 -0.29,-1.9 -0.59,0.58 z m 7.2,9.74 -1.44,-2.86 -1,-0.7 -1.63,-0.81 -0.27,-0.12 -0.84,0.65 0.65,0.09 1.31,1.13 0.14,0.21 -0.23,0.46 0.52,0.93 0.12,1.92 1.29,1.2 0.91,0.17 0.67,-1.41 -0.2,-0.86 z m 5.92,6.12 -2.08,-2.62 -1.31,1.63 0.79,0.79 0.81,-0.24 0.38,0.91 0.76,0 0.22,0.62 1.17,-0.5 1.08,1.08 1.86,-1.49 -0.62,-0.55 -3.06,0.37 z m -19.91,-6.61 -1.12,0.53 -0.28,1.32 1.14,0.4 1.44,1.08 1.03,2.28 -0.29,-3.36 -0.36,-0.15 0.26,-1.49 -1.82,-0.61 z m 18.13,2.56 -2.37,-1.62 -1.55,-2.35 -0.03,-0.27 -0.48,-1.7 -0.48,0.43 -0.4,-0.36 0.43,-0.67 -0.03,-1.49 -0.12,-0.07 -0.57,1.85 -2.25,-0.7 -0.53,-0.1 -0.88,-1.08 -0.07,-1.52 -0.36,-0.29 -0.07,-0.46 -0.26,-0.17 -0.15,-0.65 0.5,-0.79 -0.98,-1.22 -0.81,0.53 -0.34,0.89 0.65,1.54 -2.06,0.77 -0.41,0.36 -0.93,0.38 -0.52,0.05 -1,0.77 -0.46,0.62 -0.09,-1.51 -0.58,0.74 -0.22,0.51 1,1.65 0.55,2.45 -1.31,0.45 -0.53,0.21 -1.38,-1.61 -0.71,-1.9 -1.45,-2.41 -1.5,-0.51 0.56,-1.55 -0.68,-2.22 0.98,-0.81 0.35,-0.48 -0.53,-0.67 -1.81,-0.24 -1.81,-1.11 -0.28,1.59 -0.89,0.57 -0.33,-0.77 -1.27,-0.14 -0.34,-0.34 -0.64,0.19 -0.77,0.03 -0.62,-0.87 -0.19,-0.14 -0.55,0.41 0.19,0.99 -0.14,0.33 0.46,0.31 1.27,1.27 -0.12,1.53 0.98,4.64 3.22,3.31 0.02,1.18 -1.81,1.46 -0.1,0.58 1.82,6.56 0.55,3.32 2.41,2.48 -0.29,0.33 -7.24,0.69 -2.24,-0.75 -0.09,-2.71 -0.24,-2.54 0.14,-0.46 -0.03,-0.17 -0.46,-2.71 -0.19,-0.75 1.94,-3.67 -0.19,-2.67 -0.67,0.15 -0.68,0.1 -3.96,-2.6 -1.2,-4.38 -1.38,-1.87 -1.99,-0.02 -6.54,2.54 -1.04,-0.26 -0.35,-1.94 0.42,-1.46 -3.31,-1.44 -0.5,-0.83 0.07,-4.34 1.9,-2.67 0.76,-2.05 0.03,-1.27 -1.29,0.16 -0.84,-0.78 1.33,-4.44 4.49,-7.84 2.77,0.17 0.55,-0.5 0.75,-2.49 1.54,-0.79 -0.23,-1.81 1.58,-1.07 0.95,-1.48 -0.03,-1.94 -0.63,-1.54 -0.76,-0.58 -1.92,-0.83 -2.94,0.49 -1.04,-0.28 -0.57,-1.04 0.21,-0.44 3.52,-1.81 0.19,-5.3 0.7,-1.48 2.05,-1.42 0.89,-1.75 0.82,-3.18 -1.09,-3.54 0.23,-0.35 1.11,1.28 2.4,0.21 -2.75,13.08 1.51,0.44 3.47,-0.67 2.12,0.78 0.44,1.66 -0.52,4.62 -1.09,2.76 0.26,1.37 1.84,1.3 1.72,3.41 2.16,1.65 2.14,0.41 6.72,-0.14 4.7,1.12 4.15,-1.07 2.13,-0.03 4.51,1.13 2.57,-0.95 0.55,0.05 0.66,1.72 0.06,2.78 -2.4,4.19 -3.41,4.33 -1.37,3.71 -0.16,1.09 0.6,1.11 1.45,1.41 1.8,0.27 3.13,-0.59 1.11,-0.64 2.79,-0.12 3.28,1.22 1.81,-0.42 2.94,1.4 2.35,1.79 1.95,3.49 0.63,2.3 -0.96,4.27 0.58,4.55 -0.51,0.32 -0.04,0.64 0.61,1.17 -1.22,0.77 -0.84,-0.72 -0.17,-0.98 -1.22,-0.27 -0.55,-0.26 -0.26,0.46 -1.39,1.18 -0.58,-0.24 -0.26,-0.36 -0.38,-0.02 -0.71,0.39 -1.5,-2.36 -1.27,0.96 -0.93,-0.36 -1.6,-0.5 -0.65,-1.03 -0.67,0.19 -0.74,-0.86 -0.62,0.51 -0.19,0.79 -0.89,0.33 0.34,1.08 0.27,1.03 0.24,0.6 0.78,0.6 0.77,-0.24 0.57,0.08 0.86,-0.31 -0.17,1.75 -1.77,0.17 -1.44,0.53 -0.74,-1.2 -0.1,-0.33 -1.05,-1.17 -0.15,-0.94 0.11,-0.22 z m 21.52,4.31 -0.69,-0.39 -0.43,-0.03 -0.88,-0.36 -0.02,-0.02 -0.4,-0.36 -0.42,0.46 -0.32,-0.13 0.35,-0.54 -0.88,-1.49 -0.9,0.53 -1.04,-0.9 -0.36,-0.34 -0.17,-0.51 -1.39,0.01 -0.26,0.28 -1.23,0.87 -1.33,-0.05 -0.46,0.04 -0.43,-0.23 -0.63,-0.63 -0.53,-0.31 -0.09,-0.81 -1.24,0.34 -1.03,0.02 0.02,-0.42 -1.25,-0.34 -0.91,-0.46 -1.34,-0.09 -0.48,0.24 -0.23,0.58 -0.02,0.79 1.72,0 0.09,0.08 1.17,1.07 0.23,0.67 0.36,1.37 0.84,0.31 0.16,-0.4 0.34,0.28 1.07,0.03 0.06,0.22 -1.84,0.74 -0.43,0.15 -0.69,2.4 5.47,0.77 4.18,-0.92 5.93,-0.14 -0.19,-1.22 0.52,-1.16 z m -48.68,-18.07 0.79,-0.17 0.92,-0.79 0.08,-1.12 1.29,0.9 1.6,0.63 -0.96,1.17 0.43,1.85 0.27,0.32 -0.03,0.58 -0.6,0.94 0.22,0.64 1.01,0.31 1.26,1.35 2.07,4.36 -0.93,0.61 -0.42,0.84 0.15,0.91 3.15,1.85 0.6,2.9 0.88,1.32 -0.12,1.39 0.48,1.61 1.48,1.13 -1.12,1.39 -0.96,0.36 -0.86,-0.5 -0.6,0.41 -6.38,-1.39 -0.81,-2.54 0.53,-0.62 -0.6,0.02 -1.36,-3.89 -0.81,-1.9 0.1,-2.06 1.63,-1.56 -0.17,-1.35 -1.81,-1.66 -1.69,-1.15 -0.76,-4.06 -0.29,-0.58 0.02,-1.82 -0.77,-1.08 1.24,-0.74 0.88,0.63 0.67,0 0.3,0.56 z"
- title="Rivers"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-RI" />
-<path
- d="m 178.43165,0.2287449 12.88,5.68 20.53,7.2500001 4,2.35 4.64,-1.49 3.65,-0.02 8.54,4.12 15.88,15.56 5.98,10.42 0,0 -3.03,2.6 -7.1,4 -9.51,-1.28 -1.9,-0.66 -1.7,-2.05 -2.27,-0.68 -4.97,-0.19 -0.59,5.48 -0.73,1.89 -0.5,0.22 -2.7,-1.44 -2.79,0 -4.85,1.56 -2.11,1.82 -0.11,0.7 0.78,5.14 0.07,8.44 -1.35,1 -4.04,1.64 -10.02,0.79 -6.09,0.95 -5.83,8.58 -1.88,1.87 -3.07,1.91 0.06,2.88 1.43,4.64 0.65,4.25 -0.74,3.029995 -2.46,1.7 -6.11,0.53 -1.28,-0.29 -4.8,0.64 -2.64,-0.31 -4.47,0.33 -9.33,-1.67 -0.92,0.6 -0.93,4.51 0.1,18.21 -0.66,13.78 0,0 -1.62,0.97 -0.94,-0.07 -0.77,-1.75 -2.04,0.72 -1.89,-0.86 -1.69,0.12 -12,5.45 -2.4,3 -1.71,1.35 -2.78,-0.29 -0.76,-0.51 -2.55,-3.65 1.16,-4.77 2.61,-5.63 2.12,-9.79 -0.79,-13.05 0.14,-9.94 1.01,-3.779995 1.28,-1.48 3.95,-1.18 2.68,-0.02 3.17,2.04 1.02,-0.04 0.64,-1.56 0.24,-8.02 -1.68,-5.52 -0.04,-2.04 1.3,-6.06 0.18,-3.32 -1.8,-4.28 -1.86,-2.15 0.42,-3.7 1.42,-2.98 -0.09,-2.4 1.62,-3.93 -0.4,-1.25 -1.08,-0.88 -1.16,0.31 -2.49,3.69 -0.63,0.56 -1.82,0.43 -3.06,-0.68 -2.95,-2.07 -9.56,-3.12 -1.06,-1.1 -3.19,-1.82 -1.65,-2.12 -0.76,-0.31 -4.629999,1.58 -1.86,-0.74 -6.62,0.14 0,0 0.09,-16.44 4.14,-0.02 16.559999,-14.58 25.12,-5.0100001 2.41,2.14 5.71,0.48 6.45,-0.72 4.85,0.56 5.33,-0.16 5.25,-6.26"
- title="Sokoto"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-SO" />
-<path
- d="m 488.91165,275.87874 4.59,-2.65 5.85,0.78 10.59,-4.85 6.44,1.09 3.99,0.03 0,0 3.57,0.71 5.9,-0.6 12.46,0.02 6.37,-0.47 0,0 5.45,10.18 1.46,1.92 4.65,1.08 2.08,1.29 5.26,9.82 -0.46,2.17 0.34,3.84 2.66,2.94 4.14,1.47 2.02,3.84 0.26,1.81 -1,3.62 -5.99,11.44 0.38,5.78 -0.44,2.08 -6.12,5.22 -8.63,11.52 -5.08,5.48 -3.8,3.22 -4.14,4.78 -0.82,1.58 2.52,6.73 2.91,4.7 2.71,2.45 2.72,-1.99 2.83,-4.01 1.64,-0.38 1.42,0.43 1.52,1.12 2.5,3.15 4.32,3.84 2.15,2.6 1.04,2.02 -0.58,5.49 0.74,1.73 0.38,3.54 1.94,4.62 -0.05,1.56 1.22,0.88 0,0 -4.94,5.48 -1.09,1.94 -0.89,2.92 0.38,5.92 0.92,3.32 1.33,2.12 -0.18,1.29 -0.98,0.73 -4.04,-0.35 -0.68,0.46 -2.06,0.06 -0.18,1.64 -1.72,0.75 -1.54,1.93 -1.91,0.43 -1.09,4.21 -2.12,0.65 -1.37,2.72 0.06,0.5 0.94,-0.05 0.46,0.44 0.09,1.77 0.88,0.11 0.19,0.89 -0.99,0.43 -0.62,1.15 0.94,1.52 -0.08,1.04 -1.92,1.11 -0.22,3.22 -1.46,1.44 -0.57,1.91 -1.81,0.78 -1.77,-0.83 -0.6,0.54 -1.24,0.15 -0.46,0.64 0.46,0.88 -0.18,1.73 -0.44,0.5 -3.75,0.68 -0.42,0.22 -0.2,1.37 -1.37,-0.18 -3.03,-2.03 -2.25,1.01 -0.67,-0.7 -3.01,-0.66 -1.42,-1.22 -0.58,0.05 -1.22,1.41 -2.03,-0.08 0.24,-8.73 -2.03,-2.16 -2.24,-0.11 -2.36,2.14 -2.84,-0.48 -1.86,-0.85 -1.43,-3.38 -1.18,-2.19 -1.22,-0.81 -1.17,-0.07 -1.31,-2.11 -0.12,-0.73 1.66,-4.79 -2.66,-1.84 -1.49,-0.2 -0.6,0.74 -1.69,-2.15 -1.03,-0.08 -1.5,-1.61 -0.77,-0.07 -0.36,-1.52 -1.25,-0.63 -0.4,0.46 -1.47,-0.36 -1.85,-1.58 0.52,-1.93 -0.4,-2.09 -1.65,-1.31 -0.76,4.76 0.08,2.89 -1.39,6.02 -0.88,1 -1.67,0.57 -0.34,0.87 -0.64,0.11 -0.94,-0.97 -15.69,1.52 -2.64,-3.08 0.62,-1.75 -0.85,-2.06 -0.19,-1.18 0.07,-0.81 -0.89,-0.32 -8.2,7.4 -0.64,1.12 -2.44,1.72 -1.12,1.84 -4.62,4.63 -1.34,-0.72 -2.2,-0.1 -1.6,-0.22 -0.8,-0.61 -0.9,2.13 0.3,0.79 -0.76,0.97 -0.38,1.8 0.36,2.03 -0.28,1.07 -0.6,0.37 -1.02,2.82 -1.35,5.37 -0.5,0.39 -0.68,-0.34 -1.32,0.37 -1.03,-1.32 -0.44,0.46 0,0 1.9,-8.19 0.03,-8.76 0.33,-1.08 -0.61,-0.73 2.11,-11.5 3.31,-6.16 3.44,-3.25 3.09,-1.94 0.92,-1.43 -0.29,-5.92 2.38,-5.89 0.59,-3.23 -0.56,-1.78 0.26,-1.04 -1.17,-1.36 0.14,-0.65 -8.37,-7.57 -4.44,-5.65 -5.14,-4.9 -7.48,-1.77 -8.18,-0.48 -7.47,0.95 -6.12,2.63 -1.9,-0.57 3.79,-5.97 0,0 1.21,-1.39 11.23,-7.21 0.11,-1.19 -1,-2.68 0.54,-0.65 -0.35,-2.88 -2.03,-2.51 -1.71,-1.36 0.73,-2.86 1.33,-2.14 1.28,-0.86 1.86,0 1.73,0.9 1,1.07 1.52,-0.23 0.33,0.41 4.51,0.95 2.74,-0.82 2.58,-3.68 0,0 3.85,0.25 4.11,-0.54 4.41,-1.01 2.43,-1.19 7.68,-7.65 7.11,-3.76 4.74,-5.72 2.06,-4.19 2.49,-1.44 9.52,-2.1 1.9,0.11 12.18,-5.86 1.78,-3.08 -0.21,-5.54 -0.43,0 -0.3,-2.25 0.55,-1.33 -1.05,-6.02 -2.3,-3.86 -0.76,-5.96 0.51,-4.08 -0.21,-2.15 z"
- title="Taraba"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-TA" />
-<path
- d="m 526.42165,32.448745 12.45,0.19 9.56,1.2 10.76,4.18 11.69,2.55 2.73,1.51 6.09,5.17 4.78,3 1.58,0.14 0.3,-0.82 1,-0.28 1.65,0.65 0.62,-0.52 -0.55,-1.18 1.49,0.16 1.7,0.94 1.66,-0.42 0.83,0.71 0.63,1.07 1.04,-0.62 2.85,0.61 0.74,0.5 0.93,0.12 0.99,-0.01 0,0 -0.08,4.21 -1.49,8.02 1.23,3.85 1.45,1.82 4.8,3.84 0.48,3.74 -1.84,4.21 -2.37,3.08 -7.06,6.31 -0.55,2.2 1.72,3.83 -0.05,5.789995 -2.54,16.29 -0.13,3.5 1.69,7.44 -4.72,9.14 0.15,1.94 0.64,0.36 4.91,-0.21 3.13,3.75 0.84,3.33 -0.99,2.11 -4.54,4.43 -3.3,5.9 -2.89,3.35 -0.9,2.86 0.04,2.97 0.76,4.15 -0.24,2.94 -2.09,3.08 -6.11,3.65 -11.21,3.02 -2.66,1.92 -1.72,2.83 -0.61,2.77 0.28,8.39 -3.41,4.53 -3.04,0.69 0,0 -6.78,0.01 -0.3,-0.51 -0.77,-6.45 1.2,-11.85 -0.67,-4.87 -3.68,-3.38 -1.58,1.02 1,-1.54 -3.42,-3.58 -4.75,-6.4 -8.49,-6.26 -2.18,-1.29 -2.98,-1.01 -4.04,-0.17 -4.17,1.51 -0.91,0.88 0,0 -3.04,-0.37 -1.63,-1.53 0.99,-6.78 1.05,-2.72 0.23,-4.92 -8.35,-20.91 -0.2,-3.87 -0.95,-2.71 -0.33,-2.7 -0.21,-6.74 -3.16,-4.66 0.19,-1.81 -0.77,-7.079995 -1.14,-2.93 -7.74,-6.19 0,0 -0.87,-2.9 -1.76,-11.53 -2.21,-3.4 -1.85,-0.88 -2.03,0.61 -4.99,-2.22 -5.86,1.86 -1.12,0.72 -1.46,-2.53 -0.69,-4.35 -2.13,-4.78 -2.21,-1.25 -6.33,1.96 -2.82,1.37 -3.16,0.63 -5.32,2.59 -2.1,3.99 -3.14,1.8 -6,-0.73 -1.79,-1.18 0,0 7.38,-7.5 3.25,-4.6 4.08,-3.51 5.19,-5.85 3.98,-2.54 9.05,-4.06 16.06,-0.94 12.55,-4.7 19.58,-1.07 z"
- title="Yobe"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-YO" />
-<path
- d="m 258.59165,50.268745 5.45,6.52 5.08,-0.11 3.34,-0.61 0,0 -1.44,10.82 0.99,6.17 -0.07,6.05 1,5.17 0.39,4.75 1.31,3.21 -0.4,3.57 2.5,5.199995 0.69,3.05 -0.13,1.68 0.95,2.47 -1.09,5.16 -1.82,3.63 1.26,1.21 2.53,1.16 2.68,2.29 1.16,1.43 0.5,1.95 -1.89,1.62 -3.34,-0.81 -0.55,3.2 -4.88,3.97 -1.28,-0.87 -6.61,0.13 -1.5,0.84 -0.65,4 -1.56,4.14 -0.45,3.76 0.16,1.07 1.91,1.9 0.9,3.69 -1.25,6.1 -0.02,2.33 0,0 -1.01,-0.03 -2.34,2.38 -2.75,1.77 -0.85,1.14 -1.71,3.41 -0.64,3.55 -1.51,3.23 -3.04,3.1 -2.33,1.51 -4.71,0.62 -7.94,-0.57 -5.64,0.95 -5.27,4.71 -2.86,4.16 -1.28,0.76 -1.68,0.12 0,0 0.07,-0.84 -1.59,-4.09 -3.8,-6.64 -3.32,-4.4 0,0 -0.21,-5.48 -1.38,-7.58 -1.93,-3.01 -5.38,-2.71 0,-1.2 2.05,-6.49 0.01,-2.47 -1.41,-2.15 -4.35,-1.77 -4.85,-0.62 -1.22,0.81 -2.49,0.59 -3.79,-0.5 -5.47,0.76 -3.65,-2.41 -2.87,-0.11 -1.69,-3.3 -1.08,-0.57 -3.61,0.65 -2.09,-0.31 -0.91,-0.64 -0.79,0.15 -1.06,0.62 -0.82,2.32 -6.34,1.46 -4.11,-2.25 -1.82,0 -0.86,0.48 0,0 0.66,-13.78 -0.1,-18.21 0.93,-4.51 0.92,-0.6 9.33,1.67 4.47,-0.33 2.64,0.31 4.8,-0.64 1.28,0.29 6.11,-0.53 2.46,-1.7 0.74,-3.029995 -0.65,-4.25 -1.43,-4.64 -0.06,-2.88 3.07,-1.91 1.88,-1.87 5.83,-8.58 6.09,-0.95 10.02,-0.79 4.04,-1.64 1.35,-1 -0.07,-8.44 -0.78,-5.14 0.11,-0.7 2.11,-1.82 4.85,-1.56 2.79,0 2.7,1.44 0.5,-0.22 0.73,-1.89 0.59,-5.48 4.97,0.19 2.27,0.68 1.7,2.05 1.9,0.66 9.51,1.28 7.1,-4 3.03,-2.6 0,0 z"
- title="Zamfara"
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
- id="NG-ZA" />
- fill="#ADD8E6"
- stroke="#888888"
- stroke-width="2"
-</svg>
-
-<!-- Indicator Matrix -->
-  <rect x="600" y="520" width="140" height="80" fill="#ffffff" stroke="#000000" stroke-width="2" />
-  <text x="630" y="540" font-family="Arial, sans-serif" font-size="12" fill="#000000">Indicator Matrix</text>
-  <!-- Sample data for indicator matrix -->
-  <rect x="640" y="550" width="20" height="20" fill="green" />
-  <rect x="670" y="550" width="20" height="20" fill="yellow" />
-  <rect x="700" y="550" width="20" height="20" fill="red" />
-  <text x="635" y="590" font-family="Arial, sans-serif" font-size="12" fill="#000000">Low</text>
-  <text x="660" y="590" font-family="Arial, sans-serif" font-size="12" fill="#000000">Medium</text>
-  <text x="705" y="590" font-family="Arial, sans-serif" font-size="12" fill="#000000">High</text>
-  `;
-};
-
-// Example usage:
-const motaEngilMapSVG = generateMotaEngilMap();
-
-const today = new Date();
-const staff_no= "2347035517578"
-
-const keySecurityIncidents = [
-  {
-    location: "Akwa Ibom",
-    date: "August 22, 2023",
-    details: "Gunmen suspected to be armed robbers intercepted a man along Uyo-Etinan Road in Etinan, Etinan LGA, and stole his saloon car."
-  },
-
-
-    {
-      location: "Abuja",
-      date: "August 21, 2023",
-      details: "Gunmen suspected to be kidnappers reportedly abducted two persons at a residential estate in Sabon Lugbe along Airport Road, AMAC. No further details were available."
-    },
-    {
-      location: "Benue",
-      date: "August 21, 2023",
-      details: "Gunmen belonging to rival groups suspected to be herdsmen reportedly engaged themselves in a gun battle at Chito village, Ukum LGA. Five persons were reportedly killed in the gun battle while others sustained gunshot injuries."
-    },
-    // Add more incidents here...
-    {
-      location: "Imo",
-      date: "August 22, 2023",
-      details: "The Nigerian Army reportedly engaged in a gun battle with armed men suspected to be separatist members along the Owerri-Onitsha expressway at Ukwuorji, Mbaitoli LGA, forcing the assailants to flee the area."
-    },
-  
-  {
-    location: "Edo",
-    date: "August 23, 2023",
-    details: "Gunmen suspected to be armed robbers reportedly attacked a patrol vehicle belonging to soldiers along Akpakpava street in Benin, Oredo LGA. The assailants reportedly injured one soldier."
-  },
-  {
-    location: "Delta",
-    date: "August 24, 2023",
-    details: "Gunmen on motorcycles suspected to be cultists reportedly attacked a Police Division in Isiokolo community, Ethiope East LGA. The assailants reportedly killed one Policeman while another sustained gunshot injury."
-  },
-  {
-    location: "Rivers",
-    date: "August 22, 2023",
-    details: "Suspected criminals vandalised a pipeline and siphoned fuel at a fuel dump in Rex Lawson Street in Borikiri town, Port Harcourt which resulted in an explosion and reportedly killed one person."
-  },
-  {
-    location: "Rivers",
-    date: "August 22, 2023",
-    details: "Two factions of the National Union of Road Transport Workers (NURTW) reportedly clashed along the Port Harcourt-Aba Road in Oyigbo, Obior/Akpor LGA. No further details were available."
-  },
-  {
-    location: "Rivers",
-    date: "August 22, 2023",
-    details: "Armed men suspected to be cultists reportedly attacked a student at his residence in Rumuolumeni Town, Obio/Akpor LGA. The assailants reportedly stabbed the victim with broken bottles."
-  },
-  {
-    location: "Rivers",
-    date: "August 23, 2023",
-    details: "Armed robbers reportedly attacked the Rivers State University Girls Hostel at Eagles Island, Rumueme, Port Harcourt LGA. The assailants reportedly assaulted students with machetes, robbed, and dispossessed an unspecified number of the students of their cash and other valuables."
-  },
-  {
-    location: "Rivers",
-    date: "August 25, 2023",
-    details: "Armed men suspected to be cultists reportedly shot and killed a Policeman on security escort duty along Olusegun Obasanjo Road in Oroworukwo area, Port Harcourt LGA."
-  },
-  {
-    location: "Abia",
-    date: "August 21, 2023",
-    details: "Armed men suspected to be kidnappers, reportedly engaged in a shootout with government security forces at Ndiawa village, Umuneochi LGA. Three of the assailants were reportedly killed while others fled."
-  },
-  {
-    location: "Ebonyi",
-    date: "August 23, 2023",
-    details: "Armed men suspected to be separatist members, reportedly engaged Soldiers in a gunshot battle at Effium community, Ohaukwu LGA. The assailants reportedly fled the scene. No further details were available."
-  },
-  {
-    location: "Enugu",
-    date: "August 21, 2023",
-    details: "Armed men suspected to be kidnappers reportedly engaged Policemen in a shootout along Enugu-Port Harcourt Expressway, in Awkunanaw town, Enugu South LGA. Two of the assailants were reportedly killed in the gunfire, while others fled with gunshot injuries."
-  },
-  {
-    location: "Enugu",
-    date: "August 21, 2023",
-    details: "Gunmen suspected to be kidnappers, reportedly shot at a vehicle along Old Enugu-Onitsha Road in Obioma town, Udi LGA, forcing the vehicle to stop. The assailants reportedly abducted one person while the other two occupants died from gunshot injuries."
+    if (sessionData) {
+      const userId = sessionData.userId;
+      console.log(`Retrieved User ID: ${userId}`); // Corrected this line to use backticks for template literals
+      return userId;
+    } else {
+      console.log("User ID not found.");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching user ID by session token:", error);
+    return null;
   }
-];
+}
 
+// Function to get userId dynamically from session or session token
+async function getUserIdFromSession(session, sessionToken) {
+  const userId8 = session?.userId || await fetchUserIdBySessionToken(sessionToken);
+  return userId8;
+}
 
-const fatalities = 70;
-const injuries = 36;
-const abductions = 51;
+// Modified Resume_Details function that directly fetches applicant name from user_cv_bidata
+async function Resume_Details(session, sessionToken) {
+  let client, database;
+  let applicantName = " "; // Default value
+
+  // Get userId8 dynamically from the session or session token
+  const userId8 = await getUserIdFromSession(session, sessionToken);
+
+  try {
+    // Connect to the database
+    ({ client, database } = await connectToDatabase2());
+    
+    // Fetch applicant name from the user_cv_bidata collection using the userId8
+    const collection = database.collection('Users_CV_biodata');
+    const user = await collection.findOne({ userId: userId8 });
+    
+    // If user exists, fetch their name
+    if (user) {
+      applicantName = user.name;
+    }
+  } catch (error) {
+    console.error("Error fetching applicant name:", error);
+    applicantName = "Unknown"; // In case of error, use default name
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+
+  // Now use the fetched applicantName and userId8 for further logic
+  console.log(`Applicant Name: ${applicantName}, User ID: ${userId8}`);
+
+  // Remaining logic for Resume_Details...
+  // You can use applicantName and userId8 in the following operations
+  // For example, generating a filename:
+  const formattedDateToday = new Date().toISOString().slice(0, 10); // Get today's date in YYYY-MM-DD format
+ const safeUserId = (userId8 || 'pending').toString().replace(/[^a-zA-Z0-9]/g, '');
+const filename = `${applicantName}__${formattedDateToday}_CV_${safeUserId}.pdf`;
+  const filePath = path.join(__dirname, "uploads", filename);
+
+  console.log("Generated Filename:", filename);
+  console.log("File Path:", filePath);
+
+  // More logic can go here...
+}
+
+// Main function to invoke Resume_Details
+// main3() is called only when a valid session exists — never at startup
+async function main3(activeSession, activeSessionToken) {
+  await Resume_Details(activeSession, activeSessionToken);
+  const formattedDateToday = new Date().toISOString().slice(0, 10);
+  const uniqueCode = Math.random().toString(36).substr(2, 5).toUpperCase();
+  const filename = gatePassUniqueFilename('User', 'CV', formattedDateToday, uniqueCode);
+  const filePath = path.join(__dirname, "uploads", filename);
+  console.log("Generated Filename:", filename);
+  console.log("File Path:", filePath);
+}
+const today = new Date();
+
 
 const formatDate = (date) => {
   const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
@@ -952,1091 +1206,13100 @@ const formatDate = (date) => {
 
 const formattedToday = formatDate(today);
 
-const generate_security_report_PDF = () => {
+// /////////////////////////////////////////////////////////////////////////////yyyyyyyyyyyyyyyyyyyyyyyy
 
-  const svgMapContent = generateSVGMap();
-  const lastWeek = new Date(today);
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const formattedStartDate = formatDate(lastWeek);
-  const formattedEndDate = formattedToday;
+const gatePassDownloadsFolderPath = path.join(__dirname, '..', 'downloads');
 
-  const incidentsData = {
-    fatalities: 70,
-    injuries: 36,
-    abductions: 51,
-    effectsOnAssets: "Some relevant data about effects on assets goes here. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed eget ex urna. Donec id tempus nulla. Duis eget nunc vitae elit interdum dapibus.",
-    riskImpact: "Some relevant data about risk impact goes here. Vestibulum efficitur ligula et nisi semper, ac eleifend dolor mollis. Suspendisse potenti. Nulla facilisi. Integer vel lacus nec arcu gravida malesuada.",
-    briefSummary: "Highlights of Week 4 incidents:\n- Increased security patrols in high-risk areas\n- Collaboration with local authorities for incident response\n- Implementation of new security protocols"
-  };
+
+// Function to generate the unique filename
+// const gatePassUniqueFilename = () => {
+//   return `${applicantName}__${accessedRoleTime}_accessed_role_${uniqueCode}.pdf`;
+// };
+const gatePassUniqueFilename = (applicantName, appliedRole, formattedDateToday, uniqueCode) => {
+  // ✅ Provide fallback for missing values and trim whitespace
+  const safeName = (applicantName || 'Unknown').trim().replace(/\s+/g, '_');
+  const safeRole = (appliedRole || 'Role').trim().replace(/\s+/g, '_');
+  const safeDate = formattedDateToday || new Date().toISOString().slice(0, 10);
+  const safeCode = uniqueCode || Math.random().toString(36).substr(2, 5).toUpperCase();
+  
+  return `${safeName}_${safeRole}_${safeDate}_${safeCode}.pdf`;
+};;
+// Example usage
+// ✅ Placeholder path — real filename is generated inside sendEmailWithAttachment()
+// with actual applicantName, appliedRole, date and uniqueCode
+const gatePassPdfPath = path.join(gatePassDownloadsFolderPath, 'pending_cv.pdf');
+console.log("Generated Path:", gatePassPdfPath);
+
+
+
+app.use(session({
+  secret: sessionSecret, // Use the generated secure key
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true in production with HTTPS
+  //cookie: {secure: true }
+}));
+
+
+// }
+
+
+async function getUserPreferences(session) {
+  try {
+    console.log('Connecting to the database...');
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const users = database.collection('Users_CV_biodata');
+
+    const userId = session.userId;
+    if (!userId) {
+      throw new Error('User ID not found in session.');
+    }
+    console.log('Session userId:', userId);
+
+    // Check if the ID is a valid ObjectId, otherwise treat it as a string
+    const query = ObjectId.isValid(userId)
+      ? { _id: new ObjectId(userId) }
+      : { _id: userId };
+
+    console.log('Fetching preferences for user:', userId);
+    const user = await users.findOne(query);
+
+    if (user) {
+      const desiredJobTitle = user.jobTitle || 'default job title';
+      //const desiredJobTitle = user.jobTitle || user.education?.[0]?.jobTitle || "No job title found";
+      //  const desiredJobTitle = user.desiredJobTitle || 'default job title';
+      console.log('Desired job title found:', desiredJobTitle);
+      return desiredJobTitle;
+
+    } else {
+      console.log('No user document found.');
+      return 'default job title';
+    }
+  } catch (error) {
+    console.error('Error fetching user preferences:', error);
+    return 'default job title';
+  } finally {
+    console.log('Closing the database connection.');
+    await client.close();
+  }
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Function to select a random User-Agent
+const selectRandomUserAgent = () => {
+  const userAgents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36",
+  ];
+
+  const randomIndex = Math.floor(Math.random() * userAgents.length);
+  return userAgents[randomIndex];
+};
+
+let roleBatchId; // Declare a global variable to store the batch ID
+
+
+// ================================================================
+// BLOCK A — Paste this DIRECTLY ABOVE fetchDataWithAxios (~line 1039)
+// ================================================================
+ 
+// ── Field slug map for MyJobMag (confirmed from live site) ──────
+const FIELD_SLUG_MAP = {
+  'data analyst':      'research-data-analysis',
+  'data scientist':    'research-data-analysis',
+  'business analyst':  'research-data-analysis',
+  'data engineer':     'research-data-analysis',
+  'machine learning':  'research-data-analysis',
+  'ai ':               'research-data-analysis',
+  'software':          'information-technology',
+  'developer':         'information-technology',
+  'web developer':     'information-technology',
+  'frontend':          'information-technology',
+  'backend':           'information-technology',
+  'fullstack':         'information-technology',
+  'devops':            'information-technology',
+  'cybersecurity':     'information-technology',
+  'it ':               'information-technology',
+  'engineer':          'engineering',
+  'accountant':        'accounting-audit',
+  'finance':           'accounting-audit',
+  'audit':             'accounting-audit',
+  'sales':             'sales-marketing',
+  'marketing':         'marketing-communication',
+  'product manager':   'product-management',
+  'project manager':   'project-management',
+  'hr ':               'human-resources',
+  'human resources':   'human-resources',
+  'legal':             'legal',
+  'medical':           'medical',
+  'healthcare':        'medical',
+  'nurse':             'medical',
+  'logistics':         'logistics',
+  'supply chain':      'procurement-store-keeping',
+  'procurement':       'procurement-store-keeping',
+  'admin':             'administration',
+  'customer service':  'customer-care',
+  'customer care':     'customer-care',
+  'customer success':  'customer-care',
+  'content':           'content-editorial',
+  'copywriter':        'content-editorial',
+  'journalist':        'content-editorial',
+  'ux ':               'ux-design-architecture',
+  'ui ':               'ux-design-architecture',
+  'design':            'ux-design-architecture',
+  'architect':         'ux-design-architecture',
+  'ngo':               'ngo',
+  'nonprofit':         'ngo',
+  'research':          'research',
+  'science':           'science',
+  'oil':               'oil-refining-and-marketing',
+  'gas':               'oil-refining-and-marketing',
+  'energy':            'oil-refining-and-marketing',
+  'insurance':         'insurance',
+  'banking':           'banking',
+  'security':          'security',
+};
+ 
+function resolveFieldSlug(jobTitle) {
+  const lower = jobTitle.toLowerCase();
+  for (const [keyword, slug] of Object.entries(FIELD_SLUG_MAP)) {
+    if (lower.includes(keyword.trim())) return slug;
+  }
+  return 'general';
+}
+
+// ── FIXED: fetchDataWithAxios ────────────────────────────────────
+// Drop-in replacement — same signature, same output shape
+// Output: [{ userId, title, link, jobDate, description }]
+// ================================================================
+// BLOCK B — Replace the ENTIRE fetchDataWithAxios function
+// Find: const fetchDataWithAxios = async (query, startIndex = 0, userId) => {
+// Replace everything from that line to its closing }; with this
+// ================================================================
+
+
+
+
+
+const fetchDataWithAxios = async (query, startIndex = 0, userId) => {
+  const userAgent = selectRandomUserAgent();
+
+  // Extract raw job title — strips "site:myjobmag.com" if present
+  const rawTitle = query.replace(/site:\S+/gi, '').trim();
+  const slug     = resolveFieldSlug(rawTitle);
+  const page     = Math.floor(startIndex / 10) + 1;
+
+  // FIXED URL — /jobs-by-field/{slug} (confirmed from live site)
+  const url = `https://www.myjobmag.com/jobs-by-field/${slug}?page=${page}`;
+  console.log(`[MyJobMag] Fetching page ${page} → ${url}`);
+
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent':      userAgent,
+        'Referer':         'https://www.google.com/',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept':          'text/html,application/xhtml+xml,*/*;q=0.8',
+        'Cache-Control':   'no-cache',
+      },
+      timeout: 20000,
+    });
+
+    const html = response.data;
+    const $    = cheerio.load(html);
+    const results = [];
+
+    // Query words used for relevance filtering (words > 2 chars)
+    const queryWords = rawTitle.toLowerCase()
+      .split(' ')
+      .filter(w => w.length > 2);
+
+    $('ul li').each((index, element) => {
+      const jobElement  = $(element);
+      const titleEl     = jobElement.find('h2 a');
+      const title       = titleEl.text().trim();
+      const href        = titleEl.attr('href');
+      const link        = href && href.startsWith('/job/')
+                          ? `https://www.myjobmag.com${href}`
+                          : null;
+
+      // FIX 1: Clean jobDate — strip whitespace, newlines and
+      // embedded location text (e.g. "20 April \n \n Yobe")
+      const rawJobDate  = jobElement.find('li').last().text().trim() || '';
+      const jobDate     = rawJobDate.split('\n')[0].trim()
+                          || new Date().toLocaleDateString();
+
+      const description = jobElement.find('p').first().text().trim() || '';
+
+      // FIX 2: Relevance filter — only include jobs that match
+      // at least one word from the user's desired job title
+      const titleLower  = title.toLowerCase();
+      const isRelevant  = queryWords.some(word => titleLower.includes(word));
+
+      if (link && title && isRelevant) {
+        results.push({ userId, title, link, jobDate, description });
+      }
+    });
+
+    console.log(`[MyJobMag] Page ${page}: found ${results.length} relevant jobs for "${rawTitle}"`);
+    return results;
+
+  } catch (error) {
+    console.error(`[MyJobMag] Error fetching page ${page}:`, error.message);
+    if (error.response?.status === 403) {
+      console.warn('[MyJobMag] ⚠️ Blocked — fallback sources will compensate');
+    }
+    return [];
+  }
+};
+
+// ── END OF BLOCK B ───────────────────────────────────────────────
+ // ── Jobzilla scraper (no API key needed) ────────────────────────
+async function scrapeJobzillaJobs(rawTitle, userId, pages = 2) {
+  const results = [];
+  const userAgent = selectRandomUserAgent();
+  for (let page = 1; page <= pages; page++) {
+    try {
+      const url = `https://www.jobzilla.ng/jobs?q=${encodeURIComponent(rawTitle)}&page=${page}`;
+      console.log(`[Jobzilla] Fetching page ${page} → ${url}`);
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': userAgent,
+          'Referer': 'https://www.google.com/',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
+        timeout: 15000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        decompress: true,
+      });
+      const $ = cheerio.load(response.data);
+      // Jobzilla uses article tags or .job-item containers
+      $('article, .job-item, .job-listing, li.job').each((i, el) => {
+        const titleEl    = $(el).find('h2 a, h3 a, .job-title a').first();
+        const title      = titleEl.text().trim();
+        const href       = titleEl.attr('href');
+        const link       = href
+          ? (href.startsWith('http') ? href : `https://www.jobzilla.ng${href}`)
+          : null;
+        const jobDate    = $(el).find('.date, .job-date, time').first().text().trim()
+                           || new Date().toLocaleDateString();
+        const description = $(el).find('p, .job-desc, .job-excerpt').first().text().trim() || '';
+        if (link && title) {
+          results.push({ userId, title, link, jobDate, description });
+        }
+      });
+      console.log(`[Jobzilla] Page ${page}: found ${results.length} total so far`);
+      await new Promise(r => setTimeout(r, randomDelay()));
+    } catch (err) {
+      console.error(`[Jobzilla] Error on page ${page}:`, err.message);
+    }
+  }
+  return results;
+}
+// ── API FALLBACKS — output same shape: { userId, title, link, jobDate, description }
+ // ── Jobberman scraper (no API key needed) ───────────────────────
+async function scrapeJobbermanJobs(rawTitle, userId, pages = 2) {
+  const results = [];
+  const userAgent = selectRandomUserAgent();
+  for (let page = 1; page <= pages; page++) {
+    try {
+      const url = `https://www.jobberman.com/jobs?q=${encodeURIComponent(rawTitle)}&page=${page}`;
+      console.log(`[Jobberman] Fetching page ${page} → ${url}`);
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': userAgent,
+          'Referer': 'https://www.google.com/',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        },
+        timeout: 15000,
+      });
+      const $ = cheerio.load(response.data);
+      // Jobberman uses article or .job-listing__item containers
+      $('article, .job-listing__item, .job-card, li.job').each((i, el) => {
+        const titleEl    = $(el).find('h2 a, h3 a, .job-title a, a[data-cy="job-title"]').first();
+        const title      = titleEl.text().trim();
+        const href       = titleEl.attr('href');
+        const link       = href
+          ? (href.startsWith('http') ? href : `https://www.jobberman.com${href}`)
+          : null;
+        const jobDate    = $(el).find('.date, time, .job-date, [data-cy="posted-date"]').first().text().trim()
+                           || new Date().toLocaleDateString();
+        const description = $(el).find('p, .job-desc, .job-excerpt').first().text().trim() || '';
+        if (link && title && !link.includes('/company/')) {
+          results.push({ userId, title, link, jobDate, description });
+        }
+      });
+      console.log(`[Jobberman] Page ${page}: found ${results.length} total so far`);
+      await new Promise(r => setTimeout(r, randomDelay()));
+    } catch (err) {
+      console.error(`[Jobberman] Error on page ${page}:`, err.message);
+    }
+  }
+  return results;
+}
+ 
+// ── Remotive API (remote jobs, no key needed) ───────────────────
+async function fetchRemotiveJobs(rawTitle, userId) {
+  try {
+    const res = await axios.get('https://remotive.com/api/remote-jobs', {
+      params: { search: rawTitle, limit: 20 },
+      timeout: 10000,
+    });
+    return (res.data.jobs || []).map(j => ({
+      userId,
+      title:       j.title,
+      link:        j.url,
+      jobDate:     new Date(j.publication_date).toLocaleDateString(),
+      description: j.description?.replace(/<[^>]*>/g, '').slice(0, 300) || '',
+    }));
+  } catch (err) {
+    console.error('[Remotive] Error:', err.message);
+    return [];
+  }
+}
+// Arbeitnow — remote/EU jobs, no auth needed
+async function fetchArbeitnowJobs(rawTitle, userId) {
+  try {
+    const res = await axios.get('https://www.arbeitnow.com/api/job-board-api', {
+      params: { search: rawTitle },
+      timeout: 10000,
+    });
+    return (res.data.data || []).slice(0, 20).map(j => ({
+      userId,
+      title:       j.title,
+      link:        j.url,
+      jobDate:     new Date(j.created_at * 1000).toLocaleDateString(),
+      description: j.description?.replace(/<[^>]*>/g, '').slice(0, 300) || '',
+    }));
+  } catch (err) {
+    console.error('[Arbeitnow] Error:', err.message);
+    return [];
+  }
+}
+ 
+// Adzuna — Nigeria focused, needs free API key
+// ── Adzuna API (Nigeria-focused, free key needed) ───────────────
+async function fetchAdzunaJobs(rawTitle, userId) {
+  const appId  = process.env.ADZUNA_APP_ID;
+  const appKey = process.env.ADZUNA_APP_KEY;
+  if (!appId || !appKey) {
+    console.warn('[Adzuna] Missing ADZUNA_APP_ID or ADZUNA_APP_KEY — skipping');
+    return [];
+  }
+// ✅ Try Nigeria first, fall back to UK if 404
+  const countries = ['ng', 'gb', 'us'];
+  for (const country of countries) {
+    try {
+      console.log(`[Adzuna] Trying country: ${country}`);
+      const res = await axios.get(`https://api.adzuna.com/v1/api/jobs/${country}/search/1`, {
+        params: { app_id: appId, app_key: appKey, what: rawTitle, results_per_page: 20 },
+        timeout: 10000,
+      });
+      const jobs = (res.data.results || []).map(j => ({
+        userId,
+        title:       j.title,
+        link:        j.redirect_url,
+        jobDate:     new Date(j.created).toLocaleDateString(),
+        description: j.description || '',
+      }));
+      console.log(`[Adzuna] ✅ ${country}: found ${jobs.length} jobs`);
+      return jobs;
+    } catch (err) {
+      if (err.response?.status === 404) {
+        console.warn(`[Adzuna] ${country} returned 404, trying next country...`);
+        continue;
+      }
+      console.error(`[Adzuna] Error on ${country}:`, err.message);
+      return [];
+    }
+  }
+  console.warn('[Adzuna] All countries failed');
+  return [];
+}
+ 
+// Jobicy — remote jobs, free
+async function fetchJobicyJobs(rawTitle, userId) {
+  try {
+    const res = await axios.get('https://jobicy.com/api/v2/remote-jobs', {
+      params: { count: 20, tag: rawTitle.toLowerCase().replace(/\s+/g, '-') },
+      timeout: 10000,
+    });
+    return (res.data.jobs || []).map(j => ({
+      userId,
+      title:       j.jobTitle,
+      link:        j.url,
+      jobDate:     new Date(j.pubDate).toLocaleDateString(),
+      description: j.jobExcerpt || '',
+    }));
+  } catch (err) {
+    console.error('[Jobicy] Error:', err.message);
+    return [];
+  }
+}
+
+
+// ── JSearch API (LinkedIn+Indeed+Glassdoor via RapidAPI) ────────
+async function fetchJSearchJobs(rawTitle, userId) {
+  const apiKey = process.env.JSEARCH_API_KEY;
+  if (!apiKey) {
+    console.warn('[JSearch] Missing JSEARCH_API_KEY — skipping');
+    return [];
+  }
+  try {
+    const res = await axios.get('https://jsearch.p.rapidapi.com/search', {
+      params: {
+        query:       `${rawTitle} in Nigeria OR Remote`,
+        page:        '1',
+        num_pages:   '2',
+        date_posted: 'month',
+      },
+      headers: {
+        'X-RapidAPI-Key':  apiKey,
+        'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
+      },
+      timeout: 10000,
+    });
+    return (res.data.data || []).map(j => ({
+      userId,
+      title:       j.job_title,
+      link:        j.job_apply_link || j.job_google_link,
+      jobDate:     j.job_posted_at_datetime_utc
+                   ? new Date(j.job_posted_at_datetime_utc).toLocaleDateString()
+                   : new Date().toLocaleDateString(),
+      description: j.job_description?.slice(0, 300) || '',
+    }));
+  } catch (err) {
+    console.error('[JSearch] Error:', err.message);
+    return [];
+  }
+}
+ 
+
+
+// ================================================================
+// BLOCK C — Replace the ENTIRE fetchMultiplePagesWithAxios function
+// Find: const fetchMultiplePagesWithAxios = async (query, pages = 3, userId) => {
+// Replace everything from that line to its closing }; with this
+// ================================================================
+
+const fetchMultiplePagesWithAxios = async (query, pages = 3, userId) => {
+  const results = [];
+
+  // Extract raw job title from query
+  const rawTitle = query.replace(/site:\S+/gi, '').trim();
+
+  // ── TIER 1: MyJobMag scraping (fixed, primary Nigerian source) ─
+  console.log(`[JobFetch] Starting MyJobMag scrape for: "${rawTitle}"`);
+  for (let i = 0; i < pages; i++) {
+    const startIndex = i * 10;
+    try {
+      const pageResults = await fetchDataWithAxios(query, startIndex, userId);
+      results.push(...pageResults);
+    } catch (error) {
+      console.error(`[MyJobMag] Error on page ${i + 1}:`, error.message);
+    }
+    await new Promise(resolve => setTimeout(resolve, randomDelay()));
+  }
+  console.log(`[JobFetch] MyJobMag total: ${results.length} jobs`);
+
+  // ── TIER 2: Jobzilla + Jobberman (free scrapers, no API key) ──
+  // Run in parallel as backup — these don't need API keys
+  const [jobzillaRes, jobbermanRes] = await Promise.allSettled([
+    scrapeJobzillaJobs(rawTitle, userId, 2),
+    scrapeJobbermanJobs(rawTitle, userId, 2),
+  ]);
+  const nigerianBackup = [
+    ...(jobzillaRes.status  === 'fulfilled' ? jobzillaRes.value  : []),
+    ...(jobbermanRes.status === 'fulfilled' ? jobbermanRes.value : []),
+  ];
+  console.log(`[JobFetch] Jobzilla+Jobberman backup: ${nigerianBackup.length} jobs`);
+  results.push(...nigerianBackup);
+
+  // ── TIER 3: International API sources (parallel) ───────────────
+  // Free sources first (no key), then paid (key required)
+  const [remotiveRes, arbeitnowRes, jobicyRes, adzunaRes, jsearchRes] =
+    await Promise.allSettled([
+      fetchRemotiveJobs(rawTitle, userId),    // free, no key
+      fetchArbeitnowJobs(rawTitle, userId),   // free, no key
+      fetchJobicyJobs(rawTitle, userId),      // free, no key
+      fetchAdzunaJobs(rawTitle, userId),      // free key: developer.adzuna.com
+      fetchJSearchJobs(rawTitle, userId),     // free key: rapidapi.com (JSearch)
+    ]);
+
+  const internationalJobs = [
+    ...(remotiveRes.status   === 'fulfilled' ? remotiveRes.value   : []),
+    ...(arbeitnowRes.status  === 'fulfilled' ? arbeitnowRes.value  : []),
+    ...(jobicyRes.status     === 'fulfilled' ? jobicyRes.value     : []),
+    ...(adzunaRes.status     === 'fulfilled' ? adzunaRes.value     : []),
+    ...(jsearchRes.status    === 'fulfilled' ? jsearchRes.value    : []),
+  ];
+  console.log(`[JobFetch] International API sources: ${internationalJobs.length} jobs`);
+  results.push(...internationalJobs);
+
+  // ── Deduplicate by link ────────────────────────────────────────
+  const seen   = new Set();
+  const unique = results.filter(r => {
+    if (!r.link || seen.has(r.link)) return false;
+    seen.add(r.link);
+    return true;
+  });
+
+  console.log(`[JobFetch] ✅ Grand total unique jobs: ${unique.length}`);
+  return unique;
+};
+
+// ── END OF BLOCK C ───────────────────────────────────────────────
+ 
+module.exports = { fetchDataWithAxios, fetchMultiplePagesWithAxios };
+const randomDelay = () => Math.floor(Math.random() * 3000) + 2000; // Random delay between 2 to 5 seconds
+
+
+///////////////////////////////////////////////////////////////////////////////
+async function saveRoleToDB(role, collectionName, userResponse, serialNumber = null, session) {
+  const { client, collection } = await connectToDatabase();
+
+  if (!session || !session.userId) {
+    console.error("Session or user ID not available.");
+    return;
+  }
+
+  try {
+    // Use the session's userId to make this user-specific
+    const userId = session.userId;
+
+    // Check for existing entry with the same role title and URL for this user
+    const existingRole = await collection.findOne({
+      userId: userId, // Ensure it checks only for this user's data
+      role: role.title,
+      url: role.link
+    });
+
+    if (existingRole) {
+      console.log(`Role "${role.title}" with URL "${role.link}" already exists for user "${userId}". Skipping insertion.`);
+
+      // Optionally, update the existing entry
+      await collection.updateOne(
+        { _id: existingRole._id },
+        {
+          $set: {
+            date: new Date().toLocaleDateString(),
+            userResponse: userResponse || 'no response',
+            serialNumber: serialNumber || null
+          }
+        }
+      );
+      console.log(`Role "${role.title}" updated for user "${userId}".`);
+    } else {
+      // Check if roleBatchId is already set, otherwise generate a new one
+      if (!roleBatchId) {
+        roleBatchId = generateUniqueID(); // Generate ID once per batch
+      }
+
+      // Prepare the document with user's response and unique ID
+      const document = {
+        userId: userId, // Add user ID to make the data user-specific
+        date: new Date().toLocaleDateString(), // current date
+        role: role.title,
+        url: role.link,
+        userResponse: userResponse || 'no response', // Handle null or undefined responses
+        serialNumber: serialNumber || null, // Add serial number if available
+        uniqueId: "Job_role_" + roleBatchId, // Use the generated batch ID
+      };
+
+      // Insert the new document
+      await collection.insertOne(document);
+      console.log(`Role "${role.title}" added for user "${userId}".`);
+    }
+
+    // Remove exact duplicates for this user
+    const duplicates = await collection.aggregate([
+      {
+        $match: {
+          userId: userId // Only match duplicates for this user
+        }
+      },
+      {
+        $group: {
+          _id: { url: "$url", role: "$role", date: "$date" },
+          count: { $sum: 1 },
+          docs: { $push: "$_id" }
+        }
+      },
+      {
+        $match: {
+          count: { $gt: 1 }
+        }
+      }
+    ]).toArray();
+
+    for (const duplicate of duplicates) {
+      const [keepId, ...deleteIds] = duplicate.docs;
+      await collection.deleteMany({ _id: { $in: deleteIds } });
+    }
+
+    // Consolidate unique entries for this user
+    const uniqueRoles = await collection.aggregate([
+      {
+        $match: {
+          userId: userId // Only match entries for this user
+        }
+      },
+      {
+        $group: {
+          _id: { role: "$role" },
+          doc: { $first: "$$ROOT" }
+        }
+      }
+    ]).toArray();
+
+    const bulkOperations = uniqueRoles.map(role => ({
+      updateOne: {
+        filter: { _id: role.doc._id },
+        update: { $set: role.doc },
+        upsert: true
+      }
+    }));
+
+    await collection.bulkWrite(bulkOperations);
+
+    console.log(`Data cleaned and consolidated successfully for user "${userId}".`);
+  } catch (error) {
+    console.error("Error saving role to MongoDB:", error);
+  } finally {
+    await client.close();
+  }
+}
+// saveRoleToDB()
+
+// Function to generate a unique ID (replace with your preferred method)
+function generateUniqueID() {
+  // Implement your logic to generate a unique ID (e.g., using libraries like nanoid)
+  // This example is for illustration and might not be secure for production
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
 
 
   
-  const fatalitiesPercentage = (incidentsData.fatalities / 100) * 100;
-  const injuriesPercentage = (incidentsData.injuries / 100) * 100;
-  const abductionsPercentage = (incidentsData.abductions / 100) * 100;
+///////////////////////////////////////////////////////////////////////
+// ================================================================
+// BLOCK D — Replace the ENTIRE filterResults function
+// Find: const filterResults = async (results, rolesListing, userId) => {
+// Replace everything from that line to its closing }; with this
+// ================================================================
 
-  const keySecurityIncidentsHTML = keySecurityIncidents.map((incident, index) => `
-  <p>${index + 1}. ${incident.location}. ${incident.date}, ${incident.details}</p>
-`).join('');
+const filterResults = async (results, rolesListing, userId) => {
+  const filteredResults = results.filter(result => {
+    // ── Existing Nigerian sources (logic UNCHANGED) ─────────────
+    if (result.link.includes('myjobmag.com')) {
+      return !result.link.includes('jobs-by-title');
+    } else if (result.link.includes('jobzilla.ng')) {
+      return !result.link.includes('categories');
+    } else if (result.link.includes('jobberman.com')) {
+      return !result.link.includes('company');
+    }
+    // ── NEW: International API sources ──────────────────────────
+    else if (
+      result.link.includes('remotive.com')    ||
+      result.link.includes('arbeitnow.com')   ||
+      result.link.includes('jobicy.com')      ||
+      result.link.includes('adzuna.com')      ||
+      result.link.includes('linkedin.com')    ||
+      result.link.includes('indeed.com')      ||
+      result.link.includes('glassdoor.com')   ||
+      result.link.includes('ziprecruiter.com')||
+      result.link.includes('jsearch')         ||
+      result.link.includes('rapidapi')
+    ) {
+      return true;
+    }
+    return false;
+  }).map(result => {
+    let jobTitle;
+    // ── Existing title parsing (UNCHANGED) ─────────────────────
+    if (result.link.includes('myjobmag.com')) {
+      const titleMatch = result.title.match(/^(.*?)\s*Jobs/i);
+      jobTitle = titleMatch ? titleMatch[1].trim() : result.title;
+    } else if (
+      result.link.includes('jobzilla.ng')     ||
+      result.link.includes('jobberman.com')   ||
+      // ── NEW: international sources use title as-is ───────────
+      result.link.includes('remotive.com')    ||
+      result.link.includes('arbeitnow.com')   ||
+      result.link.includes('jobicy.com')      ||
+      result.link.includes('adzuna.com')      ||
+      result.link.includes('linkedin.com')    ||
+      result.link.includes('indeed.com')      ||
+      result.link.includes('glassdoor.com')   ||
+      result.link.includes('ziprecruiter.com')||
+      result.link.includes('jsearch')         ||
+      result.link.includes('rapidapi')
+    ) {
+      jobTitle = result.title;
+    }
+    // Output shape UNCHANGED — exactly what saveRoleToDB expects
+    return { userId, title: jobTitle, link: result.link, jobDate: result.jobDate };
+  });
 
+  console.log('Filtered Results:', filteredResults);
 
-  const maxVal = Math.max(fatalities, injuries, abductions);
-  const graphWidth = 400;
-  const barWidth = 100;
-  const barSpacing = 20;
-  const graphHeight = 200;
+  // ── Everything below is 100% UNCHANGED from your original ──────
+  for (let i = 0; i < filteredResults.length; i++) {
+    const role = filteredResults[i];
 
-  const fatalitiesHeight = (fatalities / maxVal) * graphHeight;
-  const injuriesHeight = (injuries / maxVal) * graphHeight;
-  const abductionsHeight = (abductions / maxVal) * graphHeight;
-
-
-  const generatePieChart = (data) => {
-    const total = data.reduce((acc, item) => acc + item.value, 0);
-    const centerX = 200;
-    const centerY = 200;
-    const radius = 150;
-    let startAngle = -90; // Start angle at 12 o'clock position
-
-    let chartSVG = `<svg width="400" height="400">`;
-
-    // Add heading for the pie chart
-    chartSVG += `<text x="${centerX}" y="30" text-anchor="middle" font-size="16" font-weight="bold">Security Incidents Breakdown</text>`;
-
-    data.forEach((item, index) => {
-        const percent = (item.value / total) * 100;
-        const angle = (percent / 100) * 360;
-        const largeArcFlag = angle > 180 ? 1 : 0;
-        const endAngle = startAngle + angle;
-
-        // Calculate coordinates for the arc
-        const x1 = centerX + radius * Math.cos((startAngle / 180) * Math.PI);
-        const y1 = centerY + radius * Math.sin((startAngle / 180) * Math.PI);
-        const x2 = centerX + radius * Math.cos((endAngle / 180) * Math.PI);
-        const y2 = centerY + radius * Math.sin((endAngle / 180) * Math.PI);
-
-        // Calculate midpoint of the arc
-        const midAngle = startAngle + angle / 2;
-        const midX = centerX + (radius / 2) * Math.cos((midAngle / 180) * Math.PI);
-        const midY = centerY + (radius / 2) * Math.sin((midAngle / 180) * Math.PI);
-
-        // Draw the arc
-        chartSVG += `
-            <path d="M${centerX},${centerY} L${x1},${y1} A${radius},${radius} 0 ${largeArcFlag},1 ${x2},${y2} Z" fill="${item.color}"></path>
-        `;
-
-        // Add text for the indicator
-        chartSVG += `<text x="${midX}" y="${midY}" text-anchor="middle" font-size="12">${item.label} (${item.value})</text>`;
-
-        // Update start angle for the next segment
-        startAngle = endAngle;
+    const existingRole = await rolesListing.findOne({
+      $and: [
+        { userId },
+        { $or: [{ link: role.link }, { title: role.title }] },
+      ],
     });
 
-    chartSVG += `</svg>`;
-
-    return chartSVG;
-};
-
-// Example data
-const dataPie = [
-    { label: 'Terrorism', value: 25, color: '#FF5733' },
-    { label: 'Violent Protests', value: 15, color: '#3498DB' },
-    { label: 'Kidnapping', value: 20, color: '#27AE60' },
-    { label: 'Other', value: 40, color: '#F39C12' }
-];
-
-const pieChartSVG = generatePieChart(dataPie);
-
-console.log(pieChartSVG); // Output the SVG for verification
-
-
-
-
-  const graphSVG = `
-    <svg width="${graphWidth}" height="${graphHeight + 60}">
-      <rect x="${barSpacing}" y="${graphHeight - fatalitiesHeight}" width="${barWidth}" height="${fatalitiesHeight}" fill="#FF5733"></rect>
-      <text x="${barSpacing + (barWidth / 2)}" y="${graphHeight + 20}" text-anchor="middle" font-size="12">${fatalities}</text>
-      <text x="${barSpacing + (barWidth / 2)}" y="${graphHeight + 40}" text-anchor="middle" font-size="12">Fatalities</text>
-      
-      <rect x="${(2 * barSpacing) + barWidth}" y="${graphHeight - injuriesHeight}" width="${barWidth}" height="${injuriesHeight}" fill="#3498DB"></rect>
-      <text x="${(2 * barSpacing) + barWidth + (barWidth / 2)}" y="${graphHeight + 20}" text-anchor="middle" font-size="12">${injuries}</text>
-      <text x="${(2 * barSpacing) + barWidth + (barWidth / 2)}" y="${graphHeight + 40}" text-anchor="middle" font-size="12">Injuries</text>
-      
-      <rect x="${(3 * barSpacing) + (2 * barWidth)}" y="${graphHeight - abductionsHeight}" width="${barWidth}" height="${abductionsHeight}" fill="#27AE60"></rect>
-      <text x="${(3 * barSpacing) + (2 * barWidth) + (barWidth / 2)}" y="${graphHeight + 20}" text-anchor="middle" font-size="12">${abductions}</text>
-      <text x="${(3 * barSpacing) + (2 * barWidth) + (barWidth / 2)}" y="${graphHeight + 40}" text-anchor="middle" font-size="12">Abduction/Kidnap</text>
-    </svg>
-  `;
-  const svgDataURI = `data:image/svg+xml;base64,${Buffer.from(svgMapContent).toString('base64')}`;
-
-  const securityReportHTML = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Weekly Security Incident Report Nigeria</title>
-        <style>
-        
-            body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 0;
-            }
-            .container_security_report {
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-                background-color: #f8f9fa;
-                border-radius: 10px;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 20px;
-            }
-            .footer {
-                text-align: right;
-                margin-top: 20px;
-                font-size: 14px;
-            }
-            .footer p {
-                margin: 0;
-            }
-            .signature {
-                text-align: center;
-                margin-top: 40px;
-            }
-            .watermark {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: rgba(0, 0, 0, 0.1);
-                font-size: 5em;
-                z-index: -1;
-            }
-            .icon {
-                width: 50px;
-                height: 50px;
-                display: inline-block;
-                background-color: #007bff;
-                border-radius: 50%;
-                text-align: center;
-                line-height: 50px;
-                margin-right: 10px;
-                color: #fff;
-                font-size: 24px;
-            }
-        </style>
-    </head>
-    <body>
-
-    <main>
-    <!-- Your SVG content here -->
-    <svg xmlns="http://www.w3.org/2000/svg" height="250" width="450" version="1.0" viewBox="-14.709615 -11.98125 127.48333 71.8875">
-        <defs>
-            <!-- Define the clip path -->
-            <clipPath id="a">
-                <path d="M0 841.89h1785.827V0H0z"/>
-            </clipPath>
-        </defs>
-        <!-- Apply the clip path to the group -->
-        <g clip-path="url(#a)" transform="matrix(1.25 0 0 -1.25 -1155.7275 543.7908)">
-            <!-- Your existing paths and shapes here -->
-            <path d="M924.582 415.8627h19.169v-19.17h-19.169z" fill="#f7a30a" fill-rule="evenodd"/>
-            <path d="M943.751 435.0327h19.17v-19.169h-19.17z" fill="#005ec4" fill-rule="evenodd"/>
-            <path d="M942.4095 435.0324h1.342v-19.169h-19.169v1.341h17.827zm1.3418-19.1694h19.17v-1.342h-17.827v-17.828h-1.343v17.828z" fill="#231f20"/>
-            <path d="M956.972 409.0544h-.851c-.916-1.695-1.841-3.4-2.767-5.196-.832 1.796-1.674 3.501-2.516 5.196h-.972v-6.381h.748v5.195h.019c.252-.837 1.608-3.564 2.42-5.195h.366c.879 1.631 2.365 4.448 2.627 5.195h.019v-5.195h.907zm4.5322-5.9629c-1.691 0-2.271 1.523-2.271 2.771 0 1.196.654 2.553 2.271 2.553 1.618 0 2.272-1.357 2.272-2.553 0-1.248-.579-2.771-2.272-2.771m0-.637c2.021 0 3.273 1.504 3.273 3.408 0 1.788-1.383 3.192-3.273 3.192-1.889 0-3.271-1.404-3.271-3.192 0-1.904 1.251-3.408 3.271-3.408m19.9776 6.5969l-4.021.003v-6.385h4.426v.639l-3.511.002v2.052h3.058v.637h-3.058v2.414h3.106zm7.1982 0h-.752v-5.087h-.019c-.444.638-2.876 3.428-4.329 5.087h-.679v-6.382h.755v5.078h.018c.397-.555 2.858-3.418 4.29-5.078h.716zm5.9082-3.5732v-2.16c-.367-.174-.783-.229-1.339-.229-1.432 0-2.573 1.084-2.573 2.699 0 1.495.961 2.626 2.677 2.626.725 0 1.329-.247 1.725-.511l.377.528c-.396.319-1.15.62-2.111.62-2.377 0-3.678-1.668-3.678-3.282 0-1.75 1.207-3.318 3.555-3.318.839 0 1.64.21 2.282.428v2.599zm3.2888 3.5735h-.914v-6.382h.914zm1.4983-6.3821h3.658v.639h-2.744v5.743h-.914zm-31.3632.0039v5.742l2.139.001v.638h-5.297v-.639h2.203v-5.742z" fill="#636466" fill-rule="evenodd"/>
-            <path d="M972.3656 409.0544l-2.607-6.381h.974l.945 2.689.225.639.671 1.91 1.987-5.238h1.102l-2.568 6.381z" fill="#636466"/>
-            <path d="M972.2015 405.362h4.695V406h-4.466z" fill="#636466" fill-rule="evenodd"/>
-            </g>
-    </svg>
-    <!-- Text added to the right -->
-    <text x="430" y="40" font-family="Calibri, sans-serif" font-size="24" fill="#333333" font-weight="bold" text-anchor="end">Nigeria Weekly Report</text>
-    <svg width="100%" height="1">
-        <line x1="0" y1="0" x2="100%" y2="0" style="stroke: grey; stroke-width: 1;" />
-    </svg>
-</main>
-
-<div class="container_security_report">
-<div class="header">
-    <h2 style="color: #00008B; font-size: 24px;">SECURITY ADVISORY</h2>
-    <h3 style="color: #00008B;">WEEK: ${formattedStartDate} to ${formattedEndDate}</h3>
-    <h3 style="color: #00008B;">Fatalities: ${incidentsData.fatalities} | Injuries: ${incidentsData.injuries} | Abduction/Kidnap: ${incidentsData.abductions}</h3>
-</div>
-<div class="content">
-    <img src="${svgDataURI}" alt="" />
-    <div id="map-container">${svgMapContent}</div>
-    <h2 style="color: #00008B;">Security Risk Update:</h2>
-    <p style="color: #444; font-family: 'Trebuchet MS', sans-serif; font-size: 12px;">${incidentsData.effectsOnAssets}</p>
-
-    <div class="graph">
-        ${graphSVG}
-    </div>
-
-    <h2 style="color: #00008B;">Risk Impact:</h2>
-    <p style="color: #444; font-family: 'Trebuchet MS', sans-serif; font-size: 12px;">${incidentsData.riskImpact}</p>
-    <h3 style="color: #00008B; font-size: 16px;">${incidentsData.briefSummary}</h3>
-</div>
-<div class="graph">
-    ${graphSVG}
-</div>
-
-<h2 style="color: #00008B;">Key security incidents</h2>
-<div style="color: #444; font-family: 'Trebuchet MS', sans-serif; font-size: 12px;">
-    ${keySecurityIncidentsHTML}
-</div>
-<div class="graph">
-    ${pieChartSVG} <!-- Insert the pie chart SVG here -->
-</div>
-
-<h2 style="color: #00008B;">Mota-Engil Operational Zones: Security Overview</h2>
-${motaEngilMapSVG}
-<!-- map here -->
-
-<div class="footer">
-        <p style="color: #333; font-size: 18px; font-weight: bold; line-height: 1.5;">Vitor Leite,</p>
-        <p style="color: #444; font-family: 'Trebuchet MS', sans-serif; font-size: 12px; line-height: 1.5;">Security Manager,</p>
-        <p style="color: #444; font-family: 'Trebuchet MS', sans-serif; font-size: 12px; line-height: 1.5;">Kama Railway Project</p>
-    </div>
-</div>
-<div class="signature">
-<p>______________________________</p>
-<p>Signature</p>
-</div>
-
-    </body>
-    </html>
-  `;
-
-  return securityReportHTML;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-const downloadsFolderPath = path.join(__dirname, '..', 'downloads');
-const uniqueFilename = `Mota-Engil Nigeria National Weekly_Security Report ${formattedToday}.pdf`;
-const pdfPath = path.join(downloadsFolderPath, uniqueFilename);
-
-const htmlContent  = "securityReportHTML"; // This is your dynamic content
-const filename2 =`Mota-Engil Nigeria National Weekly_Security Report ${formattedToday}.pdf`;
-
-const generateAndSavePdf = async (content, filename2) => {
-  const options = { format: 'A4' };
-  const file = { content };
-
-  try {
-    // Generate HTML content for security report
-    const securityReportHTML = generate_security_report_PDF();
-
-    // Convert HTML content to PDF
-    const pdfBuffer = await html_to_pdf.generatePdf({ content: securityReportHTML }, options);
-    
-    const downloadsDir = path.join(__dirname, 'downloads');
-    if (!fs.existsSync(downloadsDir)) {
-      fs.mkdirSync(downloadsDir);
+    if (existingRole) {
+      console.log(`Role with link ${role.link} or title ${role.title} for user ${userId} already exists. Skipping...`);
+      continue;
     }
 
-    const filePath = path.join(downloadsDir, filename2 + '.pdf');
-    fs.writeFileSync(filePath, pdfBuffer);
+    // Graceful fetch — API source pages won't have MyJobMag selectors
+    // so we wrap in try/catch and use sensible defaults if page fails
+    let postedDate       = new Date();
+    let deadlineDate     = new Date();
+    let deadlineDateText = '';
+    let postedDateText   = '';
+    let daysSincePosted  = 0;
+    let daysToDeadline   = 30;
+    let isDeadlinePassed = false;
 
-    console.log(`PDF saved successfully to: ${filePath}`);
-    return filePath;
+    try {
+      const response = await axios.get(role.link, { timeout: 10000 });
+      const html = response.data;
+      const $    = cheerio.load(html);
+
+      postedDateText = $('#posted-date').text().replace('Posted:', '').trim();
+      if (postedDateText) postedDate = new Date(postedDateText);
+
+      deadlineDateText = $('.read-date-sec-li b.tc-bl3').next().text().replace('Deadline:', '').trim();
+
+      if (deadlineDateText === 'Not specified' || !deadlineDateText) {
+        deadlineDate     = new Date(postedDate);
+        deadlineDate.setDate(deadlineDate.getDate() + 30);
+        deadlineDateText = `Computed as ${deadlineDate.toDateString()} (30 days from posted date)`;
+      } else {
+        deadlineDate = new Date(deadlineDateText);
+      }
+
+      const currentDate = new Date();
+      daysSincePosted   = Math.round((currentDate - postedDate) / (1000 * 60 * 60 * 24));
+      daysToDeadline    = Math.round((deadlineDate - currentDate) / (1000 * 60 * 60 * 24));
+      isDeadlinePassed  = currentDate > deadlineDate;
+
+      if (isDeadlinePassed) {
+        console.log(`User ${userId}: Job deadline has passed (${deadlineDateText}). Days since posting: ${daysSincePosted}, Days beyond deadline: ${Math.abs(daysToDeadline)}.`);
+      } else {
+        console.log(`User ${userId}: Job is still active. Posted: ${postedDateText}, Deadline: ${deadlineDateText}. Days since posting: ${daysSincePosted}, Days to deadline: ${daysToDeadline}.`);
+      }
+    } catch (fetchErr) {
+      // API source or unreachable page — use jobDate and 30-day default
+      console.warn(`[filterResults] Could not fetch page for "${role.title}": ${fetchErr.message}. Using defaults.`);
+      if (role.jobDate) {
+        postedDate = new Date(role.jobDate);
+        if (isNaN(postedDate)) postedDate = new Date();
+      }
+      deadlineDate     = new Date(postedDate);
+      deadlineDate.setDate(deadlineDate.getDate() + 30);
+      deadlineDateText = `Computed as ${deadlineDate.toDateString()} (30 days from posted date)`;
+      postedDateText   = postedDate.toDateString();
+      daysSincePosted  = 0;
+      daysToDeadline   = 30;
+      isDeadlinePassed = false;
+    }
+
+    const serialNumber = i + 1;
+
+    // Document shape UNCHANGED
+    const document = {
+      userId,
+      title:          role.title,
+      link:           role.link,
+      jobDate:        role.jobDate,
+      serialNumber,
+      validated:      false,
+      label:          'new',
+      postedDate,
+      deadlineDate,
+      daysSincePosted,
+      daysToDeadline: isDeadlinePassed ? null : daysToDeadline,
+      isExpired:      isDeadlinePassed,
+      timestamp:      new Date(),
+    };
+
+    await rolesListing.insertOne(document);
+    console.log(`New role added for user ${userId}: ${role.title}`);
+  }
+
+  console.log(`Filtered roles have been processed for user ${userId}.`);
+  return filteredResults;
+};
+
+// ── END OF BLOCK D ───────────────────────────────────────────────
+///////////////////////////////////////////////////////////////////////////
+
+let UsersSubscriptionPlan = 'Basic'; // Default plan
+let successfulApplications = 0;
+let maxRepeats = 0;  // Re-initialized maxRepeats
+let subscriptionLimit;
+const conversionRate = 0.2;  // Assuming 20% of prompts result in successful applications
+
+
+
+
+const sendSubscriptionExpiryMessage = async (email, session, sessionToken, client) => {
+  if (!email) {
+      console.error("Email is missing. Aborting email sending.");
+      return;
+  }
+
+  try {
+      await client.connect();
+      const database = client.db("olukayode_sage");
+      const userCollection = database.collection("Users_CV_biodata");
+      const applicationRecords = database.collection("user_application_records");
+
+      // Fetch user ID from session or sessionToken
+      const userId = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+      if (!userId) {
+          console.error("User ID is missing. Cannot proceed.");
+          return;
+      }
+
+      console.log(`Retrieved User ID: ${userId}`);
+
+      // Fetch user details
+      const user = await userCollection.findOne({ _id: userId });
+      let applicantName = user?.name?.trim() || "User";
+      let firstName = applicantName.split(" ")[0]; // Extract first name
+
+      // Fetch last few applied jobs
+      const recentApplications = await applicationRecords
+          .find({ userId })
+          .sort({ sentAt: -1 })
+          .limit(5)
+          .toArray();
+
+      let appliedRolesList = recentApplications
+          .map((app) => `- ${app.role}`)
+          .join("\n");
+
+      if (!appliedRolesList) appliedRolesList = "No recent applications found.";
+
+      // Construct message
+      const messageBody = `
+          <html>
+              <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; line-height: 1.6; margin: 0; padding: 0;">
+                  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <!-- Header -->
+                      <div style="text-align: left; margin-bottom: 20px;">
+                          <h2 style="font-size: 18px; color: #333333; margin: 0;">Hey ${firstName},</h2>
+                      </div>
+
+                      <!-- Body -->
+                      <div style="color: #555555;">
+                          <p>How are you doing? Your subscription expired recently, but we added extra days and applications for you!</p>
+
+                          <p>Here are the roles we applied to:</p>
+                          <ul style="padding-left: 20px;">
+                              ${appliedRolesList.split('\n').map(role => `<li>${role}</li>`).join('')}
+                          </ul>
+
+                          <p>We’re optimistic that you’ll receive interview invites soon! Have you gotten any calls or emails from recruiters?</p>
+
+                          <p>Kindly share your testimonials with us! We'd love to support you through the next stage. If you haven’t received any feedback yet, don’t worry! Some recruitment processes take longer. But if you’d like to intensify your search, feel free to top up your subscription.</p>
+
+                          <p>We’re eager to hear some great news from you! Thanks for choosing IntelliJob.</p>
+                      </div>
+
+                      <!-- Signature -->
+                      <div style="margin-top: 30px;">
+                          <p style="margin: 0;"><strong>Kayode</strong></p>
+                          <p style="margin: 0; color: #777777;">Founder & CEO, Suntrenia</p>
+                      </div>
+
+                      <!-- Social Media Icons -->
+                      <div style="margin-top: 30px; text-align: left;">
+                          <a href="https://facebook.com" style="margin-right: 10px;">
+                              <img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" alt="Facebook" style="width: 24px; height: 24px;">
+                          </a>
+                          <a href="https://twitter.com" style="margin-right: 10px;">
+                              <img src="https://cdn-icons-png.flaticon.com/512/124/124021.png" alt="Twitter" style="width: 24px; height: 24px;">
+                          </a>
+                          <a href="https://linkedin.com">
+                              <img src="https://cdn-icons-png.flaticon.com/512/124/124011.png" alt="LinkedIn" style="width: 24px; height: 24px;">
+                          </a>
+                      </div>
+                  </div>
+              </body>
+          </html>
+      `;
+
+      // Send email
+      const emailResponse = await transporter.sendMail({
+          from: `"IntelliJob" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "Your IntelliJob Subscription Update 🚀",
+          html: messageBody, // Use `html` instead of `text` for formatted email
+      });
+
+      console.log(`User ${userId}: Subscription expiry message sent. Message ID: ${emailResponse.messageId}`);
   } catch (error) {
-    console.error('Error generating PDF:', error);
+      console.error("Error occurred:", error);
+      throw error;
+  } finally {
+      await client.close();
+  }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+let mainIsRunning=false;
+const main = async (req, res) => {
+  if(mainIsRunning){
+    console.log("[Main] Already running - skipping duplicate call");
+    return;
+  }
+  mainIsRunning=true;
+  const _mainDone=()=>{mainIsRunning=false;};
+  const { session } = req; // Access session from request
+
+  const { client } = await connectToDatabase();
+  try {
+      await client.connect();
+
+      console.log('Database connected successfully.');
+
+      const database = client.db('olukayode_sage');
+      const rolesListing = database.collection('roles_listing');
+
+      const userPreferences = await getUserPreferences(session);
+      console.log('User Preferences:', userPreferences);
+
+      const jobTitle = typeof userPreferences === 'string' ? userPreferences : 'default job title';
+      console.log(`Extracted desired job title: ${jobTitle}`);
+
+      const query = `${jobTitle} site:myjobmag.com`;
+
+      try {
+          const results = await fetchMultiplePagesWithAxios(query, 6, session.userId);
+          console.log('All Results:', results);
+
+          await filterResults(results, rolesListing, session.userId);
+          res.status(200).json({ message: 'Job processing completed.' });
+      } catch (error) {
+          console.error('Error fetching or processing results:', error);
+          res.status(500).json({ error: 'Error during job processing.' });
+      }
+  } catch (error) {
+      console.error('Error connecting to database:', error);
+      res.status(500).json({ error: 'Database connection failed.' });
+  } finally {
+      await client.close();
+      console.log('Database connection closed.');
+  }
+
+    const subscriptionClient = new MongoClient(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+  });
+
+  try {
+      await subscriptionClient.connect();
+
+      console.log('Fetching session data for token:', session.userId);
+
+      const subscriptionDatabase = subscriptionClient.db('olukayode_sage');
+      const sessionsCollection = subscriptionDatabase.collection('sessions');
+      const usersCollection = subscriptionDatabase.collection('Users_CV_biodata');
+      const applicationStatusCollection = subscriptionDatabase.collection("application_status");
+      const userId7 = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+
+      const UsersSubscription = await usersCollection.findOne({ _id: userId7 });
+
+      if (UsersSubscription?.subscription?.plan) {
+          UsersSubscriptionPlan = UsersSubscription.subscription.plan;
+      }
+
+      const userStatus = await applicationStatusCollection.findOne({ userId: userId7 });
+      successfulApplications = userStatus?.successfulApplications || 0;
+
+      if (!UsersSubscriptionPlan) {
+          throw new Error("UsersSubscription not found");
+      }
+
+      const sessionData = await sessionsCollection.findOne({ sessionToken: session.userId });
+
+      if (sessionData?.userId) {
+          console.log('User ID found:', sessionData.userId);
+          const user = await usersCollection.findOne({ _id: sessionData.userId });
+
+          if (user?.subscription?.plan) {
+              UsersSubscriptionPlan = user.subscription.plan;
+          }
+      }
+
+      console.log('User Subscription:', UsersSubscriptionPlan);
+      console.log('User successful applications:', successfulApplications);
+
+      // Define max applications based on subscription
+      switch (UsersSubscriptionPlan) {
+          case 'Premium':
+              subscriptionLimit = 24;
+              break;
+          case 'Standard':
+              subscriptionLimit = 20;
+              break;
+          case 'Basic':
+              // subscriptionLimit = 15;
+              subscriptionLimit = 20;
+              break;
+          default:
+              subscriptionLimit = 5;
+      }
+
+      maxRepeats = Math.max(subscriptionLimit - successfulApplications, 0);
+      console.log(`User ${session?.userId}: Subscription limit: ${subscriptionLimit}, Current applications: ${successfulApplications}, Remaining: ${maxRepeats}`);
+
+      // Calculate maxRepeats correctly
+      const remainingApplications = subscriptionLimit - successfulApplications;
+      maxRepeats = Math.ceil(remainingApplications / conversionRate);
+      console.log(`Calculated maxRepeats: ${maxRepeats}`);
+
+      const subscriptionsHistoryCollection = subscriptionDatabase.collection('subscriptionsHistory');
+
+      if (successfulApplications >= subscriptionLimit) {
+          // Store the completed subscription record before resetting
+          await subscriptionsHistoryCollection.insertOne({
+              userId: userId7,
+              subscriptionType: UsersSubscriptionPlan,
+              completedAt: new Date()
+          });
+
+          // Reset successful applications count
+          successfulApplications = 0;
+
+          console.log(`Subscription completed for user ${userId7}. Resetting application count.`);
+
+          // Send subscription expiry message
+          const user = await usersCollection.findOne({ _id: userId7 });
+          if (user?.email) {
+              await sendSubscriptionExpiryMessage(user.email, session, session.userId, subscriptionClient);
+          } else {
+              console.error("User email not found. Cannot send subscription expiry message.");
+          }
+      }
+
+      ///////////////existing
+      startPolling(session);
+      await fetchJobUrlForUsers(session);
+
+      try {
+          await main2(session);
+      } catch (error) {
+          console.error("Error in main2 execution:", error);
+      }
+      startEmailPrompt(session, maxRepeats, subscriptionLimit);
+      //startEmailPrompt(session, maxRepeats);
+      ///////////////////////////////////////////////////////////////
+
+  } catch (error) {
+      console.error('Error fetching subscription details:', error);
+  } finally {
+      await subscriptionClient.close();
+      console.log('Closing database connection...');
+      _mainDone();
+  }
+};
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+async function getAppSettings() {
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const settings = await client.db('olukayode_sage').collection('app_settings').findOne({ _id: 'global' });
+    return settings || { mode: 'TESTING_MODE' };
+  } catch(e) {
+    console.error('[AppSettings] Failed:', e.message);
+    return { mode: 'TESTING_MODE' };
+  } finally { await client.close(); }
+}
+
+async function fetchSuccessfulApplications(session) {
+  const { client } = await connectToDatabase();
+  try {
+    await client.connect();
+    console.log('Database connected successfully.');
+
+    const database = client.db('olukayode_sage');
+    const applicationStatusCollection = database.collection('application_status');
+    const userStatus = await applicationStatusCollection.findOne({ userId: session.userId });
+
+    return userStatus?.successfulApplications || 0;
+  } catch (error) {
+    console.error('Error fetching successful applications:', error);
+    return 0; // Default value in case of an error
+  } finally {
+    await client.close();
+    console.log('Database connection closed.');
+  }
+}
+
+async function startEmailPrompt(session, maxRepeats = 5, subscriptionLimit = 5) {
+  // AUTO MODE CHECK — if user has autoMode enabled, skip WhatsApp prompt and apply directly
+  try {
+    const autoClient = new MongoClient(process.env.MONGO_URI);
+    await autoClient.connect();
+    const autoUser = await autoClient.db('olukayode_sage').collection('Users_CV_biodata')
+      .findOne({ _id: session.userId }, { projection: { autoMode: 1 } });
+    await autoClient.close();
+    if (autoUser?.autoMode === true) {
+      console.log(`[AutoMode] User ${session.userId} is in Auto Mode — skipping WhatsApp prompts`);
+      // Run application cycle directly without WhatsApp approval
+      const autoDb = new MongoClient(process.env.MONGO_URI);
+      await autoDb.connect();
+      const db = autoDb.db('olukayode_sage');
+      const pendingRoles = await db.collection('applicationProcessingFeeder')
+        .find({ userId: session.userId, role_processed: false }).limit(maxRepeats).toArray();
+      for (const role of pendingRoles) {
+        try {
+          await db.collection('autoMode_daily_log').insertOne({
+            userId: session.userId,
+            role: role.role || role.title,
+            company: role.company || '',
+            appliedAt: new Date(),
+            date: new Date(new Date().setHours(0,0,0,0))
+          });
+          console.log(`[AutoMode] Logged auto-apply for role: ${role.role || role.title}`);
+        } catch(logErr) {
+          console.error('[AutoMode] Log error:', logErr.message);
+        }
+      }
+      await autoDb.close();
+      // Schedule end-of-day summary at 9 PM
+      const now = new Date();
+      const ninepm = new Date(now); ninepm.setHours(21,0,0,0);
+      const msUntil9pm = ninepm > now ? ninepm - now : 0;
+      setTimeout(async () => {
+        try {
+          const summaryClient = new MongoClient(process.env.MONGO_URI);
+          await summaryClient.connect();
+          const today = new Date(); today.setHours(0,0,0,0);
+          const logs = await summaryClient.db('olukayode_sage').collection('autoMode_daily_log')
+            .find({ userId: session.userId, date: { $gte: today } }).toArray();
+          await summaryClient.close();
+          if (logs.length > 0) {
+            const summaryLines = logs.map((l,i) => `${i+1}. ${l.role}${l.company ? ' at ' + l.company : ''}`).join('\n');
+            const summaryMsg = `📋 *Suntrenia Daily Summary*\n\nHere are the ${logs.length} job(s) we applied to for you today:\n\n${summaryLines}\n\nAll applications were sent automatically. Reply *STOP* anytime to pause Auto Mode.`;
+            await sendMessage(session.userId.replace(/^\+/,''), summaryMsg);
+            console.log(`[AutoMode] Daily summary sent to ${session.userId}`);
+          }
+        } catch(sumErr) {
+          console.error('[AutoMode] Summary error:', sumErr.message);
+        }
+      }, msUntil9pm);
+      return; // Skip the normal WhatsApp prompt flow entirely
+    }
+  } catch(autoErr) {
+    console.error('[AutoMode] Check error:', autoErr.message);
+    // Fall through to normal consent flow if auto mode check fails
+  }
+const settings = await getAppSettings(); // reads from app_settings collection
+const mode = settings.mode || "TESTING_MODE"
+  if (mode === "TESTING_MODE") {
+    console.log("Running in TESTING MODE: First email will be sent after 1 minute.");
+    scheduleFirstEmail(session, 1);
+  } else if (mode === "NORMAL_MODE") {
+    console.log("Running in NORMAL MODE: First email will be sent after 30-45 minutes.");
+    const randomDelay = Math.floor(Math.random() * (45 - 30 + 1)) + 30;
+    scheduleFirstEmail(session, randomDelay);
+  } else {
+    console.error("Error: MODE environment variable must be set to 'TESTING_MODE' or 'NORMAL_MODE'.");
+    return;
+  }
+
+  // Schedule the remaining emails at random times (latest time is 7 PM)
+  const randomTimes = generateRandomTimes(2, 3);
+  randomTimes.forEach(time => {
+    schedule.scheduleJob(time, async () => {
+      try {
+        const currentSuccessfulApps = await fetchSuccessfulApplications(session);
+        console.log(`Checking successful applications before email send: ${currentSuccessfulApps}/${subscriptionLimit}`);
+
+        if (currentSuccessfulApps >= subscriptionLimit) {
+          console.log("Email prompt stopped: successful applications have reached the subscription limit.");
+          // await sendSubscriptionExpiryMessage(user?.email, session, session?.sessionToken);
+
+          return;
+        }
+
+        await promptuserbymail(session);
+        console.log(`(NORMAL MODE) Email sent at ${time.toLocaleString()}`);
+      } catch (error) {
+        console.error("Error sending email:", error);
+      }
+    });
+  });
+
+  console.log(`Emails scheduled at: ${randomTimes.map(time => time.toLocaleString()).join(", ")}`);
+}
+
+function scheduleFirstEmail(session, delayMinutes) {
+  const firstTriggerTime = new Date(Date.now() + delayMinutes * 60 * 1000);
+
+  schedule.scheduleJob(firstTriggerTime, async () => {
+    try {
+      await promptuserbymail(session);
+      console.log(`(FIRST EMAIL) Sent at ${firstTriggerTime.toLocaleTimeString()}`);
+    } catch (error) {
+      console.error("Error sending first email:", error);
+    }
+  });
+
+  console.log(`First email scheduled at: ${firstTriggerTime.toLocaleString()}`);
+}
+
+function generateRandomTimes(minTimes, maxTimes) {
+  const times = [];
+  const numTimes = Math.floor(Math.random() * (maxTimes - minTimes + 1)) + minTimes;
+  const now = new Date();
+  //testing_mode
+  // const latestHour = 19; // 7 PM in 24-hour format
+  const latestHour = 23; // 7 PM in 24-hour format
+  for (let i = 0; i < numTimes; i++) {
+    let randomTime;
+    do {
+      const randomHour = Math.floor(Math.random() * (latestHour - now.getHours())) + now.getHours();
+      const randomMinute = Math.floor(Math.random() * 60);
+      randomTime = new Date();
+      randomTime.setHours(randomHour, randomMinute, 0, 0);
+    } while (randomTime <= now || randomTime.getHours() >= latestHour); // Ensure it's a future time and before 7 PM
+
+    times.push(new Date(randomTime));
+  }
+
+  return times;
+}
+
+
+
+
+app.post('/trigger-main', (req, res) => {
+  const { plan, date } = req.body;
+
+  if (!plan || !date) {
+    return res.status(400).json({ success: false, message: 'Invalid subscription data' });
+  }
+
+  console.log(`Triggered main logic for plan: ${plan} at ${date}`);
+
+  // Call the main function
+  main(req, res).catch((err) => {
+    console.error('Error in main function:', err);
+    res.status(500).json({ error: 'Error triggering main function.' });
+  });
+});
+////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+const apiKey = 'AIzaSyAAaq27xrkFhUSYAirdk5LSSm8LkKhySCE';
+const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+// const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { getMaxListeners } = require('process');
+// Access your API key as an environment variable (see "Set up your API key" above)
+const genAI = new GoogleGenerativeAI(apiKey);
+
+let lastFetchedMessageId = null; // To track the last fetched message
+let summarizedText = '';
+let finalSummary = '';
+
+const whatsappJobPosts = async (session) => {
+  try {
+    // Ensure user specificity
+    const userId = session.userId;
+    if (!userId) {
+      throw new Error('User ID not found in session.');
+    }
+
+    console.log('Fetching WhatsApp job posts for user:', userId);
+
+  const threeMinutesAgo = Math.floor(Date.now() / 1000) - 180;
+    let allMessages = [];
+
+    // ✅ Fetch dynamic job groups from MongoDB
+    const groupDbClient = new MongoClient(uri);
+    let JOB_GROUP_IDS = [];
+    try {
+      await groupDbClient.connect();
+      const groupDocs = await groupDbClient
+        .db('olukayode_sage')
+        .collection('whatsapp_job_groups')
+        .find({ active: true })
+        .toArray();
+      JOB_GROUP_IDS = groupDocs.map(g => g.groupId);
+      console.log(`[WhatsApp] Loaded ${JOB_GROUP_IDS.length} active job groups from DB`);
+    } catch (groupErr) {
+      console.warn('[WhatsApp] Could not load groups from DB, using fallback:', groupErr.message);
+      // Fallback to env vars if DB fails
+      JOB_GROUP_IDS = [
+        process.env.WHATSAPP_JOB_GROUP_1,
+        process.env.WHATSAPP_JOB_GROUP_2,
+        process.env.WHATSAPP_JOB_GROUP_3,
+      ].filter(Boolean);
+    } finally {
+      await groupDbClient.close();
+    }
+
+    // ✅ Try WHAPI first, fall back to Waha
+    // ✅ THREE-TIER WhatsApp message fetching:
+    // PRIMARY: Baileys (free, always running)
+    // FALLBACK1: WHAPI (paid, needs valid WHAPI_TOKEN)
+    // FALLBACK2: Empty array (graceful degradation)
+
+const fetchMessagesFromWhapi = async () => {
+  // ✅ Check if WhatsApp scraping is enabled
+  try {
+    const _sc = new MongoClient(process.env.MONGO_URI);
+    await _sc.connect();
+    const _st = await _sc.db('olukayode_sage').collection('app_settings').findOne({_id:'global'});
+    await _sc.close();
+    if(_st && _st.whatsappScraping === false){
+      console.log('[WHAPI] Scraping paused by admin - skipping poll');
+      return [];
+    }
+  } catch(_e){ console.warn('[WHAPI] Scraping flag check failed:',_e.message); }
+  // ✅ Read cursor — timestamp of last processed WHAPI message
+  const cursorClient = new MongoClient(uri);
+  let sinceTimestamp = Math.floor(Date.now() / 1000) - (3 * 60); // default: 3 mins ago
+  try {
+    await cursorClient.connect();
+    const cursorDb = cursorClient.db('olukayode_sage');
+    const cursor = await cursorDb.collection('whapi_cursor').findOne({ key: 'last_processed' });
+    if (cursor?.lastTimestamp) {
+      sinceTimestamp = cursor.lastTimestamp;
+      console.log(`[WHAPI] Fetching messages since: ${new Date(sinceTimestamp * 1000).toISOString()}`);
+    }
+  } catch (e) {
+    console.warn('[WHAPI] Could not read cursor, using 3-min default:', e.message);
+  } finally {
+    await cursorClient.close();
+  }
+
+  const response = await axios.request({
+    method: 'GET',
+    url: 'https://gate.whapi.cloud/messages/list/?count=100',
+    headers: {
+      accept: 'application/json',
+      Authorization: `Bearer ${process.env.WHAPI_TOKEN}`
+    }
+  });
+
+  const allMsgs = response.data.messages || [];
+
+  // ✅ Only keep messages newer than last processed timestamp
+  const freshMsgs = allMsgs.filter(msg => (msg.timestamp || 0) > sinceTimestamp);
+  console.log(`[WHAPI] ${allMsgs.length} total fetched, ${freshMsgs.length} new since last poll`);
+
+  if (freshMsgs.length === 0) return [];
+
+  // ✅ Save the newest timestamp as the new cursor
+  const newestTimestamp = Math.max(...freshMsgs.map(m => m.timestamp || 0));
+  try {
+    const saveClient = new MongoClient(uri);
+    await saveClient.connect();
+    const saveDb = saveClient.db('olukayode_sage');
+    await saveDb.collection('whapi_cursor').updateOne(
+      { key: 'last_processed' },
+      { $set: { lastTimestamp: newestTimestamp, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    await saveClient.close();
+    console.log(`[WHAPI] ✅ Cursor updated to: ${new Date(newestTimestamp * 1000).toISOString()}`);
+  } catch (e) {
+    console.warn('[WHAPI] Could not save cursor:', e.message);
+  }
+
+  return freshMsgs.map(msg => ({
+    from: msg.from || msg.chatId,
+    chatId: msg.chatId || msg.from,
+    timestamp: msg.timestamp,
+    text: { body: msg.text?.body || msg.body || '' }
+  }));
+};
+
+    const fetchMessagesFromBaileys = async () => {
+      // ✅ Baileys stores messages in memory via baileysMessages global cache
+      // Messages are pushed into baileysMessages[] by the Baileys listener
+      // defined in startBaileys() at the top of app.js
+      if (!global.baileysMessages || global.baileysMessages.length === 0) {
+        console.log('[Baileys] No messages in cache yet');
+        return [];
+      }
+      const threeMinutesAgoMs = Date.now() - 3 * 60 * 1000;
+      const fresh = global.baileysMessages.filter(m => m.receivedAt >= threeMinutesAgoMs);
+      console.log(`[Baileys] ${fresh.length} fresh messages from cache`);
+      // Clear processed messages to avoid reprocessing
+      global.baileysMessages = global.baileysMessages.filter(m => m.receivedAt >= threeMinutesAgoMs);
+      return fresh;
+    };
+
+    // PRIMARY: Try Baileys first
+    try {
+      allMessages = await fetchMessagesFromBaileys();
+      console.log(`[WhatsApp] Baileys: fetched ${allMessages.length} messages`);
+    } catch (baileysError) {
+      console.warn('[WhatsApp] Baileys failed:', baileysError.message);
+      allMessages = [];
+    }
+
+    // FALLBACK1: Try WHAPI if Baileys returned nothing
+    if (allMessages.length === 0 && process.env.WHAPI_TOKEN) {
+      try {
+        allMessages = await fetchMessagesFromWhapi();
+        console.log(`[WhatsApp] WHAPI fallback: fetched ${allMessages.length} messages`);
+      } catch (whapiError) {
+        console.warn('[WhatsApp] WHAPI also failed:', whapiError.message);
+        allMessages = [];
+      }
+    }
+    // ✅ Filter from any active job group OR known sender
+    const filteredMessages = allMessages.filter(message => {
+    const fromJobGroup = JOB_GROUP_IDS.length > 0 && JOB_GROUP_IDS.some(groupId =>
+      message.from === groupId || message.chatId === groupId
+    );
+    const sentWithinLastThreeMinutes = message.timestamp >= threeMinutesAgo;
+    return fromJobGroup && sentWithinLastThreeMinutes;
+    });
+
+    if (filteredMessages.length > 0) {
+      const { client } = await connectToDatabase();
+      await client.connect();
+      console.log('Database connected successfully.');
+
+      const database = client.db('olukayode_sage');
+      const whatsappJobVacancyPost = database.collection('whatsappJobVacancyPost');
+
+      const jobPostExists = async (messageBody, whatsappJobVacancyPost) => {
+        const existingPost = await whatsappJobVacancyPost.findOne({
+          message: messageBody,
+          userId: userId // Ensure user-specific job post existence check
+        });
+        return existingPost !== null;
+      };
+
+ for (const message of filteredMessages) {
+        const messageBody = message.text?.body;
+        if (!messageBody) continue;
+
+        const exists = await jobPostExists(messageBody, whatsappJobVacancyPost);
+        if (exists) {
+          console.log('Job post already exists for this user. Skipping.');
+          continue;
+        }
+
+        // ✅ AI filter — detect if message is a job post and extract data
+        let isJobPost = false;
+        let extractedJob = null;
+        try {
+          const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              max_tokens: 500,
+              messages: [{
+                role: 'user',
+                content: `Analyze this WhatsApp message and determine if it is a job vacancy posting.
+
+Message:
+"""
+${messageBody}
+"""
+
+Respond ONLY with a JSON object, no markdown, no explanation:
+{
+  "isJobPost": true or false,
+  "title": "job title or null",
+  "company": "company name or null",
+  "location": "location or null",
+  "deadline": "deadline date or null",
+  "applicationEmail": "email address or null",
+  "description": "full job description or null"
+}`
+              }]
+            })
+          });
+          const groqData = await groqResponse.json();
+          const rawText = groqData.choices?.[0]?.message?.content?.trim();
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            isJobPost = parsed.isJobPost === true;
+            if (isJobPost) {
+              extractedJob = parsed;
+              console.log(`[WhatsApp AI] ✅ Job detected: ${parsed.title} at ${parsed.company}`);
+            } else {
+              console.log('[WhatsApp AI] ❌ Not a job post — skipping message');
+            }
+          }
+        } catch (aiErr) {
+          console.warn('[WhatsApp AI] AI filter failed, treating as job post by default:', aiErr.message);
+          isJobPost = true; // ✅ Fail open — if AI fails, save it anyway
+          extractedJob = { title: 'Unknown', company: 'Unknown', description: messageBody };
+        }
+
+        if (!isJobPost) continue;
+
+        // ✅ Save to whatsappJobVacancyPost
+        const jobPostDocument = {
+          message: messageBody,
+          userId,
+          timestamp: new Date(),
+          status: 'new',
+          priority: 'high', // ✅ WhatsApp jobs are highest priority
+          source: 'whatsapp_group',
+          title: extractedJob?.title || 'Unknown',
+          company: extractedJob?.company || 'Unknown',
+          location: extractedJob?.location || 'Not provided',
+          deadline: extractedJob?.deadline || null,
+          applicationEmail: extractedJob?.applicationEmail || 'Not provided',
+          description: extractedJob?.description || messageBody,
+        };
+        const result = await whatsappJobVacancyPost.insertOne(jobPostDocument);
+        console.log(`[WhatsApp] Saved job post with ID: ${result.insertedId} for user: ${userId}`);
+
+        // ✅ Also save to roles_listing so CV pipeline picks it up
+        try {
+          const rolesClient = new MongoClient(uri);
+          await rolesClient.connect();
+          const rolesDb = rolesClient.db('olukayode_sage');
+          await rolesDb.collection('roles_listing').insertOne({
+            userId,
+            title: extractedJob?.title || 'Unknown Position',
+            link: null,
+            jobDate: new Date().toISOString(),
+            description: extractedJob?.description || messageBody,
+            company: extractedJob?.company || 'Unknown',
+            applicationEmail: extractedJob?.applicationEmail || 'Not provided',
+            priority: 'high', // ✅ Premium users get these first
+            source: 'whatsapp',
+            validated: false,
+            label: 'new',
+            timestamp: new Date()
+          });
+          console.log(`[WhatsApp] ✅ Job also saved to roles_listing for CV pipeline`);
+          await rolesClient.close();
+        } catch (rolesErr) {
+          console.error('[WhatsApp] Failed to save to roles_listing:', rolesErr.message);
+        }
+      }
+
+      await client.close();
+      console.log('Database connection closed.');
+    } else {
+      console.log('No messages found from the sender within the last 3 minutes.');
+    }
+  } catch (error) {
+    console.error('Error retrieving WhatsApp job posts or saving to database:', error.message, error.stack);
+  }
+};
+
+
+
+//////////////////////////////////////////////
+// Polling function to check for new messages every 30 seconds
+const pollForWhatsAppJobPosts = async (session) => {
+  console.log("Polling for new WhatsApp job posts...");
+
+  try {
+    const userId = session.userId; // Ensure user-specificity
+    if (!userId) {
+      throw new Error("User ID not found in session.");
+    }
+
+    const jobPost = await whatsappJobPosts(session); // Fetch the latest message for the user
+    if (jobPost) {
+      if (jobPost !== lastFetchedMessageId) {
+        console.log(`New job post fetched for user ${userId}:`, jobPost);
+
+        // Process the job post using the summarizeJobPost function
+        summarizeJobPost(jobPost)
+          .then(async (summarizedPost) => {
+            const whatsapp_Job_post = furtherProcessing(summarizedPost); // Process the summarized post
+
+            // Map job data to structured format
+            const structuredData = mapToStructuredData(whatsapp_Job_post, userId); // Pass userId for mapping
+
+            // Connect to MongoDB and save structured data
+            const { client } = await connectToDatabase();
+            await client.connect();
+            console.log('Database connected successfully.');
+
+            // Save the structured data to the database
+            await saveToDatabase(structuredData, client, userId); // Pass userId for saving
+
+            // Close the MongoDB connection
+            await client.close();
+
+            // Perform keyword extraction or other operations as needed
+            performOperations(whatsapp_Job_post, userId); // Pass userId for operations
+          })
+          .catch(error => {
+            console.error(`Error processing job post for user ${userId}:`, error);
+          });
+
+        lastFetchedMessageId = jobPost; // Update the last fetched message ID
+      } else {
+        console.log(`Same job post already processed for user ${userId}, skipping...`);
+      }
+    } else {
+      console.log(`No new job post available for user ${userId}.`);
+    }
+  } catch (error) {
+    console.error("Error during polling:", error);
+  }
+};
+
+// Start polling — interval read from DB (default 30 mins)
+const startPolling = async (session) => {
+  pollForWhatsAppJobPosts(session);
+  let intervalMinutes = 30;
+  try {
+    const _wClient = new MongoClient(process.env.MONGO_URI);
+    await _wClient.connect();
+    const _wSettings = await _wClient.db('olukayode_sage').collection('app_settings').findOne({ _id: 'global' });
+    await _wClient.close();
+    if (_wSettings && _wSettings.pollIntervalMinutes) intervalMinutes = _wSettings.pollIntervalMinutes;
+  } catch(e) {
+    console.error('[WhatsApp] Could not read poll interval, using 30 mins:', e.message);
+  }
+  const intervalMs = intervalMinutes * 60 * 1000;
+  console.log(`[WhatsApp] Polling every ${intervalMinutes} minute(s)`);
+  global.whatsappPollInterval=setInterval(() => pollForWhatsAppJobPosts(session), intervalMs);
+};
+
+
+// ///////////////////////////////working
+// // Function to summarize job vacancy post using AI model (Gemini AI)
+// async function summarizeJobPost(post) {
+//   try {
+//     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+//     const result = await model.generateContent(post);
+//     summarizedText = result.response.text(); // Assign the summarized text to the declared variable
+//     console.log("Summarized text:", summarizedText); // Logging the summarized text
+//     return summarizedText; // Optionally, still return the summarized text if needed
+//   } catch (error) {
+//     console.error('Error summarizing job vacancy post:', error);
+//     throw error;
+//   }
+// }
+//////////////////////////////////////////////////////////existing
+////////////////////////////working
+// Function to summarize job vacancy post using AI model (Gemini AI)
+async function summarizeJobPost(post, userId) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const result = await model.generateContent(post);
+    const summarizedText = result.response.text(); // Assign the summarized text to the declared variable
+    console.log(`Summarized text for user ${userId}:`, summarizedText); // Logging the summarized text with userId
+    return summarizedText; // Optionally, still return the summarized text if needed
+  } catch (error) {
+    console.error(`Error summarizing job vacancy post for user ${userId}:`, error);
+    throw error;
+  }
+}
+///////////////////existing////////////////////////////////////////////////
+
+// // Function to map WhatsApp job data to structured data format
+// function mapToStructuredData(whatsapp_Job_post) {
+//   return {
+//     title: whatsapp_Job_post["Job Title"] || "Not stated",
+//     url: whatsapp_Job_post["url"] || "Not provided",
+//     jobLocation: whatsapp_Job_post["Job Location"] || "Not stated",
+//     qualification: whatsapp_Job_post["qualification"] || "Not stated",
+//     experience: whatsapp_Job_post["experience"] || "Not stated",
+//     jobField: whatsapp_Job_post["jobField"] || "Not stated",
+//     jobDescription: whatsapp_Job_post["Job Description"] || "Not provided",
+//     salaryRange: whatsapp_Job_post["Expected Salary"] || "Not provided",
+//     keyResponsibilities: whatsapp_Job_post["keyResponsibilities"] || "Not provided",
+//     skills: whatsapp_Job_post["skills"] || "Not provided",
+//     requirements: whatsapp_Job_post["requirements"] || "Not provided",
+//     applicationEmail: whatsapp_Job_post["Contact Email"] || "Not provided",
+//     postedDate: whatsapp_Job_post["postedDate"] ? new Date(whatsapp_Job_post["postedDate"]).toISOString() : "Not specified",
+//     deadline: whatsapp_Job_post["deadline"] ? new Date(whatsapp_Job_post["deadline"]).toISOString() : "Not specified",
+//     processedAt: new Date().toISOString(),
+//     published: true,
+//     publishedAt: new Date().toISOString()
+
+//   };
+
+// }
+///////////////////////////////////////////////////////////////////////
+
+// Function to map WhatsApp job data to structured data format
+function mapToStructuredData(whatsapp_Job_post, userId) {
+  return {
+    userId, // Include the userId for user-specific operations
+    title: whatsapp_Job_post["Job Title"] || "Not stated",
+    url: whatsapp_Job_post["url"] || "Not provided",
+    jobLocation: whatsapp_Job_post["Job Location"] || "Not stated",
+    qualification: whatsapp_Job_post["qualification"] || "Not stated",
+    experience: whatsapp_Job_post["experience"] || "Not stated",
+    jobField: whatsapp_Job_post["jobField"] || "Not stated",
+    jobDescription: whatsapp_Job_post["Job Description"] || "Not provided",
+    salaryRange: whatsapp_Job_post["Expected Salary"] || "Not provided",
+    keyResponsibilities: whatsapp_Job_post["keyResponsibilities"] || "Not provided",
+    skills: whatsapp_Job_post["skills"] || "Not provided",
+    requirements: whatsapp_Job_post["requirements"] || "Not provided",
+    applicationEmail: whatsapp_Job_post["Contact Email"] || "Not provided",
+    postedDate: whatsapp_Job_post["postedDate"] ? new Date(whatsapp_Job_post["postedDate"]).toISOString() : "Not specified",
+    deadline: whatsapp_Job_post["deadline"] ? new Date(whatsapp_Job_post["deadline"]).toISOString() : "Not specified",
+    processedAt: new Date().toISOString(),
+    published: true,
+    publishedAt: new Date().toISOString(),
+  };
+}
+/////////////////////////////////exiting
+// // Function to save structured data to the database
+// async function saveToDatabase(whatsapp_Job_post, client) {
+
+//   try {
+//     await client.connect();
+//     console.log('Database connected successfully.');
+
+//     const database = client.db('olukayode_sage');
+//     const result = await database.collection('whatsappJobVacancyPost').insertOne(whatsapp_Job_post); // Save to 'whatsappJobVacancyPost' collection
+//     console.log("Job post saved to database with ID:", result.insertedId);
+//   } catch (error) {
+//     console.error("Error saving job post to database:", error);
+//   }
+// }
+//////////////////////////////////////////////////////////
+// Function to save structured data to the database
+async function saveToDatabase(whatsapp_Job_post, client, userId) {
+  try {
+    await client.connect();
+    console.log(`Database connected successfully for user ${userId}.`);
+
+    const database = client.db('olukayode_sage');
+    const collectionName = 'whatsappJobVacancyPost';
+
+    // Ensure user-specificity by storing userId in the document
+    const document = { ...whatsapp_Job_post, userId };
+    const result = await database.collection(collectionName).insertOne(document); // Save to 'whatsappJobVacancyPost' collection
+
+    console.log(`Job post saved to database for user ${userId} with ID:`, result.insertedId);
+  } catch (error) {
+    console.error(`Error saving job post to database for user ${userId}:`, error);
+  }
+}
+// // Function for further processing using NLP techniques
+// function furtherProcessing(summarizedPost) {
+//   const KEYWORDS = {
+//     POSITION: /(?:job title:|position:|title:)/i,
+//     LOCATION: /(?:location:|job location:)/i,
+//     SALARY_RANGE: /(?:salary range:|expected salary:)/i,
+//     INTERVIEW_DATE: /(?:interview date:|date:)/i,
+//     QUALIFICATION: /(?:qualification:|required qualifications:)/i,
+//     EXPERIENCE: /(?:experience:|years of experience:)/i,
+//     JOB_FIELD: /(?:job field:|industry:)/i,
+//     RESPONSIBILITIES: /(?:key responsibilities:|responsibilities:)/i,
+//     SKILLS: /(?:skills:|required skills:)/i,
+//     REQUIREMENTS: /(?:requirements:|job requirements:)/i,
+//   };
+// Function for further processing using NLP techniques
+function furtherProcessing(summarizedPost, userId) {
+  const KEYWORDS = {
+    POSITION: /(?:job title:|position:|title:)/i,
+    LOCATION: /(?:location:|job location:)/i,
+    SALARY_RANGE: /(?:salary range:|expected salary:)/i,
+    INTERVIEW_DATE: /(?:interview date:|date:)/i,
+    QUALIFICATION: /(?:qualification:|required qualifications:)/i,
+    EXPERIENCE: /(?:experience:|years of experience:)/i,
+    JOB_FIELD: /(?:job field:|industry:)/i,
+    RESPONSIBILITIES: /(?:key responsibilities:|responsibilities:)/i,
+    SKILLS: /(?:skills:|required skills:)/i,
+    REQUIREMENTS: /(?:requirements:|job requirements:)/i,
+  };
+
+  // function extractValue(text, regex) {
+  //   const match = text.match(regex);
+  //   return match ? text.slice(match.index + match[0].length).trim() : null;
+  // }
+ // Helper function to extract values based on regex
+ function extractValue(text, regex) {
+  const match = text.match(regex);
+  return match ? text.slice(match.index + match[0].length).trim() : null;
+}
+
+  // const sentences = summarizedPost.split('\n').map(sentence => sentence.trim());
+  // const whatsapp_Job_post = {
+  //   "Job Description": summarizedPost,
+  //   "keywords": []
+  // };
+  const sentences = summarizedPost.split('\n').map(sentence => sentence.trim());
+  const whatsapp_Job_post = {
+    userId, // Associate data with a specific user
+    "Job Description": summarizedPost,
+    "keywords": []
+  };
+
+  // sentences.forEach(sentence => {
+  //   const lowerSentence = sentence.toLowerCase();
+
+//     if (KEYWORDS.POSITION.test(lowerSentence)) {
+//       whatsapp_Job_post["Job Title"] = extractValue(sentence, KEYWORDS.POSITION) || "Not stated";
+//     } else if (KEYWORDS.LOCATION.test(lowerSentence)) {
+//       whatsapp_Job_post["Job Location"] = extractValue(sentence, KEYWORDS.LOCATION) || "Not stated";
+//     } else if (KEYWORDS.SALARY_RANGE.test(lowerSentence)) {
+//       whatsapp_Job_post["Expected Salary"] = extractValue(sentence, KEYWORDS.SALARY_RANGE) || "Not stated";
+//     } else if (KEYWORDS.INTERVIEW_DATE.test(lowerSentence)) {
+//       whatsapp_Job_post["Interview Date"] = extractValue(sentence, KEYWORDS.INTERVIEW_DATE) || "Not stated";
+//     } else if (KEYWORDS.QUALIFICATION.test(lowerSentence)) {
+//       whatsapp_Job_post["Qualification"] = extractValue(sentence, KEYWORDS.QUALIFICATION) || "Not stated";
+//     } else if (KEYWORDS.EXPERIENCE.test(lowerSentence)) {
+//       whatsapp_Job_post["Experience"] = extractValue(sentence, KEYWORDS.EXPERIENCE) || "Not stated";
+//     } else if (KEYWORDS.JOB_FIELD.test(lowerSentence)) {
+//       whatsapp_Job_post["Job Field"] = extractValue(sentence, KEYWORDS.JOB_FIELD) || "Not stated";
+//     } else if (KEYWORDS.RESPONSIBILITIES.test(lowerSentence)) {
+//       whatsapp_Job_post["Key Responsibilities"] = extractValue(sentence, KEYWORDS.RESPONSIBILITIES) || "Not provided";
+//     } else if (KEYWORDS.SKILLS.test(lowerSentence)) {
+//       whatsapp_Job_post["Skills"] = extractValue(sentence, KEYWORDS.SKILLS) || "Not provided";
+//     } else if (KEYWORDS.REQUIREMENTS.test(lowerSentence)) {
+//       whatsapp_Job_post["Requirements"] = extractValue(sentence, KEYWORDS.REQUIREMENTS) || "Not provided";
+//     } else if (/\b\d{10,15}\b/.test(sentence)) {
+//       const phoneNumbers = sentence.match(/\b\d{10,15}\b/g);
+//       whatsapp_Job_post["Contact Phone Number"] = phoneNumbers ? phoneNumbers.join(", ") : "Not indicated";
+//     } else if (lowerSentence.includes("keywords:")) {
+//       const keywords = sentence.split(':')[1]?.trim().split(',') || [];
+//       whatsapp_Job_post["keywords"].push(...keywords.map(keyword => keyword.trim()));
+//     }
+//   });
+
+//   const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+//   const emailAddresses = summarizedPost.match(emailRegex) || [];
+//   whatsapp_Job_post["Contact Email"] = emailAddresses.join(", ") || "Not indicated";
+
+//   console.log("Final Summary:", whatsapp_Job_post);
+//   return whatsapp_Job_post;
+// }
+// Process each sentence and extract details based on keywords
+sentences.forEach(sentence => {
+  const lowerSentence = sentence.toLowerCase();
+
+  if (KEYWORDS.POSITION.test(lowerSentence)) {
+    whatsapp_Job_post["Job Title"] = extractValue(sentence, KEYWORDS.POSITION) || "Not stated";
+  } else if (KEYWORDS.LOCATION.test(lowerSentence)) {
+    whatsapp_Job_post["Job Location"] = extractValue(sentence, KEYWORDS.LOCATION) || "Not stated";
+  } else if (KEYWORDS.SALARY_RANGE.test(lowerSentence)) {
+    whatsapp_Job_post["Expected Salary"] = extractValue(sentence, KEYWORDS.SALARY_RANGE) || "Not stated";
+  } else if (KEYWORDS.INTERVIEW_DATE.test(lowerSentence)) {
+    whatsapp_Job_post["Interview Date"] = extractValue(sentence, KEYWORDS.INTERVIEW_DATE) || "Not stated";
+  } else if (KEYWORDS.QUALIFICATION.test(lowerSentence)) {
+    whatsapp_Job_post["Qualification"] = extractValue(sentence, KEYWORDS.QUALIFICATION) || "Not stated";
+  } else if (KEYWORDS.EXPERIENCE.test(lowerSentence)) {
+    whatsapp_Job_post["Experience"] = extractValue(sentence, KEYWORDS.EXPERIENCE) || "Not stated";
+  } else if (KEYWORDS.JOB_FIELD.test(lowerSentence)) {
+    whatsapp_Job_post["Job Field"] = extractValue(sentence, KEYWORDS.JOB_FIELD) || "Not stated";
+  } else if (KEYWORDS.RESPONSIBILITIES.test(lowerSentence)) {
+    whatsapp_Job_post["Key Responsibilities"] = extractValue(sentence, KEYWORDS.RESPONSIBILITIES) || "Not provided";
+  } else if (KEYWORDS.SKILLS.test(lowerSentence)) {
+    whatsapp_Job_post["Skills"] = extractValue(sentence, KEYWORDS.SKILLS) || "Not provided";
+  } else if (KEYWORDS.REQUIREMENTS.test(lowerSentence)) {
+    whatsapp_Job_post["Requirements"] = extractValue(sentence, KEYWORDS.REQUIREMENTS) || "Not provided";
+  } else if (/\b\d{10,15}\b/.test(sentence)) {
+    const phoneNumbers = sentence.match(/\b\d{10,15}\b/g);
+    whatsapp_Job_post["Contact Phone Number"] = phoneNumbers ? phoneNumbers.join(", ") : "Not indicated";
+  } else if (lowerSentence.includes("keywords:")) {
+    const keywords = sentence.split(':')[1]?.trim().split(',') || [];
+    whatsapp_Job_post["keywords"].push(...keywords.map(keyword => keyword.trim()));
+  }
+});
+
+// Extract email addresses from the summarized post
+const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+const emailAddresses = summarizedPost.match(emailRegex) || [];
+whatsapp_Job_post["Contact Email"] = emailAddresses.join(", ") || "Not indicated";
+
+console.log(`Final Summary for User ${userId}:`, whatsapp_Job_post);
+return whatsapp_Job_post;
+}
+
+const stopWords = new Set(["a", "an", "the", "and", "is", "of", "in", "to", "for", "with", "on", "as", "by", "at", "from", "this", "that", "or", "which", "be", "it", "are", "was", "were", "has", "have", "had", "will", "would", "can", "could", "should", "may", "might", "been", "being", "do", "does", "did", "doing", "than", "then", "there", "their", "if", "into", "but", "not", "all", "about", "some", "any", "such", "each", "many", "more", "most", "no", "nor", "too", "very", "either", "neither", "both", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "other", "now", "later"]);
+// const filteredTokens = processedTokens.filter(token => !stopWords.has(token));
+
+
+//     }
+///////////////////////////////////////////////////////////////////////////////
+
+const wordnet = new natural.WordNet();
+
+async function performOperations(whatsapp_Job_post, userId) {
+  const jobDescription = whatsapp_Job_post["Job Description"];
+  if (!jobDescription) {
+    console.error("Job description not found in whatsapp_Job_post.");
+    return;
+  }
+
+  // Tokenize the job description
+  const tokens = tokenizer.tokenize(jobDescription.toLowerCase());
+
+  // Filter out stopwords
+  const filteredTokens = tokens.filter(token => !stopWords.has(token));
+
+  // Initialize a map to store the frequency of each word
+  const frequency = {};
+
+  // Process tokens with lemmatization
+  for (const token of filteredTokens) {
+    // Lemmatize the token (to get its proper base form)
+    await new Promise((resolve) => {
+      wordnet.lookup(token, (err, definitions) => {
+        if (!err && definitions.length > 0) {
+          // Use the lemma (base form) if found
+          const lemma = definitions[0].lemma;
+          const normalizedToken = lemma || token;
+          frequency[normalizedToken] = (frequency[normalizedToken] || 0) + 1;
+        } else {
+          // Fall back to the token itself if no lemma is found
+          frequency[token] = (frequency[token] || 0) + 1;
+        }
+        resolve();
+      });
+    });
+  }
+
+  // Sort keywords by frequency
+  const sortedKeywords = Object.keys(frequency).sort((a, b) => frequency[b] - frequency[a]);
+
+  // Fetch all keywords without slicing
+  const allKeywords = sortedKeywords;
+
+  console.log("All Keywords:", allKeywords);
+
+  try {
+    const { client } = await connectToDatabase();
+    await client.connect();
+    console.log('Database connected successfully.');
+
+    const database = client.db('olukayode_sage');
+
+    // Add keywords to the jobData object
+    whatsapp_Job_post.keywords = allKeywords;
+
+    // Custom ID using userId for user-specific context
+    if (!userId) {
+      console.error('[WhatsApp] userId is undefined — cannot save job post');
+      return;
+    }
+    const customId = `${userId}_whatsappJobPost`;
+    // Check if a document with the same _id exists for this user
+    const existingDoc = await database.collection('whatsappJobVacancyPost').findOne({ _id: customId });
+
+    if (existingDoc) {
+      console.log(`Document with the custom ID (${customId}) already exists for user ${userId}, skipping insertion.`);
+    } else {
+      const insertResult = await database.collection('whatsappJobVacancyPost').insertOne({
+        _id: customId, // Custom _id field
+        userId, // Associate the document with a specific user
+        ...whatsapp_Job_post, // Spread operator to insert all fields from jobData
+        keywords: allKeywords, // Add keywords as a new field
+        timestamp: new Date(), // Save the timestamp of when the message was stored
+        status: 'new' // Mark the message as new
+      });
+
+      console.log("New document inserted with ID:", insertResult.insertedId);
+    }
+
+
+    await client.close();
+
+
+  } catch (error) {
+    console.error("Error while updating keywords in MongoDB:", error);
+  }
+}
+// ///////////existing
+
+
+function extractDataFromText(summarizedText, finalSummary, session) {
+  // Retrieve userId from session
+  const userId = session.userId; // Ensure user-specificity
+  if (!userId) {
+    console.error("User ID not found in session.");
+    return null; // Exit the function if userId is not available
+  }
+
+  const extractedData = {};
+
+  // Extract job title using regex from summarizedText or finalSummary
+  const titleMatch = summarizedText.match(/Job Title:\s*(.+)/) || finalSummary.match(/Job Title:\s*(.+)/);
+  extractedData.title = titleMatch ? titleMatch[1].trim() : "Not provided";
+
+  // Extract company from summarizedText or finalSummary
+  const companyMatch = summarizedText.match(/Company:\s*(.+)/) || finalSummary.match(/Company:\s*(.+)/);
+  extractedData.company = companyMatch ? companyMatch[1].trim() : "Not provided";
+
+  // Extract location
+  const locationMatch = summarizedText.match(/Location:\s*(.+)/) || finalSummary.match(/Location:\s*(.+)/);
+  extractedData.jobLocation = locationMatch ? locationMatch[1].trim() : "Not provided";
+
+  // Extract qualifications
+  const qualificationMatch = summarizedText.match(/Qualifications?:\s*([\s\S]+?)(?=\n|$)/) || finalSummary.match(/Qualifications?:\s*([\s\S]+?)(?=\n|$)/);
+  extractedData.qualification = qualificationMatch ? qualificationMatch[1].trim() : "Not provided";
+
+  // Extract experience
+  const experienceMatch = summarizedText.match(/Experience:\s*([\s\S]+?)(?=\n|$)/) || finalSummary.match(/Experience:\s*([\s\S]+?)(?=\n|$)/);
+  extractedData.experience = experienceMatch ? experienceMatch[1].trim() : "Not provided";
+
+  // Extract application email
+  const emailMatch = summarizedText.match(/CV to\s*(.+)/) || finalSummary.match(/Application Process:[\s\S]+CV to\s*(.+)/);
+  extractedData.applicationEmail = emailMatch ? emailMatch[1].trim() : "Not provided";
+
+  // Add userId to the extracted data
+  extractedData.userId = userId;
+
+  // Return the final mapped data
+  return extractedData;
+}
+
+// Example of how to pass session to the function
+const mappedData = extractDataFromText(summarizedText, finalSummary, session);
+if (mappedData) {
+  console.log(mappedData);
+}
+
+///////////////////////////////////////////////////////////webscraping
+const userAgents = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36",
+];
+
+const getRandomUserAgent = () => {
+  const randomIndex = Math.floor(Math.random() * userAgents.length);
+  return userAgents[randomIndex];
+};
+
+const getRandomDelay = () => Math.floor(Math.random() * 3000) + 2000; // Random delay between 2 to 5 seconds
+
+const fetchDataWithRetry = async (url, retries = 3) => {
+  try {
+    const response = await axios.get(url, {
+      headers: { 'User-Agent': getRandomUserAgent() }
+    });
+    return response.data;
+  } catch (error) {
+    if (retries === 0) throw error;
+    await new Promise(resolve => setTimeout(resolve, getRandomDelay()));
+    return fetchDataWithRetry(url, retries - 1);
+  }
+};
+
+//////////////////////////////existing
+
+
+let jobData = {};
+
+async function validateJobUrl(url, session) {
+  try {
+    const userId = session.userId;
+    // Ensure session ID is available
+    if (!session || !session.userId) {
+      console.error("Session ID is missing");
+      return { valid: false, expired: false, emailProvided: false };
+    }
+
+    // const userId = session.userId; // Using session ID as user-specific identifier
+    console.log(`Validating job URL for user: ${userId}`);
+
+    // Check for invalid patterns in the URL
+    if (typeof url !== "string" || url.includes("jobs-by-title/") || url.includes("jobs-by-field/") || url.includes("jobs-by-industry/")) {
+      console.log("Invalid URL format or matches exclusion pattern");
+      return { valid: false, expired: false, emailProvided: false };
+    }
+
+    const response = await axios.get(url);
+    if (response.status === 200) {
+      const html = response.data;
+      const $ = cheerio.load(html);
+
+      // Check for required keywords on the page
+      const pageText = $('body').text();
+      const requiredKeywords = ["Job Type", "Location", "Posted:", "Deadline:"];
+      const containsAllKeywords = requiredKeywords.every(keyword => pageText.includes(keyword));
+
+      if (!containsAllKeywords) {
+        console.log("Required keywords missing for user:", userId);
+        return { valid: false, expired: false, emailProvided: false };
+      }
+
+      // Check if the job has expired
+      if (pageText.includes("Oops! It seems this job has expired")) {
+        console.log("Job expired for user:", userId);
+        return { valid: false, expired: true, emailProvided: false };
+      }
+
+      // Check for email address in the "Method of Application" section
+      const applicationSection = $('h2#application-method').next().find('p').text().trim();
+      const applicationEmailRegex = /CV to:\s*([^\s]+@[^\s]+)/i;
+      const applicationEmailMatch = applicationSection.match(applicationEmailRegex);
+
+      if (applicationEmailMatch) {
+        console.log(`Valid application email found for user ${userId}: ${applicationEmailMatch[1].trim()}`);
+        return { valid: true, expired: false, emailProvided: true };
+      } else {
+        console.log(`No application email provided for user ${userId}`);
+        return { valid: true, expired: false, emailProvided: false };
+      }
+    }
+  } catch (error) {
+    console.error(`Error validating URL for user ${session.id}:`, error);
+    return { valid: false, expired: false, emailProvided: false };
+  }
+}
+
+
+
+
+
+const fetchPageWithRetry = async (url, session, retries = 3) => {
+  const userId = session.userId; // Retrieve userId from session
+
+  try {
+    // Log user-specific actions for debugging
+    console.log(`User ${userId} is fetching the URL: ${url}`);
+
+    const response = await axios.get(url, {
+      headers: { 'User-Agent': getRandomUserAgent() }
+    });
+    return response.data;
+  } catch (error) {
+    if (retries === 0) throw error;
+    await new Promise(resolve => setTimeout(resolve, getRandomDelay()));
+    return fetchPageWithRetry(url, session, retries - 1); // Pass session for retry attempts
+  }
+};
+
+
+async function fetchSalaryRangeFromUrl(url, session) {
+  if (!session || !session.userId) {
+    console.error('Invalid session or missing userId:', session);
+    throw new Error('User ID not found in session.');
+  }
+
+  const userId = session.userId; // Retrieve userId from session
+  console.log(`User ${userId} is fetching salary range from URL: ${url}`);
+
+  try {
+    // Fetch the page content with retry and user-specific logging
+    const data = await fetchPageWithRetry(url, session);
+    console.log(`User ${userId}: Page content fetched successfully.`);
+
+    // Load the page content into cheerio
+    const $ = cheerio.load(data);
+
+    // Extract text from the page
+    const text = $('body').text();
+    console.log(`User ${userId}: Page text extracted.`);
+
+    // Default salary range
+    let salaryRange = '150k - 900k';
+
+    // Split text into sentences
+    const sentences = text.split('. ');
+    console.log(`User ${userId}: Text split into sentences.`);
+
+    // Extract salary range from the text
+    sentences.forEach(sentence => {
+      if (sentence.toLowerCase().includes("salary range:") || sentence.toLowerCase().includes("pay:")) {
+        const match = sentence.match(/(?:salary range:|pay:)\s*(.+)/i);
+        if (match) {
+          salaryRange = match[1].trim();
+          console.log(`User ${userId}: Salary range found: ${salaryRange}`);
+        }
+      }
+    });
+
+    console.log(`User ${userId}: Final salary range: ${salaryRange}`);
+    return salaryRange || '150k - 900k'; // Fallback to default if not found
+  } catch (error) {
+    console.error(`User ${userId}: Error fetching or parsing the page:`, error);
+    return '150k - 900k'; // Fallback to default on error
+  }
+}
+
+
+
+
+// ///////existing///////////////////////////////////////////////////////////////////
+
+///
+
+async function fetchJobUrlForUsers(session) {
+  if (!session || !session.userId) {
+    console.error('Invalid session or missing userId:', session);
+    throw new Error('User ID not found in session.');
+  }
+
+  const userId = session.userId;
+  console.log('Processing jobs for userId:', userId);
+
+  try {
+    console.log('Connecting to the database...');
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const rolesListing = database.collection('roles_listing');
+    const validatedRoles = database.collection('validated_roles');
+
+    // Fetch unprocessed jobs for the user
+    const jobs = await rolesListing.find({
+      userId,
+      status: { $exists: false },
+    }).toArray();
+
+    if (!jobs.length) {
+      console.log(`No unprocessed jobs found for user ${userId}`);
+      return [];
+    }
+
+    for (const job of jobs) {
+      console.log(`Processing job document for user ${userId}. Job URL: ${job.link}`);
+
+      if (job.link) {
+        try {
+          const validation = await validateJobUrl(job.link, session);
+          console.log(`Validation result for job ${job._id}:`, validation);
+
+          if (validation.valid) {
+            console.log(`Job URL ${job.link} is valid.`);
+            const url = job.link;
+            const title = job.title || 'Unknown Title';
+            if (!job.title) {
+              console.warn(`Job ${job._id} has no title. Using default title.`);
+            }
+
+
+           
+            const salaryRange = await fetchSalaryRangeFromUrl(url, session);
+            // const salaryRange = await fetchSalaryRangeFromUrl(job.link, session);
+            console.log(`Salary range fetched for job ${job._id}: ${salaryRange}`);
+         
+            const validatedRoleDetails = {
+              userId,
+              title,
+              url: job.link,
+              accessedAt: new Date().toISOString(),
+            };
+
+            await validatedRoles.insertOne(validatedRoleDetails);
+            console.log(`Validated role inserted for user ${userId}:`, validatedRoleDetails);
+
+            await rolesListing.updateOne(
+              { _id: job._id },
+              {
+                $set: {
+                  status: 'validated',
+                  label: 'processed',
+                  validated: true,
+                  processedAt: new Date().toISOString(),
+                },
+              }
+            );
+          } else {
+            const status = validation.expired ? 'expired' : 'invalid';
+            await rolesListing.updateOne(
+              { _id: job._id },
+              {
+                $set: {
+                  status,
+                  processedAt: new Date().toISOString(),
+                  validationError: validation.error || 'Unknown validation error',
+                },
+              }
+            );
+            console.log(`Job document ${job._id} status updated to ${status}`);
+          }
+        } catch (validationError) {
+          console.error(`Error validating job ${job._id} for user ${userId}:`, validationError);
+          await rolesListing.updateOne(
+            { _id: job._id },
+            {
+              $set: {
+                status: 'error',
+                processedAt: new Date().toISOString(),
+                error: validationError.message,
+              },
+            }
+          );
+        }
+      } else {
+        console.warn(`Job document ${job._id} has no URL.`);
+        await rolesListing.updateOne(
+          { _id: job._id },
+          { $set: { status: 'invalid', label: 'missing_url' } }
+        );
+      }
+    }
+
+    console.log('All job URLs processed for user', userId);
+    return jobs;
+  } catch (error) {
+    console.error('Error processing job URLs for user', userId, ':', error);
+    throw error;
+  } finally {
+    console.log('Closing the database connection.');
+    await client.close();
+  }
+}
+
+
+async function scrapeJobPage(url, userId, callback) {
+  try {
+    const html = await axios.get(url).then(res => res.data);
+    const $ = cheerio.load(html);
+    let jobData = {};
+
+    jobData["Job Title"] = $('h1').text().trim();
+    jobData["Job Location"] = $('ul.job-key-info li:contains("Location") .jkey-info').text().trim();
+    jobData["Qualification"] = $('ul.job-key-info li:contains("Qualification") .jkey-info').text().trim();
+    jobData["Experience"] = $('ul.job-key-info li:contains("Experience") .jkey-info').text().trim();
+    jobData["Job Field"] = $('ul.job-key-info li:contains("Job Field") .jkey-info').text().trim();
+    jobData["Job Description"] = $('div.job-details').text().trim();
+
+    // Fetching Salary Range or Salary
+    const salaryRange = $('ul.job-key-info li:contains("Salary Range") .jkey-info').text().trim();
+    const salary = $('ul.job-key-info li:contains("Salary") .jkey-info').text().trim();
+    jobData["Salary Range"] = salaryRange || salary || 'Not provided';
+
+    const responsibilitiesRegex = /JOB RESPONSIBILITIES\s*([\s\S]*?)\s*SKILLS/i;
+    const responsibilitiesMatch = jobData["Job Description"].match(responsibilitiesRegex);
+    jobData["Key Responsibilities"] = responsibilitiesMatch ? responsibilitiesMatch[1].trim() : 'Not provided';
+
+    const skillsRegex = /SKILLS\s*([\s\S]*?)\s*Requirement/i;
+    const skillsMatch = jobData["Job Description"].match(skillsRegex);
+    jobData["Skills"] = skillsMatch ? skillsMatch[1].trim() : 'Not provided';
+
+    const requirementsRegex = /Requirement\s*([\s\S]*?)\s*SALARY/i;
+    const requirementsMatch = jobData["Job Description"].match(requirementsRegex);
+    jobData["Requirements"] = requirementsMatch ? requirementsMatch[1].trim() : 'Not provided';
+
+    const methodOfApplicationText = $('h2#application-method').next().find('p').text();
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+    const emailMatch = methodOfApplicationText.match(emailRegex);
+    jobData["Application Email"] = emailMatch ? emailMatch[0] : 'Not provided';
+
+    const structuredData = $('script[type="application/ld+json"]').html();
+
+    // Extract the Date Posted
+    const postedDate = $('div#posted-date b.tc-o').next().text().trim(); // Extract the date value after the "Posted:" label
+    jobData["Date Posted"] = postedDate || 'Not provided';
+
+    // Extract the Deadline
+    const deadlineDate = $('div.read-date-sec-li b.tc-bl3').next().text().trim(); // Extract the deadline date after the "Deadline:" label
+    jobData["Deadline"] = deadlineDate || 'Not specified';
+
+    // Add userId to the job data to associate it with the user
+    jobData["userId"] = userId;
+
+    callback(null, jobData);
+  } catch (error) {
+    console.error("Error scraping job page:", error);
+    callback(error, null);
+  }
+}
+
+// ////////////////////////////////////////////////////////////////////////////////////////
+
+
+const main2 = async (session) => {
+  if (!session || !session.userId) {
+    console.error("Invalid session or missing userId:", session);
+    throw new Error("User ID not found in session.");
+  }
+
+  const userId = session.userId; // Retrieve userId from session
+  console.log(`User ${userId}: Starting main2 process.`);
+
+  const { client } = await connectToDatabase(); // Connect to the database
+  try {
+    await client.connect();
+    console.log(`User ${userId}: Database connected successfully.`);
+
+    const database = client.db('olukayode_sage');
+    const validatedRoles = database.collection('validated_roles');
+    const applicationProcessingFeeder = database.collection('application_processing_feeder');
+// Fetch all validated roles for this specific user that have not been processed yet
+    const jobs = await validatedRoles.find({
+      userId, // Ensure only jobs for the current user are fetched
+      status: { $exists: false },
+    }).toArray();
+
+    if (jobs.length === 0) {
+      console.log(`User ${userId}: No validated job URLs found.`);
+      return;
+    }
+
+    for (const job of jobs) {
+      const jobUrl = job.url;
+      console.log(`User ${userId}: Processing Job URL:`, jobUrl);
+
+      // Validate job URL using user-specific session
+      const validity = await validateJobUrl(jobUrl, session);
+
+      if (validity.valid) {
+        if (validity.emailProvided) {
+          console.log(`User ${userId}: The page has a valid application email.`);
+        } else {
+          console.log(`User ${userId}: The page does not provide an application email.`);
+        }
+
+        // Scrape job page to extract detailed job data
+        const jobData = await new Promise((resolve, reject) => {
+          scrapeJobPage(jobUrl, userId, (error, data) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(data);
+            }
+          });
+        });
+
+        console.log(`User ${userId}: Scraped Job Data:`, jobData);
+
+        // Ensure the Date Posted and Deadline are in the correct ISO format
+        const postedDate = jobData["Date Posted"] && !isNaN(Date.parse(jobData["Date Posted"]))
+          ? new Date(Date.parse(jobData["Date Posted"])).toISOString()
+          : null;
+
+        const deadline = jobData["Deadline"] && !isNaN(Date.parse(jobData["Deadline"]))
+          ? new Date(Date.parse(jobData["Deadline"])).toISOString()
+          : null;
+
+        // Build the application processing details object
+        const applicationProcessingDetails = {
+          title: jobData["Job Title"],
+          url: jobUrl,
+          jobLocation: jobData["Job Location"],
+          qualification: jobData["Qualification"],
+          experience: jobData["Experience"],
+          jobField: jobData["Job Field"],
+          jobDescription: jobData["Job Description"],
+          salaryRange: jobData["Salary Range"],
+          keyResponsibilities: jobData["Key Responsibilities"],
+          skills: jobData["Skills"],
+          requirements: jobData["Requirements"],
+          applicationEmail: jobData["Application Email"],
+          postedDate: postedDate,  // Store as ISO string
+          deadline: deadline,      // Store as ISO string
+          processedAt: new Date().toISOString(), // Add a timestamp for processing
+          userId: userId           // Associate with the current user
+        };
+
+        console.log(`User ${userId}: Application Processing Details:`, applicationProcessingDetails);
+
+        // Insert into the application_processing_feeder collection
+        try {
+          const result = await applicationProcessingFeeder.insertOne(applicationProcessingDetails);
+          console.log(`User ${userId}: Application processing data inserted into application_processing_feeder:`, result.insertedId);
+        } catch (insertError) {
+          console.error(`User ${userId}: Error inserting application processing data:`, insertError);
+        }
+
+        // Update the validated_roles collection to mark the job as processed
+        await validatedRoles.updateOne(
+          { _id: job._id, userId }, // Ensure the update is scoped to the current user
+          { $set: { status: 'processed' } }
+        );
+        console.log(`User ${userId}: Job URL ${jobUrl} processed and marked as 'processed'.`);
+
+        // Perform any additional operations needed with jobData
+        performOperations(jobData);
+
+      } else {
+        console.log(`User ${userId}: The page is invalid or expired.`);
+      }
+    }
+
+    console.log(`User ${userId}: All validated job URLs processed.`);
+  } catch (error) {
+    console.error(`User ${userId}: Error in main2 function:`, error);
+  } finally {
+    await client.close();
+    console.log(`User ${userId}: Database connection closed.`);
+  }
+};
+
+// (async () => {
+//   try {
+//     await main2(session);
+//   } catch (error) {
+//     console.error("Error in main2 execution:", error);
+//   }
+// })();
+
+
+const subscriber = "2349010400099"; // Replace with your group ID
+// Function to connect to the database
+
+async function connectToDatabase() {
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+  try {
+    await client.connect();
+    console.log('Connected to database');
+    const database = client.db('olukayode_sage');
+    const collection = database.collection('Users_CV_biodata');
+    // const collection = database.collection('application_processing_feeder');
+    return { client, collection };
+  } catch (error) {
+    console.error('Error connecting to database:', error);
+    throw error; // Re-throw the error to handle it at a higher level
+  }
+}
+
+////////////////////////////////////////////////////////////////////////
+// Function to get the first name of a user by userId
+async function getFirstName(userId) {
+  const { client, collection } = await connectToDatabase();
+
+  try {
+    const user = await collection.findOne({ userId: userId }); // Fetch user based on userId
+    console.log("Fetched user:", user);  // Debugging: Log the fetched user
+
+    if (user && user.name) {
+      const firstName = user.name.split(' ')[0];  // Extract first name
+      console.log("First Name:", firstName);  // Debugging: Log the first name
+      return firstName;
+    }
+
+    console.log("User or name not found.");
+    return null;
+  } catch (error) {
+    console.error("Error fetching first name:", error);  // Debugging: Log any errors
+    return null;
+  } finally {
+    await client.close();
+    console.log("Database connection closed.");  // Debugging: Confirm DB closure
+  }
+}
+
+// Function to get the full name of a user by userId
+async function getFullName(userId) {
+  const { client, collection } = await connectToDatabase();
+
+  try {
+    const user = await collection.findOne({ userId: userId }); // Fetch user based on userId
+    console.log("Fetched user:", user);  // Debugging: Log the fetched user
+
+    if (user && user.name) {
+      const userFullName = user.name;  // Full name is the whole name field
+      console.log("Full Name:", userFullName);  // Debugging: Log the full name
+      return userFullName;
+    }
+
+    console.log("User or name not found.");
+    return null;
+  } catch (error) {
+    console.error("Error fetching full name:", error);  // Debugging: Log any errors
+    return null;
+  } finally {
+    await client.close();
+    console.log("Database connection closed.");  // Debugging: Confirm DB closure
+  }
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////fFUNCTION TO GET INTERNATIONAL JOBS FOR THE USER BY AI IF CERTAIN CONDITIONS ARE MET
+
+
+/////////////////////////////////////////customer care
+async function getDynamicName() {
+  let client, collection;
+  try {
+    ({ client, collection } = await connectToDatabase());
+    console.log('Database connected successfully');
+
+    // Fetch a user from the database, or use a different criterion if needed
+    const user = await collection.findOne(); // Fetches any user document
+    console.log('User fetched:', user);
+
+    // Use a default value if name is not available
+    return user?.name || 'Funmi'; // Default to "Tomi" if name is not found
+  } catch (error) {
+    console.error('Error fetching user name:', error);
+    return 'Funmi'; // Default to "Tomi" if there is an error
+  } finally {
+    try {
+      if (client) {
+        await client.close();
+        console.log('Database connection closed');
+      }
+    } catch (closeError) {
+      console.error('Error closing database connection:', closeError);
+    }
+  }
+}
+function cleanJobTitle(title) {
+  // Convert title to lowercase and find the position of "at" or "in"
+  let cleanedTitle = title.toLowerCase();
+  const atIndex = cleanedTitle.indexOf(' at ');
+  const inIndex = cleanedTitle.indexOf(' in ');
+
+  // If "at" or "in" is found, trim everything after it
+  if (atIndex !== -1) {
+    cleanedTitle = cleanedTitle.substring(0, atIndex).trim();
+  } else if (inIndex !== -1) {
+    cleanedTitle = cleanedTitle.substring(0, inIndex).trim();
+  }
+  // Capitalize the first letter of each word in the remaining title
+  cleanedTitle = cleanedTitle.replace(/\b\w/g, char => char.toUpperCase());
+
+  return cleanedTitle;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////// Fetch job title and salary range
+async function connectToDatabase2() {
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+  try {
+    await client.connect();
+    console.log('Connected to database');
+    const database = client.db('olukayode_sage');
+    return { client, database };
+  } catch (error) {
+    console.error('Error connecting to database:', error);
+    throw error;
+  }
+}
+
+const messageVariants = [
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    // const name = await getDynamicName() || 'Funmi';
+    console.log("First Name=", firstName, "role=", role, "Salary Range=", salaryRange, "name", name, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
+
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+    // let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+    // ? accessedJobTitle.applicationEmail 
+    // : null;
+
+    //   // 🔴 Trigger callback if no email is found
+    //   if (!applicationEmail) {
+    //     console.log("No email found, adding to fallback queue.");
+    //     return await handleMissingEmail(accessedJobTitle, session);
+    //   }
+
+    // No need to clean the role again, it's already cleaned in getAccessedJobTitle
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+
+     // Cleaned textMessage without emojis
+     return `Hello ${firstName},\n\nI'm ${name} from Suntrenia. We have an exciting job opportunity that fits your expertise perfectly.\n\nIt’s ${article} ${role} role, with a competitive salary range of ${salaryRange}.\n\nIf you're interested, please proceed by clicking the button below. If not, you can decline.\n\nBest regards,\n${name}`;
+    },
+    // 
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+    // let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+    //     ? accessedJobTitle.applicationEmail 
+    //     : null;
+
+    // // 🔴 Trigger callback if no email is found
+    // if (!applicationEmail) {
+    //   console.log("No email found, adding to fallback queue.");
+    //   return await handleMissingEmail(accessedJobTitle, session);
+    // }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hi ${firstName},\n\nThis is ${name} from Suntrenia. We've spotted an exciting opportunity that could be perfect for you!\n\nThere's ${article} ${role} role with a competitive salary range of ${salaryRange} at a top company.\n\nYour skills match perfectly! Ready to take the next step? Simply click one of the buttons below, and we'll handle the rest.\n\nBest regards,\n${name}`;
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+    // let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+    //     ? accessedJobTitle.applicationEmail 
+    //     : null;
+
+    // // 🔴 Trigger callback if no email is found
+    // if (!applicationEmail) {
+    //   console.log("No email found, adding to fallback queue.");
+    //   return await handleMissingEmail(accessedJobTitle, session);
+    // }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hey ${firstName},\n\nThis is ${name} from Suntrenia. There's a fantastic opportunity for ${article} ${role} role at a reputable company, offering a competitive salary of ${salaryRange}.\n\nYour expertise fits perfectly! Shall we proceed with the application? Simply click one of the buttons below, and we'll take care of everything.\n\nBest regards,\n${name}`;
+ 
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. I hope you're having a great day! We found an incredible opportunity for you.\n\nA top company is looking for ${article} ${role}, offering a competitive salary range of ${salaryRange}.\n\nYou're the perfect fit! Shall we proceed with the application? Simply click one of the buttons below, and we'll handle the rest.\n\nBest regards,\n${name}`;
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. We've found a job opportunity that could be perfect for you.\n\nA reputable company is hiring ${article} ${role} with a salary range of ${salaryRange}.\n\nYour skills make you a great fit! Shall we proceed with the application? Simply click one of the buttons below, and we'll take care of everything.\n\nBest regards,\n${name}`;
+  
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hi ${firstName},\n\nThis is ${name} from Suntrenia. We've come across an exciting job opportunity that we believe is perfect for you.\n\nIt's for ${article} ${role} role at a top company, with a competitive salary range of ${salaryRange}.\n\nYour qualifications are a great match! Shall we move forward with the application? Simply click one of the buttons below, and we'll take care of the rest.\n\nBest regards,\n${name}`;
+  
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hey ${firstName},\n\nThis is ${name} from Suntrenia. There's a job opening that could be just what you're looking for.\n\nA reputable company is looking for ${article} ${role}, offering a salary range of ${salaryRange}.\n\nYour experience makes you a perfect fit! Shall we apply on your behalf? Simply click one of the buttons below, and we'll take care of everything.\n\nBest regards,\n${name}`;
+ 
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. I hope you're doing well! We've discovered a great opportunity that aligns with your skills.\n\nThe position is for ${article} ${role}, and the salary range is ${salaryRange}.\n\nYour qualifications are a perfect match. Shall we apply on your behalf? Simply click one of the buttons below, and we'll handle the rest.\n\nBest regards,\n${name}`;
+ 
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hi ${firstName},\n\nThis is ${name} from Suntrenia. We have an exciting job opportunity that we think you'd be perfect for.\n\nThe role is ${article} ${role} with a salary range of ${salaryRange}.\n\nWe believe your skills and experience make you a great fit. Are you interested in applying? Simply click one of the buttons below, and we'll handle the application process.\n\nBest regards,\n${name}`;
+  
+  },
+
+  async () => {
+    const firstName = await getFirstName();
+    const accessedJobTitle = await getAccessedJobTitle(session);
+    const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+    let salaryRange = accessedJobTitle?.salaryRange;
+    // Check if salaryRange is "Not Provided" and set default if true
+    if (salaryRange === "Not provided" || !salaryRange) {
+      salaryRange = '150k - 900k';
+    }
+    // const name = await getDynamicName() || 'Funmi';
+    const fullName = await getDynamicName() || 'Funmi';
+    const firstName2 = fullName.split(' ')[0];
+    const name = firstName2;
+    if (!firstName || !role) {
+      return 'Error fetching user information';
+    }
+
+//     let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+//     ? accessedJobTitle.applicationEmail 
+//     : null;
+
+// // 🔴 Trigger callback if no email is found
+// if (!applicationEmail) {
+//   console.log("No email found, adding to fallback queue.");
+//   return await handleMissingEmail(accessedJobTitle, session);
+// }
+
+    const jobTitle = cleanJobTitle(role);
+    // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+    const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+    return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. We hope you're having a wonderful day! We've found ${article} ${role} role that matches your profile perfectly.\n\nThe role offers a salary range of ${salaryRange}.\n\nYour qualifications are a great match for this opportunity. Would you like us to proceed with the application? Simply click one of the buttons below, and we'll take care of it for you.\n\nBest regards,\n${name}`;
+  }
+];
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+async function getAccessedJobTitle(session) {
+  if (!session || !session.userId) {
+    console.error("Invalid session or missing userId:", session);
+    throw new Error("User ID not found in session.");
+  }
+
+  const userId = session.userId;
+  console.log(`User ${userId}: Starting getAccessedJobTitle process.`);
+
+  let client, database, collection;
+  try {
+    ({ client, database } = await connectToDatabase2());
+    console.log(`User ${userId}: Database connected successfully.`);
+
+    collection = database.collection('application_processing_feeder');
+
+    // ✅ Find job that hasn't had email sent yet
+    const accessedRole = await collection.findOne(
+      {
+        userId,
+        url: { $exists: true, $ne: null },
+        role_processed: { $ne: true } // Only check role_processed
+      },
+      {
+        sort: { processedAt: -1 } // Get most recent first
+      }
+    );
+
+    // ✅ Simplified check - only verify essentials
+    if (!accessedRole || !accessedRole.url) {
+      console.log(`User ${userId}: No unprocessed job with valid URL found.`);
+      return null;
+    }
+
+    // Extract and clean the role
+    const cleanedRole = cleanJobTitle(accessedRole.title);
+
+    // ✅ Return complete job data with original title AND cleaned role
+    return {
+      _id: accessedRole._id,
+      role: cleanedRole, // Cleaned version for email
+      originalTitle: accessedRole.title, // ✅ Keep original for reference
+      url: accessedRole.url,
+      salaryRange: accessedRole.salaryRange || null,
+      jobLocation: accessedRole.jobLocation || null,
+      qualification: accessedRole.qualification || null,
+      experience: accessedRole.experience || null,
+      jobField: accessedRole.jobField || null,
+      jobDescription: accessedRole.jobDescription || null,
+      keyResponsibilities: accessedRole.keyResponsibilities || null,
+      skills: accessedRole.skills || null,
+      requirements: accessedRole.requirements || null,
+      applicationEmail: accessedRole.applicationEmail || null,
+      postedDate: accessedRole.postedDate || null,
+      deadline: accessedRole.deadline || null,
+      company: accessedRole.company || null // ✅ For your email template
+    };
+  } catch (error) {
+    console.error(`User ${userId}: Error fetching accessed role details:`, error);
+    return null;
+  } finally {
+    if (client) {
+      await client.close();
+      console.log(`User ${userId}: Database connection closed.`);
+    }
+  }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////existing
+async function promptuserbymail(session) {
+  console.log('We are here now.');
+
+  // Ensure userId exists in session
+  const userId = session.userId;
+  if (!userId) {
+    throw new Error('User ID not found in session.');
+  }
+
+  // Use the externally generated sessionToken
+  console.log(`Using session token: ${sessionToken}`); // Corrected this line to use backticks for template literals
+const userRecord = await (async () => {
+    const c = new MongoClient(uri);
+    try {
+      await c.connect();
+      return await c.db('olukayode_sage').collection('Users_CV_biodata').findOne(
+        { _id: userId }, { projection: { email: 1 } }
+      );
+    } finally { await c.close(); }
+  })();
+  const recipientEmail = userRecord?.email;
+  if (!recipientEmail) {
+    console.error('[promptuserbymail] No email found for user:', userId);
+    return;
+  }
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: 465,
+    secure: true,
+   auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+///////////////////////////////////////////////
+ 
+    // Connect to the MongoDB database
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const sessionsCollection = database.collection('sessions');
+
+    // Update the session document with the userId and sessionToken
+    await sessionsCollection.updateOne(
+      { userId },
+      {
+        $set: {
+          userId,
+          sessionToken, // Use the session token generated externally
+          lastLogin: new Date(),
+        },
+      },
+      { upsert: true } // Insert a new document if none exists
+    );
+    console.log('User ID and session token successfully added to the database.');
+
+
+
+// External function to use the session token value
+async function fetchUserIdBySessionToken(sessionToken) {
+  try {
+    // Connect to the MongoDB database
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const sessionsCollection = database.collection('sessions');
+
+    // Query the database to find the user by sessionToken
+    const sessionData = await sessionsCollection.findOne({ sessionToken });
+
+    if (sessionData) {
+      const userId = sessionData.userId;
+      console.log(`Retrieved User ID: ${userId}`); // Corrected this line to use backticks for template literals
+      return userId;
+    } else {
+      console.log("User ID not found.");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  } finally {
+    // Close the database connection
+    await client.close();
+    console.log("Database connection closed.");
+  }
+}
+
+
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+function generateHtmlMessage(textMessage, jobId, userId) {
+  const trimmedUserId = (userId || '').trim().replace(/\s+/g, '');
+  const emailId = Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+  const DOMAIN = 'https://api.suntrenia.com';
+  // triggerButtonResponseCheck(trimmedUserId, emailId, jobId);
+  return `
+    <div style="background: #f4f4f4; padding: 10px; font-family: Arial, sans-serif;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <!-- Heading -->
+        <h2 style="color: #333; font-size: 20px; font-weight: 600; margin-bottom: 15px; text-align: left;">Exciting Job Opportunity</h2>
+
+        <!-- Message Body -->
+        <p style="line-height: 1.5; color: #555; text-align: left; margin: 0 0 20px 0; font-size: 14px;">
+          ${textMessage.replace(/\n/g, '<br>')}
+        </p>
+
+        <!-- Buttons for Proceed and Decline -->
+        <div style="text-align: left;">
+        <!-- Proceed Button -->
+        <a href="${DOMAIN}/handle-response?response=proceed&emailId=${emailId}&jobId=${jobId}&userId=${trimmedUserId}" 
+          
+           style="display: block; width: 100%; background: #28a745; color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 14px; text-align: center; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); transition: background 0.3s ease;">
+          Proceed
+        </a>
+      
+        <!-- Decline Button -->
+        <a href="${DOMAIN}/handle-response?response=decline&emailId=${emailId}&jobId=${jobId}&userId=${trimmedUserId}" 
+           
+           style="display: block; width: 100%; background: #dc3545; color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 14px; text-align: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); transition: background 0.3s ease;">
+          Decline
+        </a>
+      </div>
+
+        <!-- Social Media Icons -->
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="text-align: center; margin: 0;">
+          <a href="#" style="margin: 0 10px;"><img src="https://img.icons8.com/color/48/000000/facebook-new.png" alt="Facebook" width="24"></a>
+          <a href="#" style="margin: 0 10px;"><img src="https://img.icons8.com/color/48/000000/twitter--v1.png" alt="Twitter" width="24"></a>
+          <a href="#" style="margin: 0 10px;"><img src="https://img.icons8.com/color/48/000000/linkedin.png" alt="LinkedIn" width="24"></a>
+          <a href="#" style="margin: 0 10px;"><img src="https://img.icons8.com/color/48/000000/instagram-new.png" alt="Instagram" width="24"></a>
+        </p>
+
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #777;">
+          <p style="margin: 0;">You are receiving this email because you expressed interest in job opportunities with Suntrenia.</p>
+          <p style="margin: 5px 0;">If you no longer wish to receive these emails, <a href="#" style="color: #28a745; text-decoration: none;">unsubscribe here</a>.</p>
+          <p style="margin: 0;">&copy; Suntrenia 2024. All rights reserved.</p>
+          <p style="margin: 5px 0;">Contact us: <a href="mailto:info@suntrenia.com" style="color: #28a745; text-decoration: none;">info@suntrenia.com</a> | +23470 3499 5589 | +234 802 794 6808</p>
+          <p style="margin: 0;"><a href="#" style="color: #28a745; text-decoration: none;">Privacy Policy</a> | <a href="#" style="color: #28a745; text-decoration: none;">Terms of Service</a></p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+  // Function to select a random subject line and inject the role title
+  function generateDynamicSubject(role) {
+    const subjectTemplates = [
+      "We've Found the Perfect {Role} Role Just for You!",
+      "This {Role} Opportunity Has Your Name Written All Over It!",
+      "You're a Perfect Fit for This {Role} Role – Apply Now!",
+      "This {Role} Position Was Tailored Just for You – Let's Make It Yours!",
+      "Ready to Secure Your Next Role? {Role} Awaits You!",
+      "Step Into Your Dream {Role} Position – It's Yours for the Taking!",
+      "We Found a {Role} Role That’s Perfect for You – Time to Apply!",
+      "A Special {Role} Opportunity Is Here Just for You – Let’s Get You Hired!"
+    ];
+    const randomIndex = Math.floor(Math.random() * subjectTemplates.length);
+    return subjectTemplates[randomIndex].replace("{Role}", role);
+  }
+
+
+  const messageVariants = [
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      // const name = await getDynamicName() || 'Funmi';
+      console.log("First Name=", firstName, "role=", role, "Salary Range=", salaryRange, "name", name, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
+  
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+      // let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+      // ? accessedJobTitle.applicationEmail 
+      // : null;
+  
+      //   // 🔴 Trigger callback if no email is found
+      //   if (!applicationEmail) {
+      //     console.log("No email found, adding to fallback queue.");
+      //     return await handleMissingEmail(accessedJobTitle, session);
+      //   }
+  
+      // No need to clean the role again, it's already cleaned in getAccessedJobTitle
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+  
+       // Cleaned textMessage without emojis
+       return `Hello ${firstName},\n\nI'm ${name} from Suntrenia. We have an exciting job opportunity that fits your expertise perfectly.\n\nIt’s ${article} ${role} role, with a competitive salary range of ${salaryRange}.\n\nIf you're interested, please proceed by clicking the button below. If not, you can decline.\n\nBest regards,\n${name}`;
+      },
+      // 
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+  
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+      // let applicationEmail = (accessedJobTitle?.applicationEmail && accessedJobTitle.applicationEmail !== "Not provided") 
+      //     ? accessedJobTitle.applicationEmail 
+      //     : null;
+  
+      // // 🔴 Trigger callback if no email is found
+      // if (!applicationEmail) {
+      //   console.log("No email found, adding to fallback queue.");
+      //   return await handleMissingEmail(accessedJobTitle, session);
+      // }
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hi ${firstName},\n\nThis is ${name} from Suntrenia. We've spotted an exciting opportunity that could be perfect for you!\n\nThere's ${article} ${role} role with a competitive salary range of ${salaryRange} at a top company.\n\nYour skills match perfectly! Ready to take the next step? Simply click one of the buttons below, and we'll handle the rest.\n\nBest regards,\n${name}`;
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+    
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hey ${firstName},\n\nThis is ${name} from Suntrenia. There's a fantastic opportunity for ${article} ${role} role at a reputable company, offering a competitive salary of ${salaryRange}.\n\nYour expertise fits perfectly! Shall we proceed with the application? Simply click one of the buttons below, and we'll take care of everything.\n\nBest regards,\n${name}`;
+   
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+ 
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. I hope you're having a great day! We found an incredible opportunity for you.\n\nA top company is looking for ${article} ${role}, offering a competitive salary range of ${salaryRange}.\n\nYou're the perfect fit! Shall we proceed with the application? Simply click one of the buttons below, and we'll handle the rest.\n\nBest regards,\n${name}`;
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. We've found a job opportunity that could be perfect for you.\n\nA reputable company is hiring ${article} ${role} with a salary range of ${salaryRange}.\n\nYour skills make you a great fit! Shall we proceed with the application? Simply click one of the buttons below, and we'll take care of everything.\n\nBest regards,\n${name}`;
+    
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hi ${firstName},\n\nThis is ${name} from Suntrenia. We've come across an exciting job opportunity that we believe is perfect for you.\n\nIt's for ${article} ${role} role at a top company, with a competitive salary range of ${salaryRange}.\n\nYour qualifications are a great match! Shall we move forward with the application? Simply click one of the buttons below, and we'll take care of the rest.\n\nBest regards,\n${name}`;
+    
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hey ${firstName},\n\nThis is ${name} from Suntrenia. There's a job opening that could be just what you're looking for.\n\nA reputable company is looking for ${article} ${role}, offering a salary range of ${salaryRange}.\n\nYour experience makes you a perfect fit! Shall we apply on your behalf? Simply click one of the buttons below, and we'll take care of everything.\n\nBest regards,\n${name}`;
+   
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. I hope you're doing well! We've discovered a great opportunity that aligns with your skills.\n\nThe position is for ${article} ${role}, and the salary range is ${salaryRange}.\n\nYour qualifications are a perfect match. Shall we apply on your behalf? Simply click one of the buttons below, and we'll handle the rest.\n\nBest regards,\n${name}`;
+   
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hi ${firstName},\n\nThis is ${name} from Suntrenia. We have an exciting job opportunity that we think you'd be perfect for.\n\nThe role is ${article} ${role} with a salary range of ${salaryRange}.\n\nWe believe your skills and experience make you a great fit. Are you interested in applying? Simply click one of the buttons below, and we'll handle the application process.\n\nBest regards,\n${name}`;
+    
+    },
+  
+    async () => {
+      const firstName = await getFirstName();
+      const accessedJobTitle = await getAccessedJobTitle(session);
+      const role = accessedJobTitle?.role ?? null; // 'role' is already cleaned
+      let salaryRange = accessedJobTitle?.salaryRange;
+      // Check if salaryRange is "Not Provided" and set default if true
+      if (salaryRange === "Not provided" || !salaryRange) {
+        salaryRange = '150k - 900k';
+      }
+      // const name = await getDynamicName() || 'Funmi';
+      const fullName = await getDynamicName() || 'Funmi';
+      const firstName2 = fullName.split(' ')[0];
+      const name = firstName2;
+      if (!firstName || !role) {
+        return 'Error fetching user information';
+      }
+  
+
+  
+      const jobTitle = cleanJobTitle(role);
+      // const article = /^[aeiou]/i.test(jobTitle) ? 'an' : 'a';
+      const article = /^[aeiou]/i.test(role) ? 'an' : 'a';
+      return `Hello ${firstName},\n\nThis is ${name} from Suntrenia. We hope you're having a wonderful day! We've found ${article} ${role} role that matches your profile perfectly.\n\nThe role offers a salary range of ${salaryRange}.\n\nYour qualifications are a great match for this opportunity. Would you like us to proceed with the application? Simply click one of the buttons below, and we'll take care of it for you.\n\nBest regards,\n${name}`;
+    }
+  ];
+
+  const emailId = Date.now(); // millisecond precision
+async function sendSelectedMessage(session, sessionToken, callback) {
+  let userId; // Declare with let to allow reassignment
+
+  if (session && session.userId) {
+    userId = session.userId; // Extract userId from session
+  } else {
+    console.log("User ID not found in session, fetching using session token...");
+    userId = await fetchUserIdBySessionToken(sessionToken); // Use await to get the result
+  }
+
+  if (!userId) {
+    console.error('User ID is missing. Cannot proceed.');
+    return; // Exit if userId is not available
+  }
+
+  console.log(userId, "1111111111111111111100000000000000000000000000000000000000000000000000000000000000000");
+  try {
+    // Fetch job title for the current session
+    const accessedJobTitle = await getAccessedJobTitle(session,userId);
+
+    if (!accessedJobTitle) {
+      console.log('No valid accessed job title found for the user. Cannot send the message.');
+      return;
+    }
+
+    const { _id, role, url, processedAt } = accessedJobTitle;
+
+    if (!_id || !role || !url) {
+      console.log('Invalid accessed job title data found for the user. Cannot send the message.');
+      return;
+    }
+
+    const jobId = _id || `job_${Date.now()}`;
+    const emailId = Date.now(); // This can also be passed around consistently
+    
+
+
+    const randomIndex = Math.floor(Math.random() * messageVariants.length);
+    const selectedMessage = await messageVariants[randomIndex]();
+    const dynamicSubject = generateDynamicSubject(role);
+    // const htmlMessage = generateHtmlMessage(selectedMessage);
+    const htmlMessage = generateHtmlMessage(selectedMessage, jobId, userId);
+
+
+    // Define mail options
+    const mailOptions = {
+      from: `"Suntrenia" <${process.env.EMAIL_USER}>`,
+      to: recipientEmail, // Replace with the recipient's email
+      subject: dynamicSubject,
+      text: selectedMessage,
+      html: htmlMessage,
+    };
+
+    console.log('Sending email to:', recipientEmail);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.messageId);
+
+    // Connect to MongoDB
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    const collection = db.collection('user_application_records');
+
+    // Update the specific document for the user
+    // const jobId = _id || `job_${Date.now()}`; // Use existing _id or generate one
+    const result = await collection.updateOne(
+      { _id, userId }, // Filter by user ID and document ID
+      {
+        $set: {
+          role: role,
+          emailId: Date.now(), // Same as in generateHtmlMessage()
+          subject: dynamicSubject,
+          jobId,              // Unique ID for this job prompt
+          messageId: info.messageId,
+          url: url,
+          processedAt: processedAt,
+          sentAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+
+
+
+    console.log('Selected subject and job details saved to database:', result.upsertedId || 'Document updated');
+    const collection3 = db.collection('application_processing_feeder');
+
+    // Update the specific document for the user
+    
+
+    const publish = await collection3.updateOne(
+      { _id, userId },
+      {
+        $set: {
+          role: accessedJobTitle.role,
+          jobId,
+          url,
+          published: true,
+          emailId, // ⬅️ This is our golden timestamp
+          publishedAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+    
+    // Step 3: save emailId into session for later retrieval
+    if (session) {
+      session.emailId = emailId;
+      console.log("Email ID timestamp saved to session:", emailId);
+    } else {
+      console.warn("Session object is not available — cannot save emailId.");
+    }
+
+    if (publish.matchedCount > 0) {
+      console.log('Document updated in application_processing_feeder');
+    } else if (publish.upsertedId) {
+      console.log('New document inserted in application_processing_feeder:', publish.upsertedId);
+    } else {
+      console.log('No changes made to the application_processing_feeder document');
+    }
+
+    // Close the MongoDB connection
+    await client.close();
+
+    // Execute callback if provided
+    if (callback) {
+      console.log('Executing callback...');
+      callback(); // Call the provided callback function
+    }
+
+  } catch (error) {
+    console.error('Error sending email:', error);
+    if (client) await client.close();
+  }
+}
+
+// Example callback function
+function myCallback() {
+  console.log('Callback executed successfully.');
+}
+
+// Execute the function with the session, sessionToken, and callback
+await sendSelectedMessage(session, sessionToken, myCallback);
+
+}
+// Persistent MongoDB connection (initialize this when your app starts)
+let database;
+async function initializeDatabase() {
+  await client.connect();
+  database = client.db('olukayode_sage'); // Use the correct database name
+  console.log('Connected to MongoDB');
+}
+
+
+
+
+
+// Function to generate a unique ID
+function generateUniqueId() {
+    return `email_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // Initialize the database connection when the app starts
+        initializeDatabase().catch(console.error);
+
+          // IMAP configuration (Gmail example with rejectUnauthorized set to false)
+          const config = {
+            imap: {
+              user: process.env.IMAP_USER,
+              password: process.env.IMAP_PASSWORD,
+              host: 'imap.gmail.com', // Gmail's IMAP server
+              port: 993,
+              tls: true,
+              authTimeout: 3000,
+              tlsOptions: { rejectUnauthorized: false } // Bypass self-signed certificate error
+            },
+          };
+          
+
+
+
+
+// Add this function to your backend (after the IMAP config)
+// Add this function to your backend (after the IMAP config)
+// ✅ 1. Create HTTP server with a clear name
+        const httpServer = http.createServer(app);
+
+        // ✅ 2. Create WebSocket SERVER (uses httpServer)
+        const wss = new WebSocket.Server({ server: httpServer });
+
+// ✅ 3. Browser client connection handler (unchanged from original)
+wss.on('connection', (ws, req) => {
+  console.log('🔌 WS client connected');
+  console.log('📍 Connection details:', {
+    url: req.url,
+    headers: req.headers,
+    remoteAddress: req.socket.remoteAddress
+  });
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const userId = url.searchParams.get('userId');
+
+  if (userId) {
+    clients.set(userId, ws);
+    console.log(`🆔 Registered client for userId: ${userId}`);
+    console.log(`📊 Total connected clients: ${clients.size}`);
+  }
+
+  ws.send(JSON.stringify({
+    type: 'connection_established',
+    message: 'WebSocket connected successfully',
+    timestamp: new Date().toISOString()
+  }));
+
+  ws.on('message', (message) => {
+    console.log('📨 Received message from client:', message.toString());
+  });
+
+  ws.on('close', () => {
+    console.log(`❌ Client disconnected${userId ? ` (${userId})` : ''}`);
+    if (userId) clients.delete(userId);
+    console.log(`📊 Remaining clients: ${clients.size}`);
+  });
+
+  ws.on('error', (error) => {
+    console.error('❌ WebSocket error:', error);
+  });
+});
+
+// ✅ 4. Persistent WebSocket CLIENT to api.suntrenia.com
+//    Replaces the old inline ws that had no reconnect logic
+let suntreniaWs = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_MS = 30000;
+// ✅ FIX 23 — Deduplication map to prevent double proceed processing
+const processedResponseIds = new Map();
+
+// ============================================================================
+// ✅ BAILEYS — Free WhatsApp Web client (primary WhatsApp provider)
+// First run: scan QR code with WhatsApp → auth saved to ./baileys_auth/
+// Subsequent runs: auto-connects, no QR needed
+// ============================================================================
+async function startBaileys() {
+  try {
+    const { version } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState('./baileys_auth');
+
+    global.baileysSocket = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false,
+      browser: ['IntelliJob', 'Chrome', '1.0'],
+      syncFullHistory: false,
+      logger: require('pino')({ level: 'silent' }), // ✅ Silence JSON logs
+    });
+
+    // ✅ Save credentials whenever updated
+    global.baileysSocket.ev.on('creds.update', saveCreds);
+
+    // ✅ Handle connection updates
+    global.baileysSocket.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect, qr } = update;
+     if (qr) {
+        console.log('[Baileys] 📱 Scan this QR code with WhatsApp:');
+        const qrcode = require('qrcode-terminal');
+        qrcode.generate(qr, { small: true });
+      }
+      if (connection === 'close') {
+        const shouldReconnect = (lastDisconnect?.error instanceof Boom)
+          ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
+          : true;
+        console.log('[Baileys] Connection closed. Reconnecting:', shouldReconnect);
+        if (shouldReconnect) {
+          setTimeout(startBaileys, 5000); // Reconnect after 5 seconds
+        } else {
+          console.log('[Baileys] Logged out — delete ./baileys_auth/ and restart to re-scan QR');
+        }
+      } else if (connection === 'open') {
+        console.log('[Baileys] ✅ Connected to WhatsApp successfully!');
+      }
+    });
+
+    // ✅ Listen for incoming messages from job groups
+    global.baileysSocket.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (type !== 'notify') return;
+      for (const msg of messages) {
+        if (msg.key.fromMe) continue; // Skip messages sent by us
+        const groupId = msg.key.remoteJid;
+        if (!groupId?.endsWith('@g.us')) continue; // Only group messages
+
+        // ✅ Check if message is from an active job group
+        const groupDbClient = new MongoClient(uri);
+        let isJobGroup = false;
+        try {
+          await groupDbClient.connect();
+          const groupDoc = await groupDbClient
+            .db('olukayode_sage')
+            .collection('whatsapp_job_groups')
+            .findOne({ groupId, active: true });
+          isJobGroup = !!groupDoc;
+
+          // ✅ Also check env var group IDs as fallback
+          if (!isJobGroup) {
+            const envGroups = [
+              process.env.WHATSAPP_JOB_GROUP_1,
+              process.env.WHATSAPP_JOB_GROUP_2,
+              process.env.WHATSAPP_JOB_GROUP_3,
+            ].filter(Boolean);
+            isJobGroup = envGroups.includes(groupId);
+          }
+        } catch (dbErr) {
+          console.warn('[Baileys] DB check failed:', dbErr.message);
+        } finally {
+          await groupDbClient.close();
+        }
+
+        if (!isJobGroup) continue;
+
+        // ✅ Extract message body
+        const body = msg.message?.conversation ||
+                     msg.message?.extendedTextMessage?.text ||
+                     msg.message?.imageMessage?.caption ||
+                     '';
+
+        if (!body) continue;
+
+        console.log(`[Baileys] 📨 Job group message from ${groupId}: ${body.substring(0, 100)}...`);
+
+        // ✅ Push to global cache for poller to pick up
+        global.baileysMessages.push({
+          from: groupId,
+          chatId: groupId,
+          timestamp: Math.floor(Date.now() / 1000),
+          receivedAt: Date.now(),
+          text: { body }
+        });
+      }
+    });
+
+  } catch (err) {
+    console.error('[Baileys] Failed to start:', err.message);
+    setTimeout(startBaileys, 10000); // Retry after 10 seconds
+  }
+}
+
+// ✅ Start Baileys when app starts
+startBaileys().catch(err => console.error('[Baileys] Startup error:', err));
+
+function connectToSuntrenia() {
+  console.log('[Suntrenia WS] Connecting to wss://api.suntrenia.com...');
+  suntreniaWs = new WebSocket('wss://api.suntrenia.com');
+  suntreniaWs.onmessage = async (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      console.log('📩 Received WebSocket nudge from server:', payload);
+      const { userId, emailId, jobId, type, userEmail, responseId } = payload;
+
+      // ✅ Deduplicate — ignore if same responseId was processed in last 60 seconds
+      if (type === 'proceed' && responseId) {
+        if (processedResponseIds.has(responseId)) {
+          console.log('⚠️ Duplicate proceed signal ignored:', responseId);
+          return;
+        }
+        processedResponseIds.set(responseId, Date.now());
+        // Clean entries older than 60 seconds
+        for (const [id, ts] of processedResponseIds.entries()) {
+          if (Date.now() - ts > 60000) processedResponseIds.delete(id);
+        }
+      }
+
+        if (type === 'proceed') {
+        console.log('✅ User already authorized — verifying with database...');
+     let proceedClient;
+        try {
+          proceedClient = new MongoClient(uri);
+          await proceedClient.connect();
+          const db = proceedClient.db('olukayode_sage');
+          console.log('🔗 Connected to MongoDB for auth check');
+          const authData = await db.collection('user_gmail_tokens').findOne({ userId });
+          await proceedClient.close();
+          console.log('✅ MongoDB connection closed');
+          if (authData && authData.isAuthorized) {
+            console.log('✅ Database confirms authorization');
+            console.log('📧 Email to use:', authData.userEmail);
+            console.log('🔐 Personal email?', authData.usePersonalEmail);
+            await checkForResponses(userId, emailId, jobId, type);
+          } else {
+            console.warn('⚠️ Authorization mismatch - user may need to re-authorize');
+            console.warn('⚠️ Auth data found:', !!authData);
+            console.warn('⚠️ Is authorized:', authData?.isAuthorized);
+          }
+     } catch (dbError) {
+          console.error('❌ Error checking authorization from database:', dbError);
+          console.error('❌ Error details:', dbError.message);
+          try { if (proceedClient) await proceedClient.close(); } catch (e) {
+            console.error('Error closing MongoDB:', e);
+          }
+        }
+
+      } else if (type === 'user_authorized') {
+        console.log('✅ User just completed authorization!');
+        console.log('📧 Email authorized:', userEmail);
+        try {
+          mongoClient = new MongoClient(process.env.MONGODB_URI);
+          await mongoClient.connect();
+          console.log('🔗 Connected to MongoDB for new auth verification');
+          const db = mongoClient.db('olukayode_sage');
+          const authData = await db.collection('user_gmail_tokens').findOne({ userId });
+          await mongoClient.close();
+          console.log('✅ MongoDB connection closed');
+          if (authData && authData.isAuthorized) {
+            console.log('✅ Database confirms new authorization');
+            console.log('📧 Email to use:', authData.userEmail);
+            console.log('🔐 Personal email?', authData.usePersonalEmail);
+            await checkForResponses(userId, emailId, jobId, 'proceed');
+          } else {
+            console.warn('⚠️ Authorization verification failed');
+            console.warn('⚠️ Auth data found:', !!authData);
+            console.warn('⚠️ Is authorized:', authData?.isAuthorized);
+          }
+     } catch (dbError) {
+          console.error('❌ Error checking authorization from database:', dbError);
+          console.error('❌ Error details:', dbError.message);
+          try { if (proceedClient) await proceedClient.close(); } catch (e) {
+            console.error('Error closing MongoDB:', e);
+          }
+        }
+
+      } else if (type === 'decline') {
+        console.log('❌ User declined application');
+        await checkForResponses(userId, emailId, jobId, type);
+
+      } else if (type === 'connection') {
+        console.log('📩 Suntrenia WS handshake confirmed:', payload.message);
+        reconnectAttempts = 0;
+      }
+
+    } catch (err) {
+      console.error('❌ Error in WebSocket message handler:', err);
+      console.error('❌ Error name:', err.name);
+      console.error('❌ Error message:', err.message);
+      console.error('❌ Stack trace:', err.stack);
+    }
+  };
+
+  suntreniaWs.onopen = () => {
+    console.log('✅ [Suntrenia WS] Connected successfully');
+    reconnectAttempts = 0;
+  };
+
+  suntreniaWs.onclose = (event) => {
+    console.warn(`⚠️ [Suntrenia WS] Disconnected (code: ${event.code}, reason: ${event.reason || 'none'})`);
+    scheduleReconnect();
+  };
+
+  suntreniaWs.onerror = (error) => {
+    console.error('❌ [Suntrenia WS] Error:', error.message || error);
+  };
+}
+
+function scheduleReconnect() {
+  const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_MS);
+  reconnectAttempts++;
+  console.log(`🔄 [Suntrenia WS] Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
+  setTimeout(connectToSuntrenia, delay);
+}
+
+connectToSuntrenia();
+
+setInterval(() => {
+  if (suntreniaWs && suntreniaWs.readyState === WebSocket.OPEN) {
+    suntreniaWs.ping && suntreniaWs.ping();
+  }
+}, 25000);
+
+
+// Check if user is authorized
+// Endpoint for frontend to check authorization status
+app.get('/check-user-auth', async (req, res) => {
+  const { userId } = req.query;
+  
+  try {
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    
+    const db = client.db('olukayode_sage');
+    const userAuth = await db.collection('user_gmail_tokens').findOne({ userId });
+    
+    await client.close();
+    
+    const authorized = userAuth && userAuth.isAuthorized;
+    
+    res.json({
+      authorized,
+      userEmail: userAuth?.userEmail,
+      usePersonalEmail: userAuth?.usePersonalEmail,
+      authorizedAt: userAuth?.authorizedAt
+    });
+    
+  } catch (error) {
+    console.error('Error checking user auth:', error);
+    res.status(500).json({ error: 'Failed to check authorization' });
+  }
+});
+
+
+async function sendApplicationEmail(userId, applicationData) {
+  console.log("📧 [sendApplicationEmail] START - Function called");
+  console.log("👉 Parameters:", { userId, applicationData: applicationData ? "exists" : "missing" });
+  
+  let client;
+  try {
+    console.log("🔗 Connecting to MongoDB...");
+    client = new MongoClient(process.env.MONGODB_URI, { 
+      useNewUrlParser: true, 
+      useUnifiedTopology: true 
+    });
+    await client.connect();
+    console.log("✅ MongoDB connected successfully");
+
+    const db = client.db('olukayode_sage');
+    console.log(`🔍 Looking up user auth for userId: ${userId}`);
+    
+    const userAuth = await db.collection('user_gmail_tokens').findOne({ userId });
+    console.log("📋 User auth result:", userAuth ? "Found" : "Not found");
+    
+    let fromEmail;
+    if (!userAuth || !userAuth.isAuthorized) {
+      console.warn("⚠️ User not authorized — sending via Suntrenia SMTP");
+      fromEmail = process.env.EMAIL_USER;
+    } else {
+      fromEmail = userAuth.userEmail;
+    }
+    
+    // Use the stored email
+    //const fromEmail = userAuth.userEmail;
+    console.log(`📨 Using sender email: ${fromEmail}`);
+    console.log(`🔄 Email method: ${userAuth.usePersonalEmail ? 'Gmail API' : 'SMTP'}`);
+    
+    if (userAuth.usePersonalEmail) {
+      console.log("🚀 Sending via Gmail API...");
+      // Send via Gmail API with user's token
+      await sendViaGmailAPI(userAuth.accessToken, fromEmail, applicationData);
+    } else {
+      console.log("🚀 Sending via SMTP...");
+      // Send via your SMTP (company email)
+      await sendViaSMTP(fromEmail, applicationData);
+    }
+    
+    console.log("✅ Email sent successfully!");
+    
+  } catch (error) {
+    console.error("❌ [sendApplicationEmail] Error:", error.message);
+    throw error;
+  } finally {
+    if (client) {
+      console.log("🔗 Closing MongoDB connection...");
+      await client.close();
+      console.log("✅ MongoDB connection closed");
+    }
+  }
+}
+
+
+async function getSenderEmail(userId, emailId, jobId) {
+  // ✅ Normalize userId — remove leading + for DB lookup
+  userId = userId?.replace(/^\+/, '') || userId;
+  console.log("📧 [getSenderEmail] invoked");
+  console.log("👉 Params:", { userId, emailId, jobId });
+  let client;
+  try {
+    client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    await client.connect();
+    const db = client.db("olukayode_sage");
+
+    // 1️⃣ Check tracking / response collection
+    const record = await db
+      .collection("user_application_response")
+      .findOne({ userId, emailId, jobId }, { projection: { recipientEmail: 1 } });
+
+    if (record?.recipientEmail) {
+      console.log("✅ Sender email found:", record.recipientEmail);
+      return record.recipientEmail;
+    }
+
+    // 2️⃣ Fallback: check user profile
+          const user = await db.collection("Users_CV_biodata").findOne(
+        { $or: [{ _id: userId }, { _id: '+' + userId }, { phoneNumber: '+' + userId }] },
+        { projection: { email: 1 } }
+      );
+    if (user?.email) {
+      console.log("✅ Sender email found in user profile:", user.email);
+      return user.email;
+    }
+
+    console.warn("❌ No sender email found for", { userId, emailId, jobId });
+    return null;
+  } catch (err) {
+    console.error("💥 Error in getSenderEmail:", err);
+    return null;
+  } finally {
+    if (client) await client.close();
+  }
+}
+
+
+async function handleDeclineResponse(userId, emailId, jobId, from) {
+  console.log("❌ [handleDecline] Processing decline for userId:", userId, "jobId:", jobId);
+
+  const declineResponses = [
+    "Thank you for letting us know. Should you change your mind, feel free to reach out again.",
+    "Noted. Should you reconsider, we'll be here to assist you further.",
+    "Understood. Feel free to reconnect if you decide to explore our services later.",
+    "Got it. Should you have a change of heart, don't hesitate to get in touch with us again.",
+    "Acknowledged. If your circumstances change, we're here to help.",
+    "Thank you for informing us. Remember, our doors are always open if you reconsider.",
+    "I understand. Our assistance remains available if you have a change of plans.",
+    "Received. Feel free to reach out if you have any questions in the future."
+  ];
+
+  const botReply = declineResponses[Math.floor(Math.random() * declineResponses.length)];
+
+  if (from) {
+    try {
+      await sendReplyToRecipient(from, botReply, jobId, userId);
+      console.log("✅ [handleDecline] Acknowledgement email sent to:", from);
+    } catch (emailErr) {
+      console.error("❌ [handleDecline] Failed to send acknowledgement:", emailErr.message);
+    }
+  } else {
+    console.warn("⚠️ [handleDecline] No sender email — skipping acknowledgement");
+  }
+
+  try {
+    const declineClient = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    await declineClient.connect();
+    const declineDb = declineClient.db('olukayode_sage');
+
+    await declineDb.collection('application_processing_feeder').updateOne(
+      { userId, jobId },
+      {
+        $set: {
+          role_processed: true,
+          status: 'Treated',
+          application: 'Declined',
+          published: true,
+          publishedAt: new Date(),
+          processedAt: new Date(),
+          declinedAt: new Date()
+        }
+      }
+    );
+    console.log("✅ [handleDecline] application_processing_feeder updated");
+
+    await declineDb.collection('roles_listing').updateOne(
+      { userId, jobId },
+      {
+        $set: {
+          label: 'declined',
+          userResponse: 'decline',
+          processedAt: new Date()
+        }
+      }
+    );
+    console.log("✅ [handleDecline] roles_listing updated");
+
+    await declineDb.collection('user_application_response').updateOne(
+      { userId, emailId, jobId },
+      {
+        $set: {
+          processed: true,
+          processedAt: new Date(),
+          outcome: 'declined'
+        }
+      }
+    );
+    console.log("✅ [handleDecline] user_application_response marked processed");
+
+    await declineClient.close();
+    console.log("✅ [handleDecline] Full decline flow complete");
+
+  } catch (dbErr) {
+    console.error("❌ [handleDecline] DB update failed:", dbErr.message);
+  }
+}
+
+async function checkForResponses(userId = null, emailId = null, jobId = null) {
+  console.log("🚀 [checkForResponses] invoked");
+  console.log("👉 Params:", { userId, emailId, jobId });
+  
+  let mongoClient = null;
+  let collection = null;
+  let userResponse = null;
+  let botReply = null;
+  let from = null; // This will be set using our helper function
+  
+  try {
+      // === 1️⃣ Connect to Mongo & get button response early
+      if (userId && emailId && jobId) {
+          // Get sender email using helper function
+          from = await getSenderEmail(userId, emailId, jobId);
+          
+          mongoClient = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+          await mongoClient.connect();
+          const db = mongoClient.db('olukayode_sage');
+          collection = db.collection('user_application_response');
+          
+          const rec = await collection.findOne({ userId, emailId, jobId });
+          
+          if (rec) {
+              console.log("📌 DB record found:", {
+                  userId: rec.userId,
+                  emailId: rec.emailId,
+                  jobId: rec.jobId,
+                  response: rec.response || "<no response field>"
+              });
+              
+              userResponse = rec.response.toLowerCase();
+              console.log("✅ Normalized button response:", userResponse);
+              // ── Decline check — exits early before proceed block ──
+              if (
+                userResponse.includes("decline") ||
+                userResponse.includes("not interested") ||
+                userResponse.includes("not apply") ||
+                userResponse.includes("no please") ||
+                userResponse.includes("no")
+              ) {
+                const senderEmail = await getSenderEmail(userId, emailId, jobId);
+                await handleDeclineResponse(userId, emailId, jobId, senderEmail);
+                return;
+              }
+              if (userResponse.includes("proceed") ||
+                  userResponse.includes("okay") ||
+                  userResponse.includes("yes") ||
+                  userResponse.includes("ok") ||
+                  userResponse.includes("continue") ||
+                  userResponse.includes("thank you") ||
+                  userResponse.includes("sure") ||
+                  userResponse.includes("please do")) {
+                  ////////////////////////////////////////////////////////
+                    // if (!authorized) {
+                    //   req.session.nextAction = { type: "jobApplication", threadId, subscriber };
+                    //   return res.redirect("/auth/google");
+                    // }
+/////////////////////////////////////////////////////////////
+        const responses = [
+          "Thank you for considering our services. We're excited to move forward with your application. For more details about the job role and your application status, please visit the 'Manage Application' tab on your user dashboard.",
+          "We appreciate your interest and are ready to proceed with your application. For further information about the job role and your application status, please check the 'Manage Application' tab on your user dashboard.",
+          "Your decision to apply is noted. We'll handle your application with care. To learn more about the role and track your application status, please visit the 'Manage Application' tab on your user dashboard.",
+          "Great choice! We're processing your application. For more details about the role and to check your application status, please go to the 'Manage Application' tab on your user dashboard.",
+          "Thank you for your response. We’ll ensure everything is in place for your application. For additional information about the job role and to monitor your application status, please visit the 'Manage Application' tab on your user dashboard."
+        ];
+
+        botReply = responses[Math.floor(Math.random() * responses.length)];
+
+          function cleanURL(url) {
+            const httpsIndex = url.indexOf('https://');
+            if (httpsIndex !== -1) {
+              const cleanedURL = url.substring(httpsIndex);
+              console.log('Cleaned URL1:', cleanedURL); // Log the cleaned URL
+              return cleanedURL;
+            }
+            console.log('Original URL (no change):', url); // Log the original URL if 'https://' is not found
+            return url; // Return the URL as is if 'https://' is not found
+
+          }
+
+
+          async function fetchDataAndProcess(session, sessionToken,userId, responseData,exactTimestamp,jobId) {
+
+            await client.connect();
+            const database = client.db('olukayode_sage');
+            const collection = database.collection("Users_CV_biodata");
+            const sessionsCollection = database.collection('sessions');
+          try {
+            const sessionData = await sessionsCollection.findOne({ sessionToken });
+          
+             if (sessionData) {
+              const userId = sessionData.userId;
+              console.log(`Retrieved User ID: ${userId}`); // Corrected this line to use backticks for template literals
+              console.log("Fetch Data and Process user 888888888888888888888888888888888888888888888888",userId)
+              // const data = await collection.find({ _id: new ObjectId(userId) }).toArray();
+              const data = await collection.find({ _id: userId }).toArray();
+               console.log(data)
+              //  
+       
+// }
+// KEEP THIS VERSION - IT'S DESIGNED FOR YOUR NEW SYSTEM
+async function processCV(jobPostingUrl, userId, sessionToken, jobId, exactTimestamp, options = {}) {
+  try {
+    console.log("🎯 Starting CV processing pipeline with Groq...");
+    
+    // Validate input
+    if (!userId || !sessionToken) {
+      console.error("Missing required userId or sessionToken");
+      throw new Error("Missing required authentication parameters");
+    }
+
+    // 1. Get original user data
+    console.log("📋 Fetching user data...");
+    const originalData = await getUserData(userId, sessionToken, jobId, exactTimestamp);
+    if (!originalData) {
+      throw new Error("Failed to retrieve user data");
+    }
+    console.log("✅ User data retrieved successfully");
+
+    // 2. Get job details
+    console.log("📋 Fetching job details...");
+    const jobDetails = await getJobDetailsForCV(jobId, userId);
+    if (!jobDetails || !jobDetails.description) {
+      console.warn("Job details not found or incomplete, using basic tailoring");
+      return {
+        tailoredCVData: originalData,
+        coverLetter: generateCoverLetter(
+          originalData, 
+          "", 
+          options.companyName || "the company",
+          options.position || "the position"
+        ),
+        metadata: {
+          tailoringMethod: "None (job details missing)",
+          generatedAt: new Date().toISOString()
+        }
+      };
+    }
+    console.log("✅ Job details retrieved successfully");
+
+    // 3. Try Groq tailoring (replaces Gemini)
+    console.log("🤖 Starting CV tailoring with Groq...");
+    let tailoringMethod = "Keyword";
+    let tailoredData;
+    
+    if (options.useAI && jobDetails.description.length > 100) {
+      console.log("🚀 Attempting Groq AI tailoring...");
+      tailoredData = await tailorWithGroq(originalData, jobDetails, userId, jobId);
+      
+      if (tailoredData) {
+        tailoringMethod = "Groq AI (Llama 3.3 70B)";
+        console.log("✅ Groq AI tailoring successful");
+      } else {
+        console.log("⚠️ Groq tailoring failed, falling back to keyword method");
+      }
+    }
+    
+    // Fallback to keyword method if Groq not used or failed
+    if (!tailoredData) {
+      console.log("📝 Using keyword-based tailoring...");
+      tailoredData = tailorWithKeywords(originalData, jobDetails.description);
+    }
+
+    // 4. Generate cover letter
+    console.log("✉️ Generating cover letter...");
+    // const coverLetter = generateCoverLetter(
+    //   tailoredData,
+    //   jobDetails.description,
+    //   options.companyName || jobDetails.company || "the company",
+    //   options.position || jobDetails.title || "the position"
+    // );
+///////////////////////////////////////////////////////////////////////
+// TO:
+
+      const coverLetter = await generateCoverLetter(
+        tailoredData,
+        jobDetails.description,
+        options.companyName || jobDetails.company || "the company",
+        options.position || jobDetails.title || "the position",
+        userId,
+        jobId
+      );
+    // const coverLetter = generateCoverLetter(
+    //   tailoredData,
+    //   jobDetails.description,
+    //   options.companyName || jobDetails.company || "the company",
+    //   options.position || jobDetails.title || "the position",
+    //   userId,
+    //   jobId
+    // );
+console.log("🎉 CV processing completed successfully");
+    return {
+      tailoredCVData: tailoredData,
+      coverLetter,
+      metadata: {
+        tailoringMethod,
+        generatedAt: new Date().toISOString(),
+        jobDetails: {
+          title: jobDetails.title,
+          company: jobDetails.company,
+          keywords: (await getJobKeywords(jobDetails.description, userId, jobId)).topKeywords
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error("❌ CV processing pipeline failed:", error);
+    throw error;
+  }
+}
+
+// Initialize tokenizer
+const tokenizer = new natural.WordTokenizer();
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Configuration
+const stopWords = new Set(["a", "an", "the", "and", "is", "of", "in", "to", "for", "with", "on", "as", "by", "at", "an", "the", "and", "is", "of", "in", "to", "for", "with", "on", "as", "by", "at", "from", "this", "that", "or", "which", "be", "it", "are", "was", "were", "has", "have", "had", "will", "would", "can", "could", "should", "may", "might", "been", "being", "do", "does", "did", "doing", "than", "then", "there", "their", "if", "into", "but", "not", "all", "about", "some", "any", "such", "each", "many", "more", "most", "no", "nor", "too", "very", "either", "neither", "both", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "other", "now", "later"]);
+const techLexicon = new Set(['python', 'sql', 'aws', 'data', 'analysis', 'machine', 'learning', 'statistics']);
+
+
+async function getUserData(userId, sessionToken, jobId, exactTimestamp) {
+  try {
+      await client.connect();
+      const database = client.db('olukayode_sage');
+      const collection = database.collection("Users_CV_biodata");
+      const sessionsCollection = database.collection('sessions');
+
+      // Verify session
+      const sessionData = await sessionsCollection.findOne({ sessionToken });
+      if (!sessionData) {
+          throw new Error("Invalid session token");
+      }
+
+      // Fetch user data
+      const userDataArray = await collection.find({ _id: userId }).toArray();
+      if (!userDataArray || userDataArray.length === 0) {
+          throw new Error("User data not found");
+      }
+
+      const userData = userDataArray[0]; // Assuming we want the first document
+
+      // Fetch job data
+      const jobData = await fetchPublishedJobById(userId, jobId) || 
+                      await fetchPublishedJobByTimestamp(userId, exactTimestamp);
+      console.log("User data retrieved:", userData.fullName || userData.name || "Unknown");        
+      
+      // Transform to match expected structure
+      return {
+          summary: userData.professionalSummary || userData.summary || "",
+          skills: userData.skills || [],
+          workExperience: userData.workExperience || [],
+          projects: userData.projects || [],
+          education: userData.education || [],
+          name: userData.fullName || userData.name || "",
+          address: userData.address || "",
+          phone_number: userData.phone || userData.phoneNumber || "",
+          email: userData.email || "",
+          rawData: userData, // Keep original for reference
+          jobData: jobData // Include the job data if needed
+      };
+
+  } catch (error) {
+      console.error("Error fetching user data:", error);
+      throw error; // Or return a default structure if preferred
+  } finally {
+      await client.close();
+  }
+}
+
+async function fetchPublishedJobById(userId, jobId) {
+  let newClient = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+  await newClient.connect();
+  try {
+    const db = newClient.db('olukayode_sage');
+    const collection = db.collection('application_processing_feeder');
+    
+    const job = await collection.findOne({
+      userId,
+      jobId,
+      published: true
+    });
+    
+    if (!job) {
+      console.log('No published job found with ID:', jobId);
+      return null;
+    }
+    console.log("Job found by ID:", jobId);
+    return job;
+  } catch (error) {
+    console.error("Error fetching job by ID:", error);
+    return null;
+  } finally {
+    await newClient.close();
+  }
+}
+
+async function fetchPublishedJobByTimestamp(userId, exactTimestamp) {
+  if (!exactTimestamp) {
+    console.log("No timestamp provided for job search");
+    return null;
+  }
+  
+  let newClient =  new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+  await newClient.connect();
+  try {
+    const db = newClient.db('olukayode_sage');
+    const collection = db.collection('application_processing_feeder');
+    
+    // Create start and end dates for 1ms range
+    const startDate = new Date(exactTimestamp);
+    const endDate = new Date(exactTimestamp + 1);
+    
+    const job = await collection.findOne({
+      userId,
+      publishedAt: {
+        $gte: startDate,
+        $lt: endDate
+      }
+    });
+    
+    if (!job) {
+      console.log('No job found published at exact timestamp:', exactTimestamp);
+      return null;
+    }
+    console.log("Job found by timestamp:", exactTimestamp);
+    return job;
+  } catch (error) {
+    console.error("Error fetching job by timestamp:", error);
+    return null;
+  } finally {
+    await newClient.close();
+  }
+}
+
+// Fix getJobDetailsForCV to properly handle job fetching
+async function getJobDetailsForCV(jobId, userId) {
+  try {
+    // 1. Try to fetch from database first
+    const job = await fetchPublishedJobById(userId, jobId) || await fetchPublishedJobByTimestamp(userId, jobId);
+    console.log("Job details retrieval status:", job ? "Success" : "Failed");
+    
+    // 2. Check if we have complete data in DB
+    if (isCompleteJobData(job)) {
+      console.log("Complete job data found in database");
+      return formatJobData(job);
+    }
+
+    // 3. Fallback to URL scraping
+    console.log('Insufficient DB data, scraping URL:', job?.url || "URL not available");
+    const scrapedData = job?.url ? await scrapeJobPage(job.url) : {};
+    
+    // Merge DB and scraped data
+    return formatJobData({
+      ...job,
+      ...scrapedData
+    });
+
+  } catch (error) {
+    console.error('Job details fetch failed:', error);
+    throw new Error('Could not retrieve job details');
+  }
+}
+
+// Data completeness check
+function isCompleteJobData(job) {
+  return job?.jobDescription?.length > 200 && 
+         job?.requirements?.length > 50 &&
+         job?.title?.length > 5;
+}
+
+// Standardize output format
+function formatJobData(job) {
+  if (!job) return {};
+  
+  const description = job.jobDescription || job.description || '';
+  
+  return {
+    description,
+    title: job.title || '',
+    company: job.company || job.companyName || '',
+    requirements: job.requirements || '',
+    skills: extractKeywords(description),
+    url: job.url || '',
+    rawData: job // Keep original for reference
+  };
+}
+
+// Enhanced scraping function
+async function scrapeJobPage(url) {
+  try {
+    const html = await axios.get(url).then(res => res.data);
+    const $ = cheerio.load(html);
+    
+    // Extract sections using improved selectors
+    const extractSection = (selector, fallbackText = '') => {
+      return $(selector).text().trim() || fallbackText;
+    };
+
+    return {
+      jobDescription: extractSection('.job-description, .job-details, #jobDesc'),
+      requirements: extractSection('.requirements, .job-requirements, #jobReq'),
+      title: extractSection('h1.job-title, h1.title, h1'),
+      company: extractSection('.company-name, .organization, .employer'),
+      skills: extractSection('.skills, .job-skills, #jobSkills')
+    };
+  } catch (error) {
+    console.error('Scraping failed:', error);
+    return {}; // Return empty but don't fail
+  }
+}
+
+// Optimized keyword extraction
+function extractKeywords(text) {
+  if (!text) return [];
+
+  // Process text
+  const tokens = tokenizer.tokenize(text ? text.toLowerCase() : '');
+  const frequency = {};
+  console.log("Processing text for keyword extraction, found tokens:", tokens ? tokens.length : 0);
+  
+  // Count relevant terms
+  if (tokens && tokens.length > 0) {
+    tokens.forEach(token => {
+      if (token.length > 3 && !stopWords.has(token)) {
+        const normalized = natural.PorterStemmer.stem(token);
+        if (techLexicon.has(normalized)) {
+          frequency[normalized] = (frequency[normalized] || 0) + 1;
+        } else {
+          frequency[token] = (frequency[token] || 0) + 1;
+        }
+      }
+    });
+  }
+
+  // Prioritize tech terms then sort by frequency
+  return Object.entries(frequency)
+    .sort((a, b) => b[1] - a[1])
+    .map(([term]) => term)
+    .slice(0, 15);
+}
+
+// Enhanced text cleaning utility with normalization
+function cleanText(text) {
+  console.debug(`[cleanText] Input received:`, text ? text.substring(0, 20) + '...' : 'empty');
+  if (!text) {
+      console.debug(`[cleanText] Empty input, returning empty string`);
+      return '';
+  }
+  const result = text.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  console.debug(`[cleanText] Output produced:`, result ? result.substring(0, 20) + '...' : 'empty');
+  return result;
+}
+
+// ============================================================================
+// STEP 2: ENHANCE WITH ONLINE DICTIONARY/THESAURUS APIs
+// ============================================================================
+
+// KEEP THIS COMPLETE VERSION:
+async function enrichKeywordsWithDictionary(keywords) {
+  try {
+    console.log("📚 [Dictionary] Enriching keywords with synonyms and related terms...");
+    
+    const allKeywords = [
+      ...(keywords.hard_skills || []),
+      ...(keywords.soft_skills || []),
+      ...(keywords.tools_and_technologies || []),
+      ...(keywords.keywords || [])
+    ];
+
+    const enrichedKeywords = new Set(allKeywords);
+    
+    // Use Datamuse API to find related terms
+    for (const keyword of allKeywords.slice(0, 10)) { // Limit to avoid rate limits
+      try {
+        // Get synonyms and related words
+        const relatedResponse = await axios.get(KEYWORD_SOURCES.datamuse, {
+          params: {
+            rel_syn: keyword, // synonyms
+            max: 5
+          },
+          timeout: 5000
+        });
+
+        relatedResponse.data.forEach(word => {
+          if (word.word && word.score > 1000) { // Only high-relevance words
+            enrichedKeywords.add(word.word);
+          }
+        });
+
+        // Get words that often appear with this keyword
+        const contextResponse = await axios.get(KEYWORD_SOURCES.datamuse, {
+          params: {
+            rel_trg: keyword, // words that follow
+            max: 5
+          },
+          timeout: 5000
+        });
+
+        contextResponse.data.forEach(word => {
+          if (word.word && word.score > 1000) {
+            enrichedKeywords.add(word.word);
+          }
+        });
+
+      } catch (err) {
+        console.debug(`[Dictionary] Could not enrich "${keyword}":`, err.message);
+      }
+    }
+
+    console.log(`✅ [Dictionary] Enriched from ${allKeywords.length} to ${enrichedKeywords.size} keywords`);
+    return Array.from(enrichedKeywords);
+
+  } catch (error) {
+    console.error("❌ [Dictionary] Enrichment failed:", error.message);
+    return keywords; // Returns original structure
+  }
+}
+
+
+// ============================================================================
+// INDUSTRY-SPECIFIC GUIDANCE
+// ============================================================================
+
+function getIndustrySpecificGuidance(industry, roleCategory) {
+  const guidance = {
+    'Technology': `
+- Emphasize technical proficiency and problem-solving
+- Include programming languages, frameworks, methodologies
+- Show scalability, performance improvements, automation
+- Use metrics: response time, uptime, code coverage, bug reduction`,
+
+    'Healthcare': `
+- Emphasize patient care, clinical outcomes, safety protocols
+- Include medical procedures, equipment, EMR systems
+- Show patient satisfaction, treatment success rates, efficiency gains
+- Use healthcare-specific terminology and compliance standards`,
+
+    'Finance': `
+- Emphasize accuracy, compliance, risk management
+- Include financial tools, regulations (SOX, GAAP), analysis methods
+- Show cost savings, revenue growth, audit results, risk mitigation
+- Use financial metrics: ROI, NPV, revenue impact`,
+
+    'Education': `
+- Emphasize student outcomes, pedagogical methods, curriculum development
+- Include educational technologies, assessment tools, learning frameworks
+- Show student performance improvements, engagement rates, innovation
+- Use education-specific terminology`,
+
+    'Manufacturing': `
+- Emphasize efficiency, quality control, safety standards
+- Include production systems, lean methodologies, equipment
+- Show productivity gains, defect reduction, cost savings
+- Use manufacturing metrics: OEE, cycle time, yield rates`,
+
+    'Retail': `
+- Emphasize customer service, sales performance, inventory management
+- Include POS systems, merchandising strategies, CRM tools
+- Show sales growth, customer satisfaction, inventory turnover
+- Use retail metrics: conversion rates, average transaction value`,
+
+    'Hospitality': `
+- Emphasize guest satisfaction, service excellence, operations
+- Include hospitality systems, service standards, event coordination
+- Show guest satisfaction scores, occupancy rates, service improvements
+- Use hospitality-specific terminology`,
+
+    'Legal': `
+- Emphasize legal research, case management, compliance
+- Include legal software, research databases, documentation skills
+- Show case outcomes, efficiency improvements, risk mitigation
+- Use legal terminology and citation standards`,
+
+    'Marketing': `
+- Emphasize campaign performance, brand awareness, digital strategies
+- Include marketing tools, analytics platforms, content management
+- Show engagement rates, conversion improvements, ROI
+- Use marketing metrics: CTR, CAC, LTV`,
+
+    'Human Resources': `
+- Emphasize talent acquisition, employee engagement, training
+- Include HR systems, recruitment strategies, compliance
+- Show hiring efficiency, retention rates, training effectiveness
+- Use HR metrics: time-to-hire, employee satisfaction`
+  };
+
+  return guidance[industry] || `
+- Use industry-appropriate terminology
+- Show measurable outcomes relevant to the field
+- Include tools and methods specific to this industry
+- Demonstrate value in context of ${roleCategory} roles`;
+}
+
+
+
+/**
+ * PURE FALLBACK - Only used when Groq fails
+ */
+async function basicKeywordExtraction(jobDescription, jobTitle) {
+  console.log("📝 [Basic Fallback] Using basic keyword extraction...");
+  
+  const words = jobDescription
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3);
+
+  const frequency = {};
+  words.forEach(word => {
+    frequency[word] = (frequency[word] || 0) + 1;
+  });
+
+  const sortedKeywords = Object.entries(frequency)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 30)
+    .map(([word]) => word);
+
+  return {
+    industry: 'General',
+    role_category: 'General',
+    hard_skills: sortedKeywords.slice(0, 10),
+    soft_skills: ['communication', 'teamwork', 'problem-solving'],
+    tools_and_technologies: sortedKeywords.slice(10, 20),
+    keywords: sortedKeywords.slice(20, 30),
+    action_verbs: ['managed', 'developed', 'led', 'implemented'],
+    all_keywords: sortedKeywords
+  };
+}
+
+
+const KEYWORD_SOURCES = {
+  datamuse: 'https://api.datamuse.com/words',
+  dictionary: 'https://api.dictionaryapi.dev/api/v2/entries/en/',
+  groq: {
+    endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    apiKey: process.env.GROQ_API_KEY,
+    model: 'llama-3.3-70b-versatile'
+  }
+};
+
+const GROQ_CONFIG = {
+  endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+  apiKey: process.env.GROQ_API_KEY,
+  model: 'llama-3.3-70b-versatile',
+  temperature: 0.4,
+  max_tokens: 4000,
+  top_p: 0.9
+};
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+function cleanText(text) {
+  if (!text) return '';
+  return text.toLowerCase().replace(/[^\w\s]/g, ' ').trim();
+}
+
+/**
+ * UNIVERSAL keyword extraction - works for ALL industries
+ */
+function extractKeywords(text, maxKeywords = 20) {
+  if (!text || text.length < 10) return [];
+  
+  const stopWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
+    'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+    'would', 'should', 'could', 'may', 'might', 'must', 'can', 'this',
+    'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they',
+    'our', 'their', 'your', 'its', 'about', 'into', 'through', 'during',
+    'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over',
+    'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+    'where', 'why', 'how', 'all', 'both', 'each', 'few', 'more', 'most',
+    'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
+    'so', 'than', 'too', 'very', 'just', 'work', 'working', 'role', 'position'
+  ]);
+
+  const words = cleanText(text)
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !stopWords.has(word));
+
+  const frequency = {};
+  words.forEach(word => {
+    frequency[word] = (frequency[word] || 0) + 1;
+  });
+
+  return Object.entries(frequency)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxKeywords)
+    .map(([word]) => word);
+}
+
+/**
+ * AI-powered keyword filtering - works for ALL industries
+ */
+async function filterKeywordsWithAI(keywords) {
+  try {
+    const prompt = {
+      model: GROQ_CONFIG.model,
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert in identifying industry-specific keywords across ALL fields: technology, healthcare, finance, education, manufacturing, retail, hospitality, legal, creative, etc.
+
+Your task: From a list of keywords, identify which ones are professional/technical terms relevant to the industry context.
+
+Return ONLY a JSON array of the relevant keywords: ["keyword1", "keyword2", ...]`
+        },
+        {
+          role: 'user',
+          content: `Identify industry-relevant keywords from this list:\n${keywords.join(', ')}\n\nReturn only the professional/technical terms as a JSON array.`
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 500
+    };
+
+    const response = await axios.post(
+      GROQ_CONFIG.endpoint,
+      prompt,
+      {
+        headers: {
+          'Authorization': `Bearer ${GROQ_CONFIG.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+
+    const content = response.data.choices[0].message.content;
+    const jsonMatch = content.match(/\[[\s\S]*?\]/);
+    
+    if (jsonMatch) {
+      const filtered = JSON.parse(jsonMatch[0]);
+      console.log(`✅ AI filtered ${keywords.length} -> ${filtered.length} industry keywords`);
+      return filtered;
+    }
+
+    return null;
+
+  } catch (error) {
+    console.debug("[filterKeywordsWithAI] Failed:", error.message);
+    return null;
+  }
+}
+
+/**
+ * Universal industry keyword filter
+ */
+async function filterIndustryKeywords(keywords) {
+  if (!keywords || keywords.length === 0) return [];
+
+  try {
+    const aiFiltered = await filterKeywordsWithAI(keywords);
+    if (aiFiltered && aiFiltered.length > 0) {
+      // return aiFiltered;
+            // ADD: Dictionary enrichment for better keyword variety
+            const enriched = await enrichKeywordsWithDictionary({ 
+              hard_skills: aiFiltered,
+              soft_skills: [],
+              tools_and_technologies: [],
+              keywords: aiFiltered
+            });
+            return enriched;
+    }
+  } catch (error) {
+    console.debug("[filterIndustryKeywords] AI filtering unavailable, using fallback");
+  }
+
+  // Fallback: Filter based on word length and patterns
+  return keywords.filter(keyword => {
+    if (keyword.length >= 6) return true;
+    if (/[A-Z]{2,}/.test(keyword) || keyword.includes('-')) return true;
+    if (/\d/.test(keyword) || keyword.match(/(tion|ment|ance|ence|sis|ogy|ics)$/)) return true;
+    return false;
+  }).slice(0, 15);
+}
+
+// Legacy compatibility function
+async function filterTechKeywords(keywords) {
+  return await filterIndustryKeywords(keywords);
+}
+
+// ============================================================================
+// GROQ-BASED KEYWORD EXTRACTION
+// ============================================================================
+///////////////////////use
+async function extractKeywordsWithGroq(jobDescription, jobTitle, industry) {
+  try {
+    console.log("🤖 [Groq] Extracting keywords for role:", jobTitle);
+    
+    const prompt = {
+      model: KEYWORD_SOURCES.groq.model,
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert career analyst specializing in job market trends across ALL industries (technology, healthcare, finance, education, manufacturing, retail, hospitality, legal, creative, etc.).
+
+Your task is to extract relevant keywords from job descriptions that would help match a candidate's CV to the role.
+
+Return ONLY a valid JSON object with this structure:
+{
+  "industry": "detected industry (e.g., Healthcare, Finance, Technology, Education, etc.)",
+  "role_category": "role type (e.g., Clinical, Administrative, Technical, Creative, etc.)",
+  "hard_skills": ["specific technical/professional skills relevant to this industry"],
+  "soft_skills": ["transferable skills like communication, leadership, etc."],
+  "tools_and_technologies": ["industry-specific tools, software, equipment, methodologies"],
+  "certifications": ["relevant certifications or qualifications mentioned"],
+  "keywords": ["other important terms from the job description"],
+  "action_verbs": ["powerful action verbs relevant to this role"]
+}
+
+Be comprehensive and industry-specific. For healthcare: include medical terms, certifications (RN, MD), tools (EMR systems).
+For finance: include financial instruments, regulations (SOX, GAAP), tools (Bloomberg, SAP).
+For education: include pedagogical methods, curricula, educational technologies.
+And so on for ALL industries.`
+        },
+        {
+          role: 'user',
+          content: `Job Title: ${jobTitle}
+Industry: ${industry || 'To be determined'}
+
+Job Description:
+${jobDescription}
+
+Extract all relevant keywords for this role. Be thorough and industry-specific.`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    };
+
+    const response = await axios.post(
+      KEYWORD_SOURCES.groq.endpoint,
+      prompt,
+      {
+        headers: {
+          'Authorization': `Bearer ${KEYWORD_SOURCES.groq.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+
+    const content = response.data.choices[0].message.content;
+    
+    // Parse JSON response
+    let jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const keywords = JSON.parse(jsonMatch[0]);
+      console.log("✅ [Groq] Extracted keywords for industry:", keywords.industry);
+      return keywords;
+    }
+
+    throw new Error("Invalid JSON response from Groq");
+
+  } catch (error) {
+    console.error("❌ [Groq] Keyword extraction failed:", error.message);
+    return await basicKeywordExtraction(jobDescription, jobTitle);
+  }
+}
+
+
+// ============================================================================
+// KEYWORD CACHING
+// ============================================================================
+
+async function extractAndCacheKeywords(jobDescription, userId, jobId) {
+  console.debug(`[extractAndCacheKeywords] Processing for user ${userId}, job ${jobId}`);
+  
+  if (!jobDescription || jobDescription.length < 50) {
+    console.warn("[extractAndCacheKeywords] Job description too short");
+    return { allKeywords: [], techKeywords: [], topKeywords: [] };
+  }
+
+  const allKeywords = extractKeywords(jobDescription, 20);
+  const industryKeywords = await filterIndustryKeywords(allKeywords);
+  const topKeywords = allKeywords.slice(0, 5);
+
+  console.debug(`[extractAndCacheKeywords] Extracted: ${allKeywords.length} total, ${industryKeywords.length} industry-specific`);
+  // 🚨 ADD THIS VALIDATION
+  if (!process.env.MONGODB_URI) {
+    console.error("❌ [extractAndCacheKeywords] MONGODB_URI is undefined! Skipping cache.");
+    return { 
+      allKeywords, 
+      techKeywords: industryKeywords,
+      topKeywords 
+    };
+  }
+
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const keywordsCache = database.collection('job_keywords_cache');
+
+    await keywordsCache.updateOne(
+      { userId, jobId },
+      {
+        $set: {
+          userId,
+          jobId,
+          allKeywords,
+          techKeywords: industryKeywords,
+          topKeywords,
+          extractedAt: new Date().toISOString()
+        }
+      },
+      { upsert: true }
+    );
+
+    await client.close();
+    console.log(`✅ Keywords cached for user ${userId}, job ${jobId}`);
+  } catch (error) {
+    console.error("[extractAndCacheKeywords] Cache error:", error);
+  }
+
+  return { 
+    allKeywords, 
+    techKeywords: industryKeywords,
+    topKeywords 
+  };
+}
+
+
+
+async function getJobKeywords(jobDescription, userId, jobId) {
+  try {
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const keywordsCache = database.collection('job_keywords_cache');
+    const cached = await keywordsCache.findOne({ userId, jobId });
+    // await client.close();
+    if (cached && cached.allKeywords) {
+      console.log(`✅ Using cached keywords for job ${jobId}`);
+      return {
+        allKeywords: cached.allKeywords,
+        techKeywords: cached.techKeywords,
+        topKeywords: cached.topKeywords
+      };
+    }
+  } catch (error) {
+    console.error("[getJobKeywords] Cache retrieval error:", error);
+  }
+
+  return await extractAndCacheKeywords(jobDescription, userId, jobId);
+}
+
+// ============================================================================
+// MAIN CV TAILORING WITH GROQ
+// ============================================================================
+
+async function tailorWithGroq(originalData, jobDetails, userId, jobId) {
+  try {
+    console.log("🚀 Starting Groq-based CV tailoring...");
+    console.debug(`[tailorWithGroq] User: ${userId}, Job: ${jobId}`);
+    
+    if (!originalData || !jobDetails || !jobDetails.description) {
+      console.error("[tailorWithGroq] Missing required input data");
+      return null;
+    }
+
+    const { allKeywords, techKeywords, topKeywords } = await getJobKeywords(
+      jobDetails.description,
+      userId,
+      jobId
+    );
+
+    if (allKeywords.length < 3) {
+      console.warn("[tailorWithGroq] Insufficient keywords extracted");
+      return null;
+    }
+
+    console.log("📊 Keywords extracted:");
+    console.log("- Top Keywords:", topKeywords.join(', '));
+    console.log("- Industry Keywords:", techKeywords.join(', '));
+
+    const prompt = buildGroqPrompt(originalData, jobDetails, {
+      allKeywords,
+      techKeywords,
+      topKeywords
+    });
+
+    console.debug("[tailorWithGroq] Calling Groq API...");
+    const response = await callGroqAPI(prompt);
+
+    if (!response) {
+      console.error("[tailorWithGroq] Empty response from Groq");
+      return null;
+    }
+
+    const tailoredData = parseGroqResponse(response);
+    
+    if (!tailoredData) {
+      console.error("[tailorWithGroq] Failed to parse Groq response");
+      return null;
+    }
+
+    // NEW: Analyze keyword coverage before validation
+    const keywordAnalysis = analyzeKeywordCoverage(tailoredData, techKeywords);
+    logKeywordReport(keywordAnalysis);
+
+    const isValid = validateTailoredCV(tailoredData, originalData, techKeywords);
+    
+    if (!isValid) {
+      console.error("[tailorWithGroq] Validation failed");
+      console.log("💡 Tip: AI may need to retry or use fallback method");
+      return null;
+    }
+
+    console.log("✅ Groq CV tailoring completed successfully");
+    console.log(`   - Keyword coverage: ${keywordAnalysis.overall.coverage.toFixed(1)}%`);
+    console.log(`   - Missing keywords: ${keywordAnalysis.missingKeywords.length}`);
+    
+    // Return data with keyword analysis
+    return {
+      ...tailoredData,
+      _keywordAnalysis: keywordAnalysis // Hidden metadata for debugging
+    };
+
+  } catch (error) {
+    console.error("[tailorWithGroq] Process failed:", error.message);
+    return null;
+  }
+}
+
+// ============================================================================
+// GROQ PROMPT BUILDER
+// ============================================================================
+
+function buildGroqPrompt(originalData, jobDetails, keywords) {
+  const { allKeywords, techKeywords, topKeywords } = keywords;
+  const targetJobTitle = jobDetails.title || jobDetails.role || originalData.jobTitle;
+  const industryGuidance = getIndustrySpecificGuidance(
+    keywords.industry || 'General', 
+    keywords.role_category || 'General'
+  );
+
+  return {
+    model: GROQ_CONFIG.model,
+    messages: [
+      {
+        role: 'system',
+        content: `You are an expert CV writer who creates human-like, ATS-optimized resumes for ALL industries.
+
+CRITICAL RULES:
+- Write naturally like a professional career coach, NOT like AI
+- Adapt tone and terminology to the specific industry
+- Vary sentence structure, length (12-28 words), and tone
+- Use specific metrics appropriate to the industry
+- NEVER fabricate companies, degrees, certifications, or dates
+- ONLY enhance descriptions within existing roles
+- Ensure all industry-relevant keywords appear naturally in context`
+      },
+      {
+        role: 'user',
+        content: `# UNIVERSAL CV TAILORING REQUEST
+
+## TARGET JOB DETAILS:
+**Title:** ${targetJobTitle}
+**Company:** ${jobDetails.company || 'Leading Organization'}
+**Location:** ${jobDetails.jobLocation || 'Nigeria'}
+**Experience Required:** ${jobDetails.experience || 'Not specified'}
+
+**Job Description:**
+${jobDetails.description}
+
+**Key Requirements:**
+${jobDetails.requirements || 'See job description'}
+
+## KEYWORDS TO INCORPORATE (Industry-Specific):
+**Top Priority (MUST appear in summary):** ${topKeywords.join(', ')}
+**Professional/Technical Skills (MUST appear in skills section):** ${techKeywords.join(', ')}
+**Secondary Keywords:** ${allKeywords.slice(5, 10).join(', ')}
+
+## ORIGINAL CV DATA:
+\`\`\`json
+${JSON.stringify(originalData, null, 2)}
+\`\`\`
+
+## YOUR TASK:
+
+Generate a tailored CV in **valid JSON format** with these exact fields:
+
+### 1. PROFESSIONAL SUMMARY (3-4 sentences)
+- Open with strong value proposition using 2-3 top keywords
+- Mention years of experience (calculate from work history)
+- Highlight 1-2 quantifiable achievements relevant to this industry
+- Natural tone, industry-appropriate language
+
+### 2. JOB TITLE
+- Adjust to match target role: "${targetJobTitle}"
+
+### 3. SKILLS SECTION
+- MUST include ALL industry-relevant keywords: ${techKeywords.join(', ')}
+- Keep relevant original skills that transfer to this role
+- Remove clearly irrelevant skills
+- Group related competencies together
+- Return as array of strings
+
+### 4. WORK EXPERIENCE (MOST IMPORTANT!)
+For EACH work experience entry:
+- Keep: company name, job title, duration (NEVER change these facts)
+- Generate 4-6 achievement-focused bullet points:
+  * Each bullet 15-25 words (vary lengths)
+  * Include 2-3 job keywords naturally per role
+  * Add specific metrics appropriate to the industry
+  * Use varied action verbs suitable for this field
+  * Make achievements relevant to "${targetJobTitle}" role
+  * Use industry-specific language and context
+
+### 5. PROJECTS SECTION (if present)
+- Keep: project titles, periods
+- Enhance descriptions with relevant methodologies/tools
+- Show outcomes/impacts with appropriate metrics
+
+### 6. PRESERVE EXACTLY (DO NOT MODIFY):
+- name, email, phoneNumber, phone_number, address, dateOfBirth
+- education entries
+- certifications
+- languages, professionalBodies
+
+## OUTPUT FORMAT:
+Return ONLY valid JSON matching this structure:
+
+\`\`\`json
+{
+  "name": "...",
+  "email": "...",
+  "phoneNumber": "...",
+  "phone_number": "...",
+  "address": "...",
+  "dateOfBirth": "...",
+  "jobTitle": "${targetJobTitle}",
+  "summary": "3-4 sentences with industry keywords naturally integrated...",
+  "skills": ["skill1", "skill2", "skill3", ...],
+  "workExperience": [
+    {
+      "title": "Original Job Title",
+      "company": "Original Company Name",
+      "duration": "Original Duration",
+      "description": "• Achievement bullet 1\\n• Achievement bullet 2\\n• Achievement bullet 3\\n• Achievement bullet 4"
+    }
+  ],
+  "education": [...preserve original...],
+  "projects": [...enhanced...],
+  "certifications": [...preserve original...],
+  "languages": [...preserve original...],
+  "professionalBodies": [...preserve original...],
+  "profileImage": "...",
+  "Profile Image": "..."
+}
+\`\`\`
+
+Generate the tailored CV now as valid JSON:`
+      }
+    ],
+    temperature: GROQ_CONFIG.temperature,
+    max_tokens: GROQ_CONFIG.max_tokens,
+    top_p: GROQ_CONFIG.top_p
+  };
+}
+
+// ============================================================================
+// GROQ API CALL
+// ============================================================================
+
+async function callGroqAPI(prompt) {
+  try {
+    console.debug("[callGroqAPI] Making request to Groq...");
+    
+    const response = await Promise.race([
+      axios.post(GROQ_CONFIG.endpoint, prompt, {
+        headers: {
+          'Authorization': `Bearer ${GROQ_CONFIG.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Groq API timeout")), 30000)
+      )
+    ]);
+
+    if (!response.data?.choices?.[0]?.message?.content) {
+      console.error("[callGroqAPI] Invalid response structure");
+      return null;
+    }
+
+    const content = response.data.choices[0].message.content;
+    console.debug(`[callGroqAPI] Received response (${content.length} chars)`);
+    
+    return content;
+
+  } catch (error) {
+    console.error("[callGroqAPI] Request failed:", error.message);
+    return null;
+  }
+}
+
+// ============================================================================
+// RESPONSE PARSING
+// ============================================================================
+
+function parseGroqResponse(responseText) {
+  try {
+    console.debug("[parseGroqResponse] Parsing response...");
+    
+    let jsonString = responseText
+      .replace(/^```json\n?/i, '')
+      .replace(/```$/, '')
+      .trim();
+
+    const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonString = jsonMatch[0];
+    }
+
+    const parsed = JSON.parse(jsonString);
+    console.debug("[parseGroqResponse] JSON parsed successfully");
+    
+    return parsed;
+
+  } catch (error) {
+    console.error("[parseGroqResponse] Parse error:", error.message);
+    return null;
+  }
+}
+
+// ============================================================================
+// KEYWORD ANALYTICS & REPORTING
+// ============================================================================
+
+/**
+ * Analyzes keyword distribution across CV sections
+ * Returns detailed report of where keywords appear
+ */
+function analyzeKeywordCoverage(tailoredData, industryKeywords) {
+  const analysis = {
+    summary: { keywords: [], coverage: 0 },
+    skills: { keywords: [], coverage: 0 },
+    workExperience: { keywords: [], coverage: 0 },
+    projects: { keywords: [], coverage: 0 },
+    overall: { keywords: [], coverage: 0 },
+    missingKeywords: []
+  };
+
+  const summaryText = (tailoredData.summary || '').toLowerCase();
+  const skillsText = (tailoredData.skills || []).join(' ').toLowerCase();
+  const workExpText = (tailoredData.workExperience || [])
+    .map(exp => exp.description || '')
+    .join(' ')
+    .toLowerCase();
+  const projectsText = (tailoredData.projects || [])
+    .map(proj => proj.description || '')
+    .join(' ')
+    .toLowerCase();
+  const entireCVText = JSON.stringify(tailoredData).toLowerCase();
+
+  industryKeywords.forEach(keyword => {
+    const cleanKeyword = cleanText(keyword);
+    let found = false;
+
+    if (summaryText.includes(cleanKeyword)) {
+      analysis.summary.keywords.push(keyword);
+      found = true;
+    }
+    if (skillsText.includes(cleanKeyword)) {
+      analysis.skills.keywords.push(keyword);
+      found = true;
+    }
+    if (workExpText.includes(cleanKeyword)) {
+      analysis.workExperience.keywords.push(keyword);
+      found = true;
+    }
+    if (projectsText.includes(cleanKeyword)) {
+      analysis.projects.keywords.push(keyword);
+      found = true;
+    }
+    if (entireCVText.includes(cleanKeyword)) {
+      analysis.overall.keywords.push(keyword);
+      found = true;
+    }
+
+    if (!found) {
+      analysis.missingKeywords.push(keyword);
+    }
+  });
+
+  // Calculate coverage percentages
+  const total = industryKeywords.length;
+  analysis.summary.coverage = (analysis.summary.keywords.length / total) * 100;
+  analysis.skills.coverage = (analysis.skills.keywords.length / total) * 100;
+  analysis.workExperience.coverage = (analysis.workExperience.keywords.length / total) * 100;
+  analysis.projects.coverage = (analysis.projects.keywords.length / total) * 100;
+  analysis.overall.coverage = (analysis.overall.keywords.length / total) * 100;
+
+  return analysis;
+}
+
+/**
+ * Logs detailed keyword coverage report
+ */
+function logKeywordReport(analysis) {
+  console.log('\n📊 ========== KEYWORD COVERAGE REPORT ==========');
+  console.log(`\n✅ OVERALL COVERAGE: ${analysis.overall.coverage.toFixed(1)}% (${analysis.overall.keywords.length}/${analysis.overall.keywords.length + analysis.missingKeywords.length})`);
+  
+  console.log(`\n📝 SUMMARY: ${analysis.summary.coverage.toFixed(1)}%`);
+  console.log(`   Keywords: ${analysis.summary.keywords.join(', ') || 'None'}`);
+  
+  console.log(`\n🎯 SKILLS: ${analysis.skills.coverage.toFixed(1)}%`);
+  console.log(`   Keywords: ${analysis.skills.keywords.join(', ') || 'None'}`);
+  
+  console.log(`\n💼 WORK EXPERIENCE: ${analysis.workExperience.coverage.toFixed(1)}%`);
+  console.log(`   Keywords: ${analysis.workExperience.keywords.join(', ') || 'None'}`);
+  
+  if (analysis.projects.keywords.length > 0) {
+    console.log(`\n🚀 PROJECTS: ${analysis.projects.coverage.toFixed(1)}%`);
+    console.log(`   Keywords: ${analysis.projects.keywords.join(', ')}`);
+  }
+  
+  if (analysis.missingKeywords.length > 0) {
+    console.log(`\n⚠️ MISSING KEYWORDS (${analysis.missingKeywords.length}):`);
+    console.log(`   ${analysis.missingKeywords.join(', ')}`);
+  }
+  
+  console.log('\n===============================================\n');
+}
+
+// ============================================================================
+// VALIDATION
+// ============================================================================
+
+function validateTailoredCV(tailoredData, originalData, industryKeywords) {
+  console.debug("[validateTailoredCV] Running validation checks...");
+
+  const checks = [
+    // Basic structure validation
+    () => tailoredData && typeof tailoredData === 'object',
+    () => tailoredData.name === originalData.name,
+    () => tailoredData.email === originalData.email,
+    () => tailoredData.summary && tailoredData.summary.length > 50,
+    () => Array.isArray(tailoredData.skills) && tailoredData.skills.length > 0,
+    () => Array.isArray(tailoredData.workExperience) && tailoredData.workExperience.length > 0,
+    () => tailoredData.workExperience.every(exp => 
+      exp.title && exp.company && exp.duration && exp.description
+    ),
+    
+    // ENHANCED: Check keywords in skills section
+    () => {
+      const skillsText = tailoredData.skills.join(' ').toLowerCase();
+      const matchedKeywords = industryKeywords.filter(kw => 
+        skillsText.includes(cleanText(kw))
+      );
+      console.debug(`[validateTailoredCV] Skills section: ${matchedKeywords.length}/${industryKeywords.length} keywords matched`);
+      return matchedKeywords.length >= Math.min(3, industryKeywords.length);
+    },
+    
+    // NEW: Check keywords in professional summary
+    () => {
+      const summaryText = (tailoredData.summary || '').toLowerCase();
+      const matchedInSummary = industryKeywords.filter(kw => 
+        summaryText.includes(cleanText(kw))
+      );
+      console.debug(`[validateTailoredCV] Summary: ${matchedInSummary.length} keywords found`);
+      return matchedInSummary.length >= Math.min(2, industryKeywords.length);
+    },
+    
+    // NEW: Check keywords in work experience
+    () => {
+      const workExpText = tailoredData.workExperience
+        .map(exp => exp.description || '')
+        .join(' ')
+        .toLowerCase();
+      const matchedInWorkExp = industryKeywords.filter(kw => 
+        workExpText.includes(cleanText(kw))
+      );
+      console.debug(`[validateTailoredCV] Work experience: ${matchedInWorkExp.length} keywords found`);
+      return matchedInWorkExp.length >= Math.min(3, industryKeywords.length);
+    },
+    
+    // NEW: Overall keyword coverage across entire CV
+    () => {
+      const entireCVText = JSON.stringify(tailoredData).toLowerCase();
+      const totalMatched = industryKeywords.filter(kw => 
+        entireCVText.includes(cleanText(kw))
+      );
+      const coveragePercentage = (totalMatched.length / industryKeywords.length) * 100;
+      console.debug(`[validateTailoredCV] Overall keyword coverage: ${coveragePercentage.toFixed(1)}% (${totalMatched.length}/${industryKeywords.length})`);
+      
+      // Require at least 50% keyword coverage
+      return coveragePercentage >= 50;
+    }
+  ];
+
+  const results = checks.map((check, i) => {
+    const result = check();
+    if (!result) {
+      console.error(`[validateTailoredCV] Check ${i + 1} failed`);
+    }
+    return result;
+  });
+
+  const allPassed = results.every(r => r);
+  console.debug(`[validateTailoredCV] Validation ${allPassed ? 'PASSED ✅' : 'FAILED ❌'}`);
+  
+  return allPassed;
+}
+
+// ============================================================================
+// FALLBACK: NON-AI TAILORING
+// ============================================================================
+
+async function tailorWithKeywords(originalData, jobDetails, userId, jobId) {
+  try {
+    console.log("📝 [Fallback] Using keyword-based tailoring...");
+
+    const { allKeywords, techKeywords, topKeywords } = await getJobKeywords(
+      jobDetails.description,
+      userId,
+      jobId
+    );
+
+    const tailoredData = JSON.parse(JSON.stringify(originalData));
+
+    tailoredData.jobTitle = jobDetails.title || originalData.jobTitle;
+
+    tailoredData.summary = enhanceSummary(
+      originalData.summary || '',
+      topKeywords,
+      jobDetails
+    );
+
+    tailoredData.skills = enhanceSkills(
+      originalData.skills || [],
+      techKeywords,
+      allKeywords
+    );
+
+    if (tailoredData.workExperience && tailoredData.workExperience.length > 0) {
+      tailoredData.workExperience = enhanceWorkExperience(
+        tailoredData.workExperience,
+        techKeywords,
+        allKeywords
+      );
+    }
+
+    if (tailoredData.projects && tailoredData.projects.length > 0) {
+      tailoredData.projects = enhanceProjects(
+        tailoredData.projects,
+        techKeywords
+      );
+    }
+
+    console.log("✅ [Fallback] Keyword-based tailoring completed");
+    return tailoredData;
+
+  } catch (error) {
+    console.error("❌ [Fallback] Error:", error.message);
+    return originalData;
+  }
+}
+
+// ============================================================================
+// ENHANCEMENT FUNCTIONS
+// ============================================================================
+
+function enhanceSummary(originalSummary, topKeywords, jobDetails) {
+  let summary = originalSummary || `Experienced professional`;
+  
+  if (topKeywords.length > 0) {
+    summary += ` with expertise in ${topKeywords.slice(0, 3).join(', ')}.`;
+  }
+
+  summary += ` Seeking opportunities as ${jobDetails.title || 'in the field'}.`;
+
+  return summary;
+}
+
+function enhanceSkills(originalSkills, industryKeywords, allKeywords) {
+  const skillsSet = new Set(originalSkills.map(s => s.toLowerCase()));
+  const enhancedSkills = [...originalSkills];
+
+  industryKeywords.forEach(skill => {
+    if (!Array.from(skillsSet).some(s => s.includes(skill.toLowerCase()))) {
+      enhancedSkills.push(skill);
+      skillsSet.add(skill.toLowerCase());
+    }
+  });
+
+  allKeywords.slice(0, 10).forEach(skill => {
+    if (!Array.from(skillsSet).some(s => s.includes(skill.toLowerCase()))) {
+      enhancedSkills.push(skill);
+      skillsSet.add(skill.toLowerCase());
+    }
+  });
+
+  return enhancedSkills;
+}
+
+function enhanceWorkExperience(workExperience, industryKeywords, allKeywords) {
+  return workExperience.map((exp, index) => {
+    let description = exp.description || '';
+    
+    const relevantKeywords = industryKeywords.slice(index * 2, (index * 2) + 2);
+    
+    relevantKeywords.forEach(keyword => {
+      if (!description.toLowerCase().includes(keyword.toLowerCase())) {
+        description += `\n• Utilized ${keyword} to enhance operational efficiency and deliver results.`;
+      }
+    });
+
+    return {
+      ...exp,
+      description
+    };
+  });
+}
+
+function enhanceProjects(projects, industryKeywords) {
+  return projects.map((project, index) => {
+    let description = project.description || '';
+    
+    const relevantTech = industryKeywords.slice(index, index + 2);
+    if (relevantTech.length > 0) {
+      description += ` Technologies used: ${relevantTech.join(', ')}.`;
+    }
+
+    return {
+      ...project,
+      description
+    };
+  });
+}
+
+// ============================================================================
+// COVER LETTER GENERATION
+// ============================================================================
+
+function extractKeyPhrases(text) {
+  if (!text) return [];
+  return text.split(/\.|\n/)
+    .map(sentence => sentence.trim())
+    .filter(sentence => sentence.length > 10)
+    .slice(0, 5);
+}
+
+
+async function generateCoverLetter(cvData, jobDescription, companyName = "[Company]", position = "[Position]", userId, jobId) {
+  console.log("✉️ [generateCoverLetter] Starting cover letter generation...");
+  
+  if (!cvData || !jobDescription) {
+      console.warn("Insufficient data for cover letter generation");
+      return "";
+  }
+
+  const today = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', month: 'long', day: 'numeric' 
+  });
+  
+  const keywords = extractKeywords(jobDescription);
+  
+  // ✅ CRITICAL FIX: Add await since filterTechKeywords is async
+  const techKeywords = await filterTechKeywords(keywords);
+  
+  // 🛡️ SAFETY CHECK: Ensure techKeywords is always an array
+  const safeTechKeywords = Array.isArray(techKeywords) ? techKeywords : [];
+  console.log(`🔧 Using ${safeTechKeywords.length} safe tech keywords for cover letter`);
+
+  // Identify top relevant skills
+  const relevantSkills = (cvData.skills || [])
+      .filter(skill => 
+          safeTechKeywords.some(kw => cleanText(skill).includes(cleanText(kw))))
+      .slice(0, 3);
+  
+  // Find most relevant experience
+  const relevantExp = (cvData.workExperience || [])
+  .map(exp => ({
+    ...exp,
+    relevance: keywords.reduce((score, kw) => {
+      const titleMatch = exp.title && cleanText(exp.title).includes(cleanText(kw)) ? 1 : 0;
+      const descMatch = exp.description && cleanText(exp.description).includes(cleanText(kw)) ? 1 : 0;
+      return score + titleMatch + descMatch;
+    }, 0)
+  }))
+  .sort((a, b) => b.relevance - a.relevance)[0];
+
+  
+  // Extract key responsibilities from job description
+  const responsibilities = extractKeyPhrases(jobDescription)
+      .filter(phrase => phrase.length > 10 && phrase.length < 60)
+      .slice(0, 2);
+  
+  // Generate the cover letter
+  return `
+${cvData.name || '[Your Name]'}
+${cvData.address || '[Your Address]'}
+${cvData.phone_number || '[Your Phone]'}
+${cvData.email || '[Your Email]'}
+${today}
+
+Hiring Manager
+${companyName}
+
+Dear Hiring Manager,
+
+I am excited to apply for the ${position} position at ${companyName}. ${relevantSkills.length > 0 ? 
+`With my strong background in ${relevantSkills.join(', ')}, ` : 
+`With my professional experience, `}I am confident in my ability to contribute effectively to your team.
+
+${relevantExp ? `In my current role as ${relevantExp.title} at ${relevantExp.company || '[Company]'}, I have successfully ${relevantExp.description || '[key achievements]'}. ` : 
+`Throughout my career, I have consistently `}${responsibilities.length > 0 ? 
+`developed expertise in areas including ${responsibilities.join(' and ')}. ` : ''}
+
+I am particularly drawn to this opportunity because [personalized reason based on company/job]. My combination of technical skills and [soft skills] would allow me to [specific contribution].
+
+I would welcome the opportunity to discuss how my background aligns with your needs. Please find my resume attached for your review.
+
+Sincerely,
+${cvData.name || '[Your Name]'}
+`;
+}
+
+// Helper function to extract key phrases
+
+// Helper function to extract key phrases
+function extractKeyPhrases(text) {
+  if (!text) return [];
+  // Simple implementation - can be enhanced with NLP
+  return text.split(/\.|\n/)
+      .map(sentence => sentence.trim())
+      .filter(sentence => sentence.length > 10)
+      .slice(0, 5);
+}
+// function generateCoverLetter(cvData, jobDescription, companyName = "[Company]", position = "[Position]") {
+//   if (!cvData || !jobDescription) {
+//     console.warn("Insufficient data for cover letter generation");
+//     return "";
+//   }
+
+//   const today = new Date().toLocaleDateString('en-US', { 
+//     year: 'numeric', month: 'long', day: 'numeric' 
+//   });
+  
+//   const keywords = extractKeywords(jobDescription);
+//   const techKeywords = filterTechKeywords(keywords);
+
+//   const relevantSkills = (cvData.skills || [])
+//     .filter(skill => 
+//       techKeywords.some(kw => cleanText(skill).includes(cleanText(kw))))
+//     .slice(0, 3);
+  
+//   const relevantExp = (cvData.workExperience || [])
+//     .map(exp => ({
+//       ...exp,
+//       relevance: keywords.reduce((score, kw) => {
+//         const titleMatch = exp.title && cleanText(exp.title).includes(cleanText(kw)) ? 1 : 0;
+//         const descMatch = exp.description && cleanText(exp.description).includes(cleanText(kw)) ? 1 : 0;
+//         return score + titleMatch + descMatch;
+//       }, 0)
+//     }))
+//     .sort((a, b) => b.relevance - a.relevance)[0];
+  
+//   const responsibilities = extractKeyPhrases(jobDescription)
+//     .filter(phrase => phrase.length > 10 && phrase.length < 60)
+//     .slice(0, 2);
+  
+//   return `
+// ${cvData.name || '[Your Name]'}
+// ${cvData.address || '[Your Address]'}
+// ${cvData.phone_number || '[Your Phone]'}
+// ${cvData.email || '[Your Email]'}
+// ${today}
+
+// Hiring Manager
+// ${companyName}
+
+// Dear Hiring Manager,
+
+// I am excited to apply for the ${position} position at ${companyName}. ${relevantSkills.length > 0 ? 
+// `With my strong background in ${relevantSkills.join(', ')}, ` : 
+// `With my professional experience, `}I am confident in my ability to contribute effectively to your team.
+
+// ${relevantExp ? `In my current role as ${relevantExp.title} at ${relevantExp.company || '[Company]'}, I have successfully ${relevantExp.description || '[key achievements]'}. ` : 
+// `Throughout my career, I have consistently `}${responsibilities.length > 0 ? 
+// `developed expertise in areas including ${responsibilities.join(' and ')}. ` : ''}
+
+// I am particularly drawn to this opportunity because of your organization's reputation. My combination of technical skills and professional experience would allow me to contribute meaningfully to your team.
+
+// I would welcome the opportunity to discuss how my background aligns with your needs. Please find my resume attached for your review.
+
+// Sincerely,
+// ${cvData.name || '[Your Name]'}
+// `;
+// }
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+module.exports = {
+  // Main functions
+  tailorWithGroq,
+  tailorWithKeywords,
+  
+  // Keyword functions
+  extractKeywords,
+  extractKeywordsWithGroq,
+  filterIndustryKeywords,
+  filterTechKeywords, // Legacy compatibility
+  getJobKeywords,
+  extractAndCacheKeywords,
+  enrichKeywordsWithDictionary,
+  
+  // Utility functions
+  cleanText,
+  extractKeyPhrases,
+  
+  // Enhancement functions
+  enhanceSummary,
+  enhanceSkills,
+  enhanceWorkExperience,
+  enhanceProjects,
+  
+  // Validation
+  validateTailoredCV,
+  analyzeKeywordCoverage,
+  logKeywordReport,
+  
+  // Cover letter
+  generateCoverLetter,
+  
+  // API interaction
+  callGroqAPI,
+  parseGroqResponse,
+  buildGroqPrompt,
+  
+  // Configuration
+  GROQ_CONFIG,
+  KEYWORD_SOURCES
+};
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+const getMostRecentJobForUser = async (userId) => {
+
+  try {
+    await client.connect();
+    console.log('Connected to database');
+
+    const database = client.db("olukayode_sage");
+
+    // Fetch the most recently published job for the user
+    const jobResults = await database.collection("application_processing_feeder")
+      .find({ userId, published: true }) // Filter jobs by userId and ensure they are published
+      .sort({ publishedAt: -1 }) // Sort by publishedAt in descending order (most recent first)
+      .limit(1) // Get the most recent job
+      .toArray(); // Convert the result to an array
+
+    // Check if a job was found
+    if (!jobResults.length) {
+      console.log(`User ${userId}: No job found in database. Exiting.`);
+      return null;
+    }
+
+    const mostRecentJob = jobResults[0]; // Extract the most recent job
+    console.log("The most recent Job:", mostRecentJob);
+    return mostRecentJob;
+
+  } catch (err) {
+    console.error("Error fetching the most recent job:", err);
+    return null;
+  } finally {
+    await client.close();
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+// function extractCompanyName(title) {
+//   // Define possible keywords that typically precede the company name
+//   const keywords = ['at', 'in', 'with'];
+
+//   // Convert title to lowercase for case-insensitive comparison
+//   const lowerTitle = title.toLowerCase();
+
+//   // Try to find a keyword in the title
+//   let companyName = "Reputable Company"; // Default if no match is found
+
+//   for (let keyword of keywords) {
+//     const index = lowerTitle.indexOf(keyword);
+
+//     // If a keyword is found, extract the company name
+//     if (index !== -1) {
+//       // Extract the portion after the keyword
+//       companyName = title.substring(index + keyword.length).trim();
+      
+//       // If the company name contains any parentheses (like 'Moniepoint Inc. (Formerly TeamApt Inc.)'),
+//       // we remove the content inside the parentheses, leaving only the company name.
+//       const parenthesesIndex = companyName.indexOf('(');
+//       if (parenthesesIndex !== -1) {
+//         companyName = companyName.substring(0, parenthesesIndex).trim();
+//       }
+      
+//       break;  // Stop after finding the first valid company name
+//     }
+//   }
+
+//   return companyName;
+// }
+
+// Function to trigger CV processing dynamically
+/////////////////////////////////////////////////////////////////////////////////////////////
+// * UPDATED: triggerProcessCVDynamically with Groq integration
+// * REPLACES: The existing triggerProcessCVDynamically function
+// */
+async function triggerProcessCVDynamically(session, sessionToken) {
+ try {
+   console.log("🚀 Preparing to trigger Groq-based CV processing...");
+
+   // Step 1: Resolve userId
+   let userId = session?.userId;
+   if (!userId) {
+     console.log("🔄 User ID not found in session, fetching using session token...");
+     userId = await withRetry(() => fetchUserIdBySessionToken(sessionToken), 3, 1000);
+     if (!userId) throw new Error('❌ User ID is missing. Cannot proceed.');
+   }
+   console.log("✅ User ID successfully resolved:", userId);
+
+   // Step 2: Fetch job data
+   let job;
+   let exactTimestamp;
+
+   try {
+     if (session?.emailId) {
+       console.log("📧 Email ID found in session:", session.emailId);
+       exactTimestamp = session.emailId;
+       job = await withRetry(() => fetchPublishedJobByTimestamp(userId, exactTimestamp), 2, 500);
+     }
+
+     if (!job) {
+       console.log("🔄 Falling back to fetching most recent job...");
+       job = await withRetry(() => getMostRecentJobForUser(userId), 2, 500);
+       if (!job) throw new Error("No job found for user");
+       exactTimestamp = job.timestamp || new Date().toISOString();
+     }
+     console.log("✅ Job found:", job.title);
+
+     if (!job?.url || !job?.jobId || !job?.role) {
+       throw new Error("❌ Job data is incomplete or missing.");
+     }
+
+     // Step 3: Prepare options
+     const companyName = extractCompanyName(job.title) || "Reputable Company";
+     const options = {
+       useAI: true, // Enable Groq AI tailoring
+       companyName,
+       position: job.title || "the position"
+     };
+
+     // Step 4: Process CV with Groq
+     await checkMongoDBConnection();
+     console.log("⏳ Starting Groq-powered CV tailoring process...");
+     const result = await processCV(
+       job.url,
+       userId,
+       sessionToken,
+       job.jobId,
+       exactTimestamp,
+       options
+     );
+
+     console.log("🎯 CV tailoring process completed successfully");
+     console.log("📊 Tailoring method used:", result.metadata.tailoringMethod);
+     return result;
+
+   } catch (jobError) {
+     console.error("❌ Job processing error:", jobError);
+     throw new Error(`Job processing failed: ${jobError.message}`);
+   }
+
+ } catch (error) {
+   console.error("❌ Critical error in CV processing pipeline:", error);
+   
+   if (error.name === 'MongoServerSelectionError') {
+     console.error("🔴 MongoDB connection error - please check database service");
+   }
+   
+   throw error;
+ }
+}
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+module.exports = {
+ tailorWithGroq,
+ processCV,
+ triggerProcessCVDynamically,
+ extractAndCacheKeywords,
+ getJobKeywords
+};
+
+
+
+
+// Helper functions
+async function withRetry(operation, maxRetries = 3, delayMs = 1000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      console.log(`🔄 Retrying (${i + 1}/${maxRetries}) after error:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+async function checkMongoDBConnection() {
+  try {
+    // Assuming you have access to your MongoDB client
+    await mongoose.connection.db.admin().ping();
+    console.log("✅ MongoDB connection is active");
+  } catch (error) {
+    console.error("❌ MongoDB connection failed:", error);
+    throw new Error("Database connection unavailable");
+  }
+}
+
+function extractCompanyName(title) {
+  if (!title) return "Reputable Company";
+  
+  const keywords = ['at', 'in', 'with'];
+  const lowerTitle = title.toLowerCase();
+  let companyName = "Reputable Company";
+
+  for (let keyword of keywords) {
+    const index = lowerTitle.indexOf(keyword);
+    if (index !== -1) {
+      companyName = title.substring(index + keyword.length).trim();
+      const parenthesesIndex = companyName.indexOf('(');
+      if (parenthesesIndex !== -1) {
+        companyName = companyName.substring(0, parenthesesIndex).trim();
+      }
+      break;
+    }
+  }
+
+  return companyName;
+}
+
+//await triggerProcessCVDynamically(session, sessionToken);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////         
+          //      const transformedCVs = data.map(doc => {
+          //       console.log("Is this be you?xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+          //       const name = doc.name;
+          //       const jobTitle = doc.jobTitle;
+          //       const dateOfBirth = doc.dateOfBirth;
+          //       const address = doc.address;
+          //       const phone_number = doc.phone_number;
+          //       const linkedin = doc.linkedin ? [cleanURL(doc.linkedin)] : [];
+          //       const email = doc.email;
+          //       const profileImage = cleanURL(doc.profileImage || 'https://via.placeholder.com/100');
+            
+          //       const skillsData = doc.skills.map(skill => ({ name: skill, barClass: '' }));
+          //       const educationData = doc.education.map(edu => ({
+          //         degree: edu.degree,
+          //         institution: edu.school,
+          //         period: edu.duration,
+          //         description: edu.description
+          //       }));
+          //       const experienceData = doc.workExperience.map(exp => ({
+          //         title: exp.title,
+          //         company: exp.company,
+          //         period: exp.duration,
+          //         description: exp.description
+          //       }));
+          //       const summaryData = [doc.summary];
+          //       const languagesData = doc.languages.map(lang => ({
+          //         name: lang.name,
+          //         proficiency: lang.proficiency
+          //       }));
+          //       const certificationsData = doc.certifications.map(cert => ({
+          //         name: cert.name,
+          //         institution: cert.institution,
+          //         year: cert.year
+          //       }));
+          //       const membershipsData = doc.professionalBodies.map(body => ({
+          //         name: body.name,
+          //         role: body.role,
+          //         year: body.year
+          //       }));
+          //       const projectsData = doc.projects.map(project => ({
+          //         title: project.title,
+          //         period: project.period || 'No specific period',
+          //         details: project.details || [project.description]
+          //       }));
+            
+          //       return {
+          //         name,
+          //         jobTitle,
+          //         dateOfBirth,
+          //         address,
+          //         phone_number,
+          //         linkedin,
+          //         email,
+          //         profileImage,
+          //         skillsData,
+          //         educationData,
+          //         experienceData,
+          //         summaryData,
+          //         languagesData,
+          //         certificationsData,
+          //         membershipsData,
+          //         projectsData
+          //       };
+          //     });
+            
+          //     console.log('Transformed CVs:', transformedCVs);
+            
+          //     transformedCVs.forEach(cv => {
+          //       generateHTML(cv);
+          //     });
+           
+          //     return userId;
+          
+          //   }
+          
+          
+          // } finally {
+          //   await client.close();
+          // }
+          // }
+///////////////////////////////////////////////////////////////////////////////////////////
+// Previous code remains the same until the transformation section...
+
+// Remove the entire commented block and replace with:
+
+// if (tailoringResult.success && tailoredData) {
+//   console.log("✅ Using AI-tailored CV data");
+const tailoringResult = await triggerProcessCVDynamically(session, sessionToken);
+let tailoredData = tailoringResult?.tailoredCVData;
+// ✅ SAFETY FALLBACK: if Groq returned empty/broken data, use raw DB data
+if (!tailoredData || !tailoredData.name) {
+  console.warn('⚠️ tailoredData is empty or broken — falling back to raw DB data');
+  tailoredData = data[0]; // data[0] is the raw user record from Users_CV_biodata
+}
+console.log("🎯 AI TAILORING RESULT:", {
+  tailoredJobTitle: tailoredData?.jobTitle,
+  databaseJobTitle: data[0]?.jobTitle,
+  tailoredSummary: tailoredData?.summary?.substring(0, 100),
+  databaseSummary: data[0]?.summary?.substring(0, 100)
+});
+
+
+transformedCVs = [{
+  name: tailoredData.name,
+  jobTitle: tailoredData.jobTitle, // ← This is the AI-tailored job title
+  dateOfBirth: tailoredData.dateOfBirth,
+  address: tailoredData.address,
+  phone_number: tailoredData.phone_number,
+  linkedin: tailoredData.linkedin ? [cleanURL(tailoredData.linkedin)] : [],
+  email: tailoredData.email,
+  profileImage: cleanURL(tailoredData.profileImage || 'https://via.placeholder.com/100'),
+  
+  // Use AI-tailored sections
+  skillsData: (tailoredData.skills || []).map(skill => ({ 
+    name: skill, 
+    barClass: '' 
+  })),
+  
+  educationData: (tailoredData.education || []).map(edu => ({
+    degree: edu.degree,
+    institution: edu.school || edu.institution,
+    period: edu.duration || edu.period,
+    description: edu.description
+  })),
+  
+  experienceData: (tailoredData.workExperience || []).map(exp => ({
+    title: exp.title,
+    company: exp.company,
+    period: exp.duration,
+    description: exp.description // ← This contains AI-enhanced bullet points
+  })),
+  
+  summaryData: [tailoredData.summary], // ← AI-tailored professional summary
+  languagesData: tailoredData.languages || [],
+  certificationsData: tailoredData.certifications || [],
+  membershipsData: tailoredData.professionalBodies || [],
+  
+  projectsData: (tailoredData.projects || []).map(project => ({
+    title: project.title,
+    period: project.period || 'No specific period',
+    details: project.details || [project.description]
+  }))
+}];
+
+console.log('🎯 USING AI-TAILORED CV DATA:', {
+  jobTitle: tailoredData.jobTitle,
+  summaryLength: tailoredData.summary?.length,
+  skillsCount: tailoredData.skills?.length,
+  experienceCount: tailoredData.workExperience?.length,
+  keywordCoverage: tailoringResult.metadata?.tailoringMethod
+});
+
+console.log('Transformed CVs:', transformedCVs);
+
+// Generate HTML with the transformed CVs (either AI-tailored or fallback)
+transformedCVs.forEach(cv => {
+  generateHTML(cv);
+});
+
+return userId;
+      }
+    } finally {
+      await client.close();
+    }
+  }
+
+fetchDataAndProcess(session, sessionToken);
+
+          
+/////////////////////////////////////////////////////////////////////////////////
+
+          // Function to generate a random gender
+          function generateRandomGender() {
+
+            const genders = ['Male', 'Female'];
+            const randomIndex = Math.floor(Math.random() * genders.length);
+            return genders[randomIndex];
+          }
+
+
+          async function generateHTML(cv) {
+            const profileImageHTML = `<img src="${cv.profileImage}" alt="${cv.name}" class="profile-image">`;
+
+            const summaryHTML = cv.summaryData.length > 0 ? `
+                <div class="summary section">
+                    <h2>SUMMARY</h2>
+                    ${cv.summaryData.map(summary => `<p>${summary}</p>`).join('')}
+                </div>` : '';
+
+            const experienceHTML = cv.experienceData.length > 0 ? `
+                <div class="experience section">
+                    <h2>EXPERIENCE</h2>
+                    ${cv.experienceData.map(exp => `
+                        <div class="section">
+                            <h3>${exp.title}</h3>
+                            <p>${exp.company}</p>
+                            <p>${exp.period}</p>
+                            <p>${exp.description}</p>
+                        </div>`).join('')}
+                </div>` : '';
+
+            const projectsHTML = cv.projectsData.length > 0 ? `
+                <div class="projects section">
+                    <h2>PROJECTS</h2>
+                    ${cv.projectsData.map(project => `
+                        <div class="section">
+                            <h3>${project.title}</h3>
+                            <p>${project.period}</p>
+                            <ul>
+                                ${project.details.map(detail => `<li>${detail}</li>`).join('')}
+                            </ul>
+                        </div>`).join('')}
+                </div>` : '';
+
+            const educationHTML = cv.educationData.length > 0 ? `
+                <div class="education section">
+                    <h2>EDUCATION</h2>
+                    ${cv.educationData.map(edu => `
+                        <div class="section">
+                            <h3>${edu.degree}</h3>
+                            <p>${edu.institution}</p>
+                            <p>${edu.period}</p>
+                            <p>${edu.description}</p>
+                        </div>`).join('')}
+                </div>` : '';
+
+            const contactHTML = `
+                <div class="contact">
+                    <p>${cv.email}</p>
+                    <p>${cv.phone_number}</p>
+                    ${cv.linkedin.map(link => `<p><a href="${link}">${link}</a></p>`).join('')}
+                </div>
+            `;
+
+            const skillsHTML = cv.skillsData.length > 0 ? `
+                <div class="skills section">
+                    <h2>SKILLS</h2>
+                    <ul>
+                        ${cv.skillsData.map(skill => `<li>${skill.name}</li>`).join('')}
+                    </ul>
+                </div>` : '';
+
+            const languagesHTML = cv.languagesData.length > 0 ? `
+                <div class="languages section">
+                    <h2>LANGUAGES</h2>
+                    <ul>
+                        ${cv.languagesData.map(lang => `<li>${lang.name} - ${lang.proficiency}</li>`).join('')}
+                    </ul>
+                </div>` : '';
+
+            const certificationsHTML = cv.certificationsData.length > 0 ? `
+                <div class="certifications section">
+                    <h2>CERTIFICATIONS</h2>
+                    ${cv.certificationsData.map(cert => `
+                        <div class="certification">
+                            <p>${cert.name}</p>
+                            <p>${cert.institution} (${cert.year})</p>
+                        </div>`).join('')}
+                </div>` : '';
+
+            const membershipsHTML = cv.membershipsData.length > 0 ? `
+                <div class="memberships section">
+                    <h2>PROFESSIONAL MEMBERSHIPS</h2>
+                    ${cv.membershipsData.map(member => `
+                        <div class="membership">
+                            <p>${member.name}</p>
+                            <p>${member.role} (${member.year})</p>
+                        </div>`).join('')}
+                </div>` : '';
+
+            const genderHTML = cv.gender ? `<p><strong>Gender:</strong> ${cv.gender}</p>` : '';
+            const dobHTML = cv.dateOfBirth ? `<p><strong>Date of Birth:</strong> ${cv.dateOfBirth}</p>` : '';
+            const addressHTML = cv.address ? `<p><strong>Address:</strong> ${cv.address}</p>` : '';
+
+            // const premium_CV = `
+            //       <!DOCTYPE html>
+            //       <html lang="en">
+            //       <head>
+            //           <meta charset="UTF-8">
+            //           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            //           <title>${cv.name} Resume</title>
+                      
+            //           <style>
+            //           .profile-image {
+            //                   width: 150px;
+            //                   height: 150px;
+            //                   border-radius: 50%;
+            //                 }
+                        
+            //                     body {
+            //                         font-family: Arial, sans-serif;
+            //                         margin: 0;
+            //                         padding: 0;
+            //                         background-color: #f4f4f4;
+            //                     }
+            //                     .container {
+            //                         display: flex;
+            //                         max-width: 900px;
+            //                         margin: 20px auto;
+            //                         background-color: #fff;
+            //                         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            //                     }
+            //                     .sidebar {
+            //                         background-color: #0d4a75;
+            //                         color: white;
+            //                         padding: 20px;
+            //                         width: 30%;
+            //                         text-align: center;
+            //                     }
+                              
+            //                     .sidebar img {
+            //                         border-radius: 50%;
+            //                         width: 100px;
+            //                         height: 100px;
+            //                     }
+            //                     .sidebar h1 {
+            //                         font-size: 24px;
+            //                         margin: 10px 0;
+            //                     }
+            //                     .sidebar p {
+            //                         margin: 5px 0;
+            //                     }
+            //                     .sidebar .contact, .sidebar .skills, .sidebar .languages, .sidebar .certifications {
+            //                       margin-top: 20px;
+            //                       text-align: left;
+            //                     }
+            //                     .sidebar .contact a, .sidebar .languages p {
+            //                         color: white;
+            //                         text-decoration: none;
+            //                     }
+            //                     .sidebar .skills ul, .sidebar .languages ul {
+            //                         list-style: none;
+            //                         padding: 0;
+            //                     }
+            //                     .sidebar .skills li, .sidebar .languages li {
+            //                         margin: 10px 0;
+            //                     }
+            //                     .bar {
+            //                         background-color: #fff;
+            //                         border-radius: 10px;
+            //                         height: 10px;
+            //                         position: relative;
+            //                         margin-top: 5px;
+            //                     }
+            //                     .bar-certification {
+            //                       background: linear-gradient(90deg, #ffeb3b 0%, #0d4a75 100%);
+            //                       border-radius: 10px;
+            //                       height: 10px; /* Increased height */
+            //                       margin: 10px 0;
+            //                     }
+            //                     .bar::after {
+            //                         content: '';
+            //                         background-color: #0073b1;
+            //                         height: 100%;
+            //                         border-radius: 10px;
+            //                         position: absolute;
+            //                         top: 0;
+            //                     }
+            //                     .bar1::after { width: 90%; }
+            //                     .bar2::after { width: 80%; }
+            //                     .bar3::after { width: 85%; }
+            //                     .bar4::after { width: 70%; }
+            //                     .bar5::after { width: 75%; }
+            //                     .bar6::after { width: 65%; }
+            //                     .bar7::after { width: 60%; }
+            //                     .bar8::after { width: 70%; }
+            //                     .bar9::after { width: 50%; }
+            //                     .bar10::after { width: 55%; }
+            //                     .main {
+            //                         padding: 20px;
+            //                         width: 70%;
+            //                     }
+            //                     .main h2 {
+            //                         border-bottom: 2px solid #0d4a75;
+            //                         padding-bottom: 5px;
+            //                     }
+            //                     .main h3 {
+            //                         color: #0d4a75;
+            //                     }
+            //                     .main .section {
+            //                         margin-top: 20px;
+            //                     }
+                        
+            //                     .sidebar .memberships {
+            //                       text-align: left;
+            //                     }
+            //                     .sidebar .memberships {
+            //                       margin-top: 20px;
+            //                       text-align: left;
+            //                     }
+                                
+            //                     .personal-details {
+            //                         margin-top: 20px; /* Adds space between job title and personal details */
+            //                     }
+            //                     .personal-details p {
+            //                         text-align: left;
+            //                     }
+            //           </style>
+            //       </head>
+            //       <body>
+            //           <div class="container">
+            //               <div class="sidebar">
+            //                   ${profileImageHTML}
+            //                   <h1>${cv.name}</h1>
+            //                   <p>${cv.jobTitle}</p>
+            //                   ${genderHTML}
+            //                   ${dobHTML}
+            //                   ${addressHTML}
+            //                   ${contactHTML}
+            //                   ${skillsHTML}
+            //                   ${languagesHTML}
+            //                   ${certificationsHTML}
+            //                   ${membershipsHTML}
+            //               </div>
+            //               <div class="main">
+            //                   ${summaryHTML}
+            //                   ${experienceHTML}
+            //                   ${projectsHTML}
+            //                   ${educationHTML}
+            //               </div>
+            //           </div>
+            //       </body>
+            //       </html>
+            //   `;
+            // console.log(premium_CV);
+
+            // const determineCVFormat = (subscription) => {
+            //   let cvTemplate;
+            //   if (subscription === 'Premium') {
+            //     cvTemplate = premium_CV;
+            //   } else if (subscription === 'Standard') {
+            //     cvTemplate = standard_CV;
+            //   } else if (subscription === 'Basic') {
+            //     cvTemplate = basic_CV;
+            //   } else {
+            //     throw new Error('Invalid subscription type');
+            //   }
+
+            //   return cvTemplate;
+            // };
+
+
+            // const userSubscription = 'Premium'; // This should be dynamically determined based on your logic
+
+
+
+                      // // connect to your cluster
+                      // const client = await MongoClient.connect('yourMongoURL', { 
+                      //   useNewUrlParser: true, 
+                      //   useUnifiedTopology: true,
+                      // });
+                      // // specify the DB's name
+                      // const db = client.db('nameOfYourDB');
+                      // // execute find query
+                      // const items = await db.collection('items').find({}).toArray();
+                      // console.log(items);
+                      // // close connection
+                      // client.close();
+
+
+
+
+
+                      // let successfulApplications = 0;
+
+                      // async function SuccessfuleuserApprovedapplications(results, rolesListing, userId) {
+                      //   for (const job of results) {
+                      //     const isValid = await validateJobUrl(job.url); // Assuming this function checks if the job is valid
+                      //     if (isValid) {
+                      //       await rolesListing.insertOne({ userId, ...job });
+                      //       successfulApplications++; // Increment count for each valid job added
+                      //     }
+                      //   }
+                      //   console.log(`User has ${successfulApplications} successfully approved job applications.`);
+                      // }
+                      
+
+                  // Utility function to fetch subscription details
+                  async function fetchSubscriptionDetails(sessionToken) {
+                  const client = new MongoClient(process.env.MONGO_URI, {
+                        useNewUrlParser: true,
+                        useUnifiedTopology: true,
+                      });
+                    
+                      const database = client.db('olukayode_sage');
+                      const sessionsCollection = database.collection('sessions');
+                      const usersCollection = database.collection('Users_CV_biodata');
+
+                    try {
+                      // Ensure connection is established before any database operations
+                      await client.connect();
+                      console.log('Fetching session data for token:', sessionToken);
+                      const sessionData = await sessionsCollection.findOne({ sessionToken });
+                  
+                      if (!sessionData || !sessionData.userId) {
+                        console.error('Invalid session token or user not authenticated:', sessionData);
+                        throw new Error('Invalid session token or user not authenticated.');
+                      }
+                  
+                      const userId = sessionData.userId;
+                      console.log('User ID found:', userId);
+                  
+                      console.log('Fetching user subscription details...');
+                      const user = await usersCollection.findOne({ _id: userId });
+                  
+                      if (!user || !user.subscription) {
+                        console.error('Subscription details not found for user:', user);
+                        throw new Error('Subscription details not found for the user.');
+                      }
+                  
+                      const { plan } = user.subscription;
+                      console.log('Subscription plan:', plan);
+                  
+                      return plan;
+                    } catch (error) {
+                      console.error('Error fetching subscription details:', error);
+                      throw error;
+                    } finally {
+                      // Conditionally close the connection
+                   
+                        console.log('Closing database connection...');
+                        await client.close();
+                      
+                    }
+                  }
+
+
+                    // Define CV templates first
+
+                    const basic_CV2= `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} - Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Arial', sans-serif;
+                                margin: 0;
+                                padding: 0;
+                                background-color: #f4f4f9;
+                                color: #333;
+                            }
+                    
+                            .container {
+                                width: 90%;
+                                max-width: 800px;
+                                margin: 30px auto;
+                                background: #fff;
+                                border-radius: 10px;
+                                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+                                overflow: hidden;
+                            }
+                    
+                            .header {
+                                background: #1d3557; /* Darker Blue */
+                                color: white;
+                                padding: 20px 30px;
+                                display: flex;
+                                align-items: center;
+                                gap: 20px;
+                            }
+                    
+                            .profile-image {
+                                width: 100px;
+                                height: 100px;
+                                border-radius: 50%;
+                                border: 3px solid #fff;
+                                object-fit: cover;
+                            }
+                    
+                            .header-content {
+                                flex-grow: 1;
+                            }
+                    
+                            .header-content h1 {
+                                font-size: 28px;
+                                margin: 0;
+                            }
+                    
+                            .header-content h2 {
+                                font-size: 18px;
+                                margin: 5px 0;
+                                font-weight: 400;
+                            }
+                    
+                            .section {
+                                padding: 20px 30px;
+                                border-bottom: 1px solid #eee;
+                            }
+                    
+                            .section:last-child {
+                                border-bottom: none;
+                            }
+                    
+                            .section-title {
+                                font-size: 22px;
+                                margin-bottom: 15px;
+                                color: #1d3557; /* Darker Blue */
+                                position: relative;
+                            }
+                    
+                            .section-title::after {
+                                content: '';
+                                width: 50px;
+                                height: 3px;
+                                background: #1d3557; /* Darker Blue */
+                                display: block;
+                                margin-top: 5px;
+                            }
+                    
+                            .content-block {
+                                margin-bottom: 15px;
+                            }
+                    
+                            .content-block h3 {
+                                margin: 0;
+                                font-size: 18px;
+                                color: #333;
+                            }
+                    
+                            .content-block span {
+                                display: block;
+                                font-size: 14px;
+                                color: #888;
+                            }
+                    
+                            .content-block p {
+                                margin: 5px 0 0;
+                                font-size: 14px;
+                                color: #555;
+                            }
+                    
+                            .skills, .languages, .certifications {
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 10px;
+                            }
+                    
+                            .badge {
+                                background: #f4f4f9;
+                                padding: 10px;
+                                border-radius: 5px;
+                                border: 1px solid #ddd;
+                                font-size: 14px;
+                                color: #555;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <header class="header">
+                                ${profileImageHTML}
+                                <div class="header-content">
+                                    <h1>${cv.name}</h1>
+                                    <h2>${cv.jobTitle}</h2>
+                                    <p>${contactHTML}</p>
+                                </div>
+                            </header>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Summary</h2>
+                                ${summaryHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Experience</h2>
+                                ${experienceHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Education</h2>
+                                ${educationHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Skills</h2>
+                                <div class="skills">
+                                    ${skillsHTML}
+                                </div>
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Projects</h2>
+                                ${projectsHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Languages</h2>
+                                <div class="languages">
+                                    ${languagesHTML}
+                                </div>
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Certifications</h2>
+                                <div class="certifications">
+                                    ${certificationsHTML}
+                                </div>
+                            </section>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+
+                    const basic_CV1= `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} - Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Helvetica Neue', Arial, sans-serif;
+                                margin: 0;
+                                padding: 0;
+                                background-color: #ffffff;
+                                color: #2c3e50;
+                                line-height: 1.6;
+                            }
+                    
+                            .container {
+                                max-width: 21cm;
+                                width: 100%;
+                                min-height: 29.7cm;
+                                margin: 20px auto;
+                                padding: 40px;
+                                background: #ffffff;
+                                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                                box-sizing: border-box;
+                            }
+                    
+                            .header {
+                                position: relative;
+                                padding: 30px 0;
+                                margin-bottom: 50px;
+                                display: flex;
+                                align-items: center;
+                                gap: 30px;
+                            }
+                    
+                            .header::after {
+                                content: '';
+                                position: absolute;
+                                bottom: 0;
+                                left: -40px;
+                                right: -40px;
+                                height: 1px;
+                                background: linear-gradient(90deg, transparent, #3498db, transparent);
+                            }
+                    
+                            .profile-image {
+                                width: 140px;
+                                height: 140px;
+                                border-radius: 4px;
+                                object-fit: cover;
+                            }
+                    
+                            .header-content {
+                                flex-grow: 1;
+                            }
+                    
+                            .header-content h1 {
+                                font-size: 36px;
+                                margin: 0;
+                                color: #2c3e50;
+                                font-weight: 300;
+                                letter-spacing: -0.5px;
+                            }
+                    
+                            .header-content h2 {
+                                font-size: 20px;
+                                margin: 5px 0 0;
+                                color: #3498db;
+                                font-weight: 400;
+                            }
+                    
+                            .section {
+                                margin-bottom: 40px;
+                                position: relative;
+                            }
+                    
+                            .section-title {
+                                font-size: 24px;
+                                color: #2c3e50;
+                                margin: 0 0 25px;
+                                font-weight: 300;
+                                display: flex;
+                                align-items: center;
+                                gap: 15px;
+                            }
+                    
+                            .section-title::before {
+                                content: '';
+                                width: 30px;
+                                height: 2px;
+                                background-color: #3498db;
+                                display: inline-block;
+                            }
+                    
+                            .contact-details {
+                                display: flex;
+                                justify-content: flex-start;
+                                gap: 30px;
+                                flex-wrap: wrap;
+                                margin-top: 20px;
+                            }
+                    
+                            .contact-item {
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                                color: #7f8c8d;
+                                font-size: 15px;
+                            }
+                    
+                            .experience-item, .education-item {
+                                margin-bottom: 30px;
+                                position: relative;
+                                padding-left: 20px;
+                                border-left: 2px solid #f0f2f5;
+                            }
+                    
+                            .experience-item:hover, .education-item:hover {
+                                border-left-color: #3498db;
+                            }
+                    
+                            .item-header {
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: flex-start;
+                                margin-bottom: 10px;
+                            }
+                    
+                            .item-title {
+                                font-size: 18px;
+                                color: #2c3e50;
+                                margin: 0;
+                                font-weight: 500;
+                            }
+                    
+                            .item-subtitle {
+                                font-size: 16px;
+                                color: #3498db;
+                                margin: 5px 0;
+                                font-weight: 400;
+                            }
+                    
+                            .item-date {
+                                color: #95a5a6;
+                                font-size: 14px;
+                                font-weight: 400;
+                            }
+                    
+                            .item-description {
+                                color: #7f8c8d;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                margin: 10px 0 0;
+                            }
+                    
+                            .skills-grid {
+                                display: grid;
+                                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                                gap: 20px;
+                            }
+                    
+                            .skill-category {
+                                background: #f8f9fa;
+                                padding: 15px;
+                                border-radius: 4px;
+                            }
+                    
+                            .skill-category h3 {
+                                margin: 0 0 10px;
+                                color: #2c3e50;
+                                font-size: 16px;
+                                font-weight: 500;
+                            }
+                    
+                            .skill-list {
+                                list-style: none;
+                                padding: 0;
+                                margin: 0;
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 8px;
+                            }
+                    
+                            .skill-item {
+                                background: #ffffff;
+                                padding: 5px 12px;
+                                border-radius: 3px;
+                                font-size: 14px;
+                                color: #7f8c8d;
+                                border: 1px solid #e0e0e0;
+                            }
+                    
+                            .languages-list, .certifications-list {
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 15px;
+                                list-style: none;
+                                padding: 0;
+                            }
+                    
+                            .language-item, .certification-item {
+                                background: #f8f9fa;
+                                padding: 10px 15px;
+                                border-radius: 4px;
+                                color: #7f8c8d;
+                                font-size: 15px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            }
+                    
+                            @media print {
+                                .container {
+                                    margin: 0;
+                                    padding: 20px;
+                                    box-shadow: none;
+                                }
+                                
+                                .header::after {
+                                    left: 0;
+                                    right: 0;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <header class="header">
+                                ${profileImageHTML}
+                                <div class="header-content">
+                                    <h1>${cv.name}</h1>
+                                    <h2>${cv.jobTitle}</h2>
+                                    <div class="contact-details">
+                                        ${contactHTML}
+                                    </div>
+                                </div>
+                            </header>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Summary</h2>
+                                ${summaryHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Experience</h2>
+                                ${experienceHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Education</h2>
+                                ${educationHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Skills</h2>
+                                ${skillsHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Projects</h2>
+                                ${projectsHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Languages</h2>
+                                ${languagesHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Certifications</h2>
+                                ${certificationsHTML}
+                            </section>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+
+                    const basic_CV3 = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} - Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Helvetica Neue', Arial, sans-serif;
+                                margin: 0;
+                                padding: 0;
+                                background-color: #ffffff;
+                                color: #666666;
+                                line-height: 1.6;
+                            }
+                    
+                            .container {
+                                max-width: 21cm;
+                                width: 100%;
+                                min-height: 29.7cm;
+                                margin: 20px auto;
+                                padding: 30px;
+                                background: #ffffff;
+                                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                                box-sizing: border-box;
+                            }
+                    
+                            .header {
+                                display: flex;
+                                align-items: center;
+                                margin-bottom: 30px;
+                                padding-bottom: 20px;
+                                border-bottom: 1px solid #eeeeee;
+                            }
+                    
+                            .profile-image {
+                                width: 100px;
+                                height: 100px;
+                                border-radius: 50%;
+                                margin-right: 25px;
+                            }
+                    
+                            .header-content h1 {
+                                font-size: 28px;
+                                margin: 0 0 5px 0;
+                                text-transform: uppercase;
+                                letter-spacing: 1px;
+                                color: #333333;
+                            }
+                    
+                            .header-content h2 {
+                                font-size: 18px;
+                                margin: 0;
+                                color: #666666;
+                                font-weight: normal;
+                            }
+                    
+                            .main-content {
+                                display: flex;
+                                gap: 30px;
+                            }
+                    
+                            .left-column {
+                                flex: 0 0 30%; /* Fixed width for left column */
+                            }
+                    
+                            .right-column {
+                                flex: 0 0 70%; /* Fixed width for right column */
+                            }
+                    
+                            .section {
+                                margin-bottom: 25px;
+                            }
+                    
+                            .section-title {
+                                font-size: 16px;
+                                text-transform: uppercase;
+                                color: #333333;
+                                margin-bottom: 15px;
+                                letter-spacing: 1px;
+                                border-bottom: 1px solid #eeeeee;
+                                padding-bottom: 8px;
+                            }
+                    
+                            /* Left column specific styles */
+                            .left-column .section-content {
+                                font-size: 14px;
+                                color: #666666;
+                            }
+                    
+                            .left-column ul {
+                                list-style: none;
+                                padding: 0;
+                                margin: 0;
+                            }
+                    
+                            .left-column li {
+                                margin-bottom: 8px;
+                                font-size: 14px;
+                                color: #666666;
+                            }
+                    
+                            /* Right column specific styles */
+                            .experience-item, .education-item {
+                                margin-bottom: 20px;
+                            }
+                    
+                            .experience-item h3, .education-item h3 {
+                                font-size: 16px;
+                                margin: 0 0 5px 0;
+                                color: #444444;
+                            }
+                    
+                            .company-date {
+                                display: flex;
+                                justify-content: space-between;
+                                color: #888888;
+                                font-size: 14px;
+                                margin-bottom: 8px;
+                            }
+                    
+                            .experience-item p, .education-item p {
+                                margin: 0;
+                                color: #666666;
+                                font-size: 14px;
+                            }
+                    
+                            @media print {
+                                .container {
+                                    margin: 0;
+                                    padding: 20px;
+                                    box-shadow: none;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <header class="header">
+                                ${profileImageHTML}
+                                <div class="header-content">
+                                    <h1>${cv.name}</h1>
+                                    <h2>${cv.jobTitle}</h2>
+                                </div>
+                            </header>
+                    
+                            <div class="main-content">
+                                <div class="left-column">
+                                    <div class="section">
+                                        <h2 class="section-title">Education</h2>
+                                        <div class="section-content">
+                                            ${educationHTML}
+                                        </div>
+                                    </div>
+                    
+                                    <div class="section">
+                                        <h2 class="section-title">Expertise</h2>
+                                        <div class="section-content">
+                                            ${skillsHTML}
+                                        </div>
+                                    </div>
+                    
+                                    <div class="section">
+                                        <h2 class="section-title">Languages</h2>
+                                        <div class="section-content">
+                                            ${languagesHTML}
+                                        </div>
+                                    </div>
+                    
+                                    <div class="section">
+                                        <h2 class="section-title">Contact Info</h2>
+                                        <div class="section-content">
+                                            ${contactHTML}
+                                        </div>
+                                    </div>
+                    
+                                    <div class="section">
+                                        <h2 class="section-title">Certifications</h2>
+                                        <div class="section-content">
+                                            ${certificationsHTML}
+                                        </div>
+                                    </div>
+                                </div>
+                    
+                                <div class="right-column">
+                                    <div class="section">
+                                        <h2 class="section-title">Work Experience</h2>
+                                        ${experienceHTML}
+                                    </div>
+                    
+                                    <div class="section">
+                                        <h2 class="section-title">Professional Summary</h2>
+                                        ${summaryHTML}
+                                    </div>
+                    
+                                    <div class="section">
+                                        <h2 class="section-title">Projects</h2>
+                                        ${projectsHTML}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+
+                    const basic_CV4= `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Arial', sans-serif;
+                                background-color: #f4f4f4;
+                                color: #333;
+                                margin: 0;
+                                padding: 0;
+                            }
+                    
+                            .container {
+                                max-width: 900px;
+                                margin: 30px auto;
+                                background-color: #fff;
+                                padding: 30px;
+                                border-radius: 8px;
+                                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+                            }
+                    
+                            .header {
+                                text-align: center;
+                                margin-bottom: 40px;
+                            }
+                    
+                            .header h1 {
+                                font-size: 36px;
+                                color: #2a3d66;
+                                margin: 0;
+                            }
+                    
+                            .header p {
+                                font-size: 18px;
+                                color: #8a8a8a;
+                                margin-top: 5px;
+                            }
+                    
+                            .section-title {
+                                font-size: 22px;
+                                color: #2a3d66;
+                                border-bottom: 2px solid #2a3d66;
+                                padding-bottom: 6px;
+                                margin-bottom: 20px;
+                            }
+                    
+                            .section {
+                                margin-bottom: 40px;
+                            }
+                    
+                            .section p {
+                                font-size: 16px;
+                                line-height: 1.6;
+                                margin-bottom: 15px;
+                            }
+                    
+                            .skills ul, .languages ul, .experience ul, .education ul, .projects ul {
+                                list-style-type: none;
+                                padding: 0;
+                            }
+                    
+                            .skills li, .languages li, .experience li, .education li, .projects li {
+                                background-color: #f8f8f8;
+                                margin: 8px 0;
+                                padding: 10px;
+                                border-radius: 5px;
+                            }
+                    
+                            .contact-info a {
+                                color: #2a3d66;
+                                text-decoration: none;
+                            }
+                    
+                            .contact-info a:hover {
+                                text-decoration: underline;
+                            }
+                    
+                            .contact-info {
+                                display: flex;
+                                justify-content: center;
+                                gap: 20px;
+                                margin-top: 20px;
+                            }
+                    
+                            .contact-info div {
+                                font-size: 16px;
+                                color: #555;
+                            }
+                    
+                            .contact-info div strong {
+                                color: #2a3d66;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>${cv.name}</h1>
+                                <p>${cv.jobTitle}</p>
+                            </div>
+                    
+                            <div class="section contact-info">
+                                <div><strong>Gender:</strong> ${cv.gender}</div>
+                                <div><strong>DOB:</strong> ${cv.dob}</div>
+                                <div><strong>Address:</strong> ${cv.address}</div>
+                                <div><strong>Contact:</strong> ${cv.contact}</div>
+                            </div>
+                    
+                            <div class="section summary">
+                                <div class="section-title">Summary</div>
+                                <p>${cv.summary}</p>
+                            </div>
+                    
+                            <div class="section experience">
+                                <div class="section-title">Experience</div>
+                                <ul>
+                                ${(cv.workExperience || []).map(exp => `
+                                    <li><strong>${exp.title}</strong> at ${exp.company} (${exp.duration})</li>
+                                    <p>${exp.description}</p>
+                                `).join('')}
+                            </ul>
+                            </div>
+                    
+                            <div class="section education">
+                                <div class="section-title">Education</div>
+                                <ul>
+                                  ${(cv.education || []).filter(edu => edu.school && edu.degree).map(education => `
+                                      <li><strong>${education.degree}</strong> at ${education.school} (${education.duration})</li>
+                                      <p>${education.description || ''}</p>
+                                  `).join('')}
+                              </ul>
+                            </div>
+                    
+                            <div class="section skills">
+                                <div class="section-title">Skills</div>
+                                <ul>
+                                ${(cv.skills || []).filter(skill => skill.trim() !== '').map(skill => `
+                                    <li>${skill}</li>
+                                `).join('')}
+                            </ul>
+                            </div>
+                    
+                            <div class="section languages">
+                                <div class="section-title">Languages</div>
+                                <ul>
+                                ${(cv.languages || []).map(language => `
+                                    <li>${language.name || 'Unknown'} - ${language.proficiency || 'N/A'}</li>
+                                `).join('')}
+                            </ul>
+                            </div>
+                    
+                            <div class="section projects">
+                                <div class="section-title">Projects</div>
+                                <ul>
+                                ${(cv.projects || []).map(project => `
+                                    <li><strong>${project.title}</strong> (${project.period}): ${project.description}</li>
+                                `).join('')}
+                            </ul>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+
+                    const basic_CV5= `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} Resume</title>
+                        
+                        <style>
+                            /* Global Styles */
+                            body {
+                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                                margin: 0;
+                                padding: 0;
+                                background-color: #f9f9f9;
+                                color: #333;
+                            }
+                    
+                            .container {
+                                display: flex;
+                                max-width: 1000px;
+                                margin: 20px auto;
+                                background-color: #fff;
+                                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                                border-radius: 10px;
+                                overflow: hidden;
+                            }
+                    
+                            /* Sidebar Styles */
+                            .sidebar {
+                                background-color: #2c3e50;
+                                color: white;
+                                padding: 30px;
+                                width: 30%;
+                                text-align: center;
+                            }
+                    
+                            .sidebar img {
+                                border-radius: 50%;
+                                width: 120px;
+                                height: 120px;
+                                border: 4px solid #fff;
+                                margin-bottom: 20px;
+                            }
+                    
+                            .sidebar h1 {
+                                font-size: 26px;
+                                margin: 10px 0;
+                                font-weight: 600;
+                            }
+                    
+                            .sidebar p {
+                                margin: 5px 0;
+                                font-size: 14px;
+                                color: #ecf0f1;
+                            }
+                    
+                            .sidebar .contact, .sidebar .skills, .sidebar .languages, .sidebar .certifications, .sidebar .memberships {
+                                margin-top: 25px;
+                                text-align: left;
+                            }
+                    
+                            .sidebar .contact a {
+                                color: #3498db;
+                                text-decoration: none;
+                                font-size: 14px;
+                            }
+                    
+                            .sidebar .contact a:hover {
+                                text-decoration: underline;
+                            }
+                    
+                            .sidebar .skills ul, .sidebar .languages ul {
+                                list-style: none;
+                                padding: 0;
+                            }
+                    
+                            .sidebar .skills li, .sidebar .languages li {
+                                margin: 10px 0;
+                                font-size: 14px;
+                                color: #ecf0f1;
+                            }
+                    
+                            .sidebar .skills li::before, .sidebar .languages li::before {
+                                content: "•";
+                                color: #3498db;
+                                margin-right: 8px;
+                            }
+                    
+                            .sidebar .certifications p, .sidebar .memberships p {
+                                font-size: 14px;
+                                color: #ecf0f1;
+                                margin: 5px 0;
+                            }
+                    
+                            .sidebar .certifications p strong, .sidebar .memberships p strong {
+                                color: #3498db;
+                            }
+                    
+                            /* Main Content Styles */
+                            .main {
+                                padding: 30px;
+                                width: 70%;
+                            }
+                    
+                            .main h2 {
+                                color: #2c3e50;
+                                font-size: 22px;
+                                font-weight: 600;
+                                border-bottom: 2px solid #3498db;
+                                padding-bottom: 5px;
+                                margin-bottom: 20px;
+                            }
+                    
+                            .main h3 {
+                                color: #2c3e50;
+                                font-size: 18px;
+                                font-weight: 600;
+                                margin: 10px 0;
+                            }
+                    
+                            .main .section {
+                                margin-top: 20px;
+                            }
+                    
+                            .main .section p {
+                                font-size: 14px;
+                                line-height: 1.6;
+                                color: #555;
+                            }
+                    
+                            .main .section ul {
+                                padding-left: 20px;
+                            }
+                    
+                            .main .section ul li {
+                                margin: 8px 0;
+                                font-size: 14px;
+                                color: #555;
+                            }
+                    
+                            .main .section ul li::before {
+                                content: "•";
+                                color: #3498db;
+                                margin-right: 8px;
+                            }
+                    
+                            /* Personal Details Styles */
+                            .personal-details {
+                                margin-top: 20px;
+                            }
+                    
+                            .personal-details p {
+                                text-align: left;
+                                font-size: 14px;
+                                color: #ecf0f1;
+                            }
+                    
+                            .personal-details p strong {
+                                color: #3498db;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <!-- Sidebar -->
+                            <div class="sidebar">
+                                ${profileImageHTML}
+                                <h1>${cv.name}</h1>
+                                <p>${cv.jobTitle}</p>
+                                ${genderHTML}
+                                ${dobHTML}
+                                ${addressHTML}
+                                ${contactHTML}
+                                ${skillsHTML}
+                                ${languagesHTML}
+                                ${certificationsHTML}
+                                ${membershipsHTML}
+                            </div>
+                    
+                            <!-- Main Content -->
+                            <div class="main">
+                                ${summaryHTML}
+                                ${experienceHTML}
+                                ${projectsHTML}
+                                ${educationHTML}
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+                    const standard_CV1 = `
+                     
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} - Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Georgia', serif;
+                                margin: 0;
+                                padding: 0;
+                                background-color: #ffffff;
+                                color: #2c3e50;
+                                line-height: 1.6;
+                            }
+                    
+                            .container {
+                                max-width: 21cm;
+                                width: 100%;
+                                min-height: 29.7cm;
+                                margin: 20px auto;
+                                padding: 40px;
+                                background: #ffffff;
+                                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                                box-sizing: border-box;
+                            }
+                    
+                            .header {
+                                text-align: center;
+                                margin-bottom: 40px;
+                                padding-bottom: 20px;
+                                border-bottom: 3px double #bdc3c7;
+                            }
+                    
+                            .profile-image {
+                                width: 120px;
+                                height: 120px;
+                                border-radius: 50%;
+                                margin: 0 auto 20px;
+                                display: block;
+                                border: 3px solid #f5f6fa;
+                                box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+                            }
+                    
+                            .header h1 {
+                                font-size: 32px;
+                                margin: 0 0 10px;
+                                color: #2c3e50;
+                                text-transform: uppercase;
+                                letter-spacing: 2px;
+                                font-weight: normal;
+                            }
+                    
+                            .header h2 {
+                                font-size: 20px;
+                                margin: 0;
+                                color: #7f8c8d;
+                                font-weight: normal;
+                                font-style: italic;
+                            }
+                    
+                            .section {
+                                margin-bottom: 35px;
+                            }
+                    
+                            .section-title {
+                                font-size: 22px;
+                                color: #2c3e50;
+                                margin-bottom: 20px;
+                                position: relative;
+                                padding-bottom: 10px;
+                            }
+                    
+                            .section-title::after {
+                                content: '';
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                width: 60px;
+                                height: 3px;
+                                background-color: #3498db;
+                            }
+                    
+                            .contact-info {
+                                text-align: center;
+                                margin-bottom: 30px;
+                            }
+                    
+                            .contact-info ul {
+                                list-style: none;
+                                padding: 0;
+                                margin: 0;
+                                display: flex;
+                                justify-content: center;
+                                flex-wrap: wrap;
+                                gap: 20px;
+                            }
+                    
+                            .contact-info li {
+                                color: #7f8c8d;
+                                font-size: 15px;
+                            }
+                    
+                            .experience-item, .education-item {
+                                margin-bottom: 25px;
+                                position: relative;
+                            }
+                    
+                            .experience-item h3, .education-item h3 {
+                                font-size: 18px;
+                                color: #34495e;
+                                margin: 0 0 5px;
+                                font-weight: bold;
+                            }
+                    
+                            .meta-info {
+                                display: flex;
+                                justify-content: space-between;
+                                color: #7f8c8d;
+                                font-size: 15px;
+                                margin-bottom: 10px;
+                                font-style: italic;
+                            }
+                    
+                            .description {
+                                color: #5d6d7e;
+                                font-size: 15px;
+                                line-height: 1.6;
+                            }
+                    
+                            .skills-grid {
+                                display: grid;
+                                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                                gap: 20px;
+                            }
+                    
+                            .skill-category {
+                                margin-bottom: 20px;
+                            }
+                    
+                            .skill-category h3 {
+                                font-size: 16px;
+                                color: #34495e;
+                                margin-bottom: 10px;
+                            }
+                    
+                            .languages-list, .certifications-list {
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 15px;
+                                padding: 0;
+                                list-style: none;
+                            }
+                    
+                            .languages-list li, .certifications-list li {
+                                background-color: #f8f9fa;
+                                padding: 8px 15px;
+                                border-radius: 4px;
+                                color: #5d6d7e;
+                                font-size: 15px;
+                            }
+                    
+                            @media print {
+                                .container {
+                                    margin: 0;
+                                    padding: 20px;
+                                    box-shadow: none;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <header class="header">
+                                ${profileImageHTML}
+                                <h1>${cv.name}</h1>
+                                <h2>${cv.jobTitle}</h2>
+                            </header>
+                    
+                            <section class="contact-info">
+                                ${contactHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Professional Summary</h2>
+                                ${summaryHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Work Experience</h2>
+                                ${experienceHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Education</h2>
+                                ${educationHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Skills</h2>
+                                ${skillsHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Languages</h2>
+                                ${languagesHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Projects</h2>
+                                ${projectsHTML}
+                            </section>
+                    
+                            <section class="section">
+                                <h2 class="section-title">Certifications</h2>
+                                ${certificationsHTML}
+                            </section>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+
+
+                    const standard_CV2 = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} - Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Arial', sans-serif;
+                                background-color: #f4f4f4;
+                                color: #333;
+                                margin: 0;
+                                padding: 20px;
+                            }
+                    
+                            .resume-container {
+                                max-width: 800px;
+                                background: #fff;
+                                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                                margin: auto;
+                                padding: 20px;
+                                border-radius: 8px;
+                            }
+                    
+                            .header {
+                                background: #1E3A5F; /* Dark blue */
+                                color: #fff;
+                                padding: 20px;
+                                text-align: center;
+                                border-radius: 8px 8px 0 0;
+                            }
+                    
+                            .header h1 {
+                                margin: 0;
+                                font-size: 28px;
+                            }
+                    
+                            .header h2 {
+                                margin: 5px 0 0;
+                                font-size: 18px;
+                                font-weight: normal;
+                            }
+                    
+                            .contact-info {
+                                text-align: center;
+                                margin-top: 10px;
+                                font-size: 14px;
+                                color: #eee;
+                            }
+                    
+                            .contact-info span {
+                                margin-right: 10px;
+                            }
+                    
+                            .content {
+                                padding: 20px;
+                            }
+                    
+                            .section {
+                                margin-bottom: 20px;
+                            }
+                    
+                            .section h2 {
+                                font-size: 20px;
+                                border-bottom: 2px solid #1E3A5F;
+                                padding-bottom: 5px;
+                                color: #1E3A5F;
+                                margin-bottom: 10px;
+                            }
+                    
+                            .experience-item, .education-item {
+                                margin-bottom: 15px;
+                            }
+                    
+                            .experience-item h3, .education-item h3 {
+                                margin: 0;
+                                font-size: 16px;
+                                color: #1E3A5F;
+                            }
+                    
+                            .experience-item p, .education-item p {
+                                margin: 5px 0 0;
+                                font-size: 14px;
+                                color: #555;
+                            }
+                    
+                            .skills {
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 10px;
+                            }
+                    
+                            .skill {
+                                background: #1E3A5F;
+                                color: #fff;
+                                padding: 5px 10px;
+                                border-radius: 5px;
+                                font-size: 14px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="resume-container">
+                            <div class="header">
+                                <h1>${cv.name}</h1>
+                                <h2>${cv.jobTitle}</h2>
+                                <div class="contact-info">
+                                    ${contactHTML}
+                                </div>
+                            </div>
+                    
+                            <div class="content">
+                                <section class="section">
+                                    <h2>Summary</h2>
+                                    <p>${summaryHTML}</p>
+                                </section>
+                    
+                                <section class="section">
+                                    <h2>Experience</h2>
+                                    ${experienceHTML}
+                                </section>
+                    
+                                <section class="section">
+                                    <h2>Education</h2>
+                                    ${educationHTML}
+                                </section>
+                    
+                                <section class="section">
+                                    <h2>Skills</h2>
+                                    <div class="skills">
+                                        ${skillsHTML}
+                                    </div>
+                                </section>
+                    
+                                <section class="section">
+                                    <h2>Projects</h2>
+                                    ${projectsHTML}
+                                </section>
+                    
+                                <section class="section">
+                                    <h2>Languages</h2>
+                                    ${languagesHTML}
+                                </section>
+                    
+                                <section class="section">
+                                    <h2>Certifications</h2>
+                                    ${certificationsHTML}
+                                </section>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+                    const standard_CV3 = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Montserrat', sans-serif;
+                                margin: 0;
+                                padding: 0;
+                                background-color: #f4f4f9;
+                                color: #333;
+                            }
+                            .container {
+                                display: flex;
+                                max-width: 950px;
+                                margin: 30px auto;
+                                background: white;
+                                border-radius: 10px;
+                                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+                                overflow: hidden;
+                            }
+                            .sidebar {
+                                background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+                                color: white;
+                                padding: 25px;
+                                width: 35%;
+                                text-align: center;
+                            }
+                            .main {
+                                padding: 30px;
+                                width: 65%;
+                            }
+                            .section h2 {
+                                color: #1a2a6c;
+                                border-bottom: 3px solid #b21f1f;
+                                padding-bottom: 5px;
+                                font-weight: bold;
+                            }
+                            .sidebar img {
+                                width: 130px;
+                                height: 130px;
+                                border-radius: 50%;
+                                margin-bottom: 15px;
+                                border: 4px solid white;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="sidebar">
+                                ${profileImageHTML}
+                                <h1>${cv.name}</h1>
+                                ${contactHTML}
+                                ${skillsHTML}
+                                ${languagesHTML}
+                            </div>
+                            <div class="main">
+                                ${summaryHTML}
+                                ${experienceHTML}
+                                ${projectsHTML}
+                                ${educationHTML}
+                                ${certificationsHTML}
+                                ${membershipsHTML}
+                                ${genderHTML}
+                                ${dobHTML}
+                                ${addressHTML}
+                            </div>
+                        </div>
+                    </body>
+                    </html>`
+              ;
+                          
+                        const premium_CV1 = `
+                        <!DOCTYPE html>
+                        <html lang="en">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <title>${cv.name} Resume</title>
+                            
+                            <style>
+                            .profile-image {
+                                    width: 150px;
+                                    height: 150px;
+                                    border-radius: 50%;
+                                  }
+                              
+                                      body {
+                                          font-family: Arial, sans-serif;
+                                          margin: 0;
+                                          padding: 0;
+                                          background-color: #f4f4f4;
+                                      }
+                                      .container {
+                                          display: flex;
+                                          max-width: 900px;
+                                          margin: 20px auto;
+                                          background-color: #fff;
+                                          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                                      }
+                                      .sidebar {
+                                          background-color: #0d4a75;
+                                          color: white;
+                                          padding: 20px;
+                                          width: 30%;
+                                          text-align: center;
+                                      }
+                                    
+                                      .sidebar img {
+                                          border-radius: 50%;
+                                          width: 100px;
+                                          height: 100px;
+                                      }
+                                      .sidebar h1 {
+                                          font-size: 24px;
+                                          margin: 10px 0;
+                                      }
+                                      .sidebar p {
+                                          margin: 5px 0;
+                                      }
+                                      .sidebar .contact, .sidebar .skills, .sidebar .languages, .sidebar .certifications {
+                                        margin-top: 20px;
+                                        text-align: left;
+                                      }
+                                      .sidebar .contact a, .sidebar .languages p {
+                                          color: white;
+                                          text-decoration: none;
+                                      }
+                                      .sidebar .skills ul, .sidebar .languages ul {
+                                          list-style: none;
+                                          padding: 0;
+                                      }
+                                      .sidebar .skills li, .sidebar .languages li {
+                                          margin: 10px 0;
+                                      }
+                                      .bar {
+                                          background-color: #fff;
+                                          border-radius: 10px;
+                                          height: 10px;
+                                          position: relative;
+                                          margin-top: 5px;
+                                      }
+                                      .bar-certification {
+                                        background: linear-gradient(90deg, #ffeb3b 0%, #0d4a75 100%);
+                                        border-radius: 10px;
+                                        height: 10px; /* Increased height */
+                                        margin: 10px 0;
+                                      }
+                                      .bar::after {
+                                          content: '';
+                                          background-color: #0073b1;
+                                          height: 100%;
+                                          border-radius: 10px;
+                                          position: absolute;
+                                          top: 0;
+                                      }
+                                      .bar1::after { width: 90%; }
+                                      .bar2::after { width: 80%; }
+                                      .bar3::after { width: 85%; }
+                                      .bar4::after { width: 70%; }
+                                      .bar5::after { width: 75%; }
+                                      .bar6::after { width: 65%; }
+                                      .bar7::after { width: 60%; }
+                                      .bar8::after { width: 70%; }
+                                      .bar9::after { width: 50%; }
+                                      .bar10::after { width: 55%; }
+                                      .main {
+                                          padding: 20px;
+                                          width: 70%;
+                                      }
+                                      .main h2 {
+                                          border-bottom: 2px solid #0d4a75;
+                                          padding-bottom: 5px;
+                                      }
+                                      .main h3 {
+                                          color: #0d4a75;
+                                      }
+                                      .main .section {
+                                          margin-top: 20px;
+                                      }
+                              
+                                      .sidebar .memberships {
+                                        text-align: left;
+                                      }
+                                      .sidebar .memberships {
+                                        margin-top: 20px;
+                                        text-align: left;
+                                      }
+                                      
+                                      .personal-details {
+                                          margin-top: 20px; /* Adds space between job title and personal details */
+                                      }
+                                      .personal-details p {
+                                          text-align: left;
+                                      }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="container">
+                                <div class="sidebar">
+                                    ${profileImageHTML}
+                                    <h1>${cv.name}</h1>
+                                    <p>${cv.jobTitle}</p>
+                                    ${genderHTML}
+                                    ${dobHTML}
+                                    ${addressHTML}
+                                    ${contactHTML}
+                                    ${skillsHTML}
+                                    ${languagesHTML}
+                                    ${certificationsHTML}
+                                    ${membershipsHTML}
+                                </div>
+                                <div class="main">
+                                    ${summaryHTML}
+                                    ${experienceHTML}
+                                    ${projectsHTML}
+                                    ${educationHTML}
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                          
+                    const premium_CV2 = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Roboto', sans-serif;
+                                background-color: #f5f5f5;
+                                color: #333;
+                                margin: 0;
+                                padding: 0;
+                            }
+                            .container {
+                                width: 100%;
+                                max-width: 900px;
+                                margin: 0 auto;
+                                background: #fff;
+                                border-radius: 10px;
+                                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                                display: flex;
+                            }
+                            .sidebar {
+                                width: 30%;
+                                background-color: #005f73;
+                                color: #fff;
+                                padding: 20px;
+                                border-top-left-radius: 10px;
+                                border-bottom-left-radius: 10px;
+                                text-align: center;
+                            }
+                            .sidebar h1 {
+                                font-size: 24px;
+                                margin-bottom: 10px;
+                            }
+                            .sidebar p {
+                                margin-bottom: 5px;
+                                font-size: 14px;
+                            }
+                            .sidebar .contact, .sidebar .skills, .sidebar .languages {
+                                margin-top: 20px;
+                                text-align: left;
+                            }
+                            .sidebar .contact a {
+                                color: #fff;
+                                text-decoration: none;
+                            }
+                            .main {
+                                width: 70%;
+                                padding: 20px;
+                            }
+                            .main h2 {
+                                font-size: 22px;
+                                color: #005f73;
+                                border-bottom: 2px solid #005f73;
+                                padding-bottom: 10px;
+                            }
+                            .main h3 {
+                                font-size: 18px;
+                                margin-top: 20px;
+                            }
+                            .skills ul, .languages ul {
+                                list-style: none;
+                                padding: 0;
+                            }
+                            .skills li, .languages li {
+                                margin-bottom: 10px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="sidebar">
+                                ${profileImageHTML}
+                                <h1>${cv.name}</h1>
+                                <p>${cv.jobTitle}</p>
+                                ${genderHTML}
+                                ${dobHTML}
+                                ${addressHTML}
+                                ${contactHTML}
+                                ${skillsHTML}
+                                ${languagesHTML}
+                            </div>
+                            <div class="main">
+                                ${summaryHTML}
+                                ${experienceHTML}
+                                ${projectsHTML}
+                                ${educationHTML}
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+                     
+                    
+
+                    const premium_CV3 = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${cv.name} Resume</title>
+                        <style>
+                            body {
+                                font-family: 'Arial', sans-serif;
+                                background-color: #e0f7fa;
+                                margin: 0;
+                                padding: 0;
+                                color: #333;
+                            }
+                            .container {
+                                display: flex;
+                                width: 100%;
+                                max-width: 1000px;
+                                margin: 30px auto;
+                                background-color: #fff;
+                                border-radius: 10px;
+                                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                            }
+                            .sidebar {
+                                width: 30%;
+                                background-color: #ff5722;
+                                color: #fff;
+                                padding: 20px;
+                                text-align: center;
+                                border-top-left-radius: 10px;
+                                border-bottom-left-radius: 10px;
+                            }
+                            .sidebar h1 {
+                                font-size: 28px;
+                                font-weight: bold;
+                                margin-bottom: 10px;
+                            }
+                            .sidebar .contact a {
+                                color: #fff;
+                                text-decoration: none;
+                            }
+                            .sidebar .skills ul, .sidebar .languages ul {
+                                list-style: none;
+                                padding: 0;
+                            }
+                            .main {
+                                width: 70%;
+                                padding: 20px;
+                            }
+                            .main h2 {
+                                font-size: 26px;
+                                color: #ff5722;
+                                border-bottom: 2px solid #ff5722;
+                                padding-bottom: 10px;
+                            }
+                            .section {
+                                margin-top: 20px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="sidebar">
+                                ${profileImageHTML}
+                                <h1>${cv.name}</h1>
+                                <p>${cv.jobTitle}</p>
+                                ${genderHTML}
+                                ${dobHTML}
+                                ${addressHTML}
+                                ${contactHTML}
+                                ${skillsHTML}
+                                ${languagesHTML}
+                            </div>
+                            <div class="main">
+                                ${summaryHTML}
+                                ${experienceHTML}
+                                ${projectsHTML}
+                                ${educationHTML}
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    `;
+
+                          // Arrays to hold the CV designs
+                          const basic_cvs = [basic_CV5, basic_CV5, basic_CV5, basic_CV5]; 
+                          // const basic_cvs = [basic_CV1, basic_CV2, basic_CV3, basic_CV4];
+                          const standard_cvs = [standard_CV3, standard_CV3];
+                          // const standard_cvs = [standard_CV1, standard_CV2];
+                          const premium_cvs = [premium_CV1, premium_CV2, premium_CV3];
+
+                          // Function to randomly pick an item from an array
+                          function getRandomCV(cvs) {
+                              const randomIndex = Math.floor(Math.random() * cvs.length);
+                              return cvs[randomIndex];
+                          }
+
+                          // Select a random design from each category
+                          const basic_CV = getRandomCV(basic_cvs);
+                          const standard_CV = getRandomCV(standard_cvs);
+                          const premium_CV = getRandomCV(premium_cvs);
+
+            
+                  // Function to determine CV format based on subscription
+                  const determineCVFormat = (subscription) => {
+                    let cvTemplate;
+                    if (subscription === 'Premium') {
+                      cvTemplate = premium_CV;
+                      console.log('Subscription type:', subscription); // Debug log
+                    } else if (subscription === 'Standard') {
+                      cvTemplate = standard_CV;
+                      console.log('Subscription type:', subscription); // Debug log
+                    } else if (subscription === 'Basic') {
+                      cvTemplate = basic_CV;
+                      console.log('Subscription type:', subscription); // Debug log
+                    } else {
+                      throw new Error('Invalid subscription type');
+                    }
+
+                    return cvTemplate;
+                  };
+
+                  // Usage example
+                  const userSubscription = await fetchSubscriptionDetails(sessionToken); // Fetch subscription dynamically
+                  const updatedGatePassHTML = determineCVFormat(userSubscription); // Pass userSubscription to determineCVFormat
+
+
+
+const generateSecurityGatePass = async (content, filename) => {
+  // Enhanced configuration options
+  const options = {
+    format: 'A4',
+    printBackground: true,
+    puppeteer: {
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-web-security'
+      ],
+      timeout: 120000, // Increased timeout to 120 seconds
+      headless: 'new', // Use new headless mode
+      // Only set executablePath if Chrome is not in the default location
+      ...(process.platform === 'win32' && {
+        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      })
+    }
+  };
+
+  // Helper function for delay
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Exponential backoff retry logic
+  const retryWithExponentialBackoff = async (operation, maxRetries = 5, initialDelay = 2000) => {
+    let retries = 0;
+    while (true) {
+      try {
+        return await operation();
+      } catch (error) {
+        retries++;
+        if (retries > maxRetries) {
+          throw new Error(`Failed after ${maxRetries} retries: ${error.message}`);
+        }
+        console.log(`Attempt ${retries} failed. Retrying in ${initialDelay * Math.pow(2, retries - 1)}ms...`);
+        await delay(initialDelay * Math.pow(2, retries - 1));
+      }
+    }
+  };
+
+  try {
+    // Ensure downloads directory exists
+    const directory = path.dirname(filename);
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory, { recursive: true });
+    }
+
+    // Generate PDF with retry logic
+    const pdfBuffer = await retryWithExponentialBackoff(async () => {
+      const result = await html_to_pdf.generatePdf({ content }, options);
+      if (!result || result.length === 0) {
+        throw new Error('Generated PDF is empty');
+      }
+      return result;
+    });
+
+    // Write file with error checking
+    await fs.promises.writeFile(filename, pdfBuffer);
+    console.log(`PDF successfully generated and saved to  : ${filename}`);
+    return filename;
+
+  } catch (error) {
+    const errorMessage = `PDF generation failed: ${error.message}`;
+    console.error(errorMessage, error);
+    throw new Error(errorMessage);
+  }
+};
+            ////////////////////////////////////////////////////////////////////////////////////////////////// Function to clean phone number
+            // const sessionId = req.session.id; // Get the session ID from the request
+            const generateDynamicFilename = async (database,userId,sessionToken) => {
+              await client.connect();
+              try {
+                const collection = database.collection("Users_CV_biodata");
+            
+                const userId = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+                console.log(userId,"5555555555555555555555555555555555555555555555555555555555555")
+               
+                // Find the document using the userId
+                const userDocument = await collection.findOne({ userId });
+                if (!userDocument) {
+                  throw new Error("User document not found");
+                }
+            
+                // Extract relevant fields from the user document
+                const userName = userDocument.name || "Unknown_User";
+                const jobTitle = userDocument.jobTitle || "Unknown_Position";
+                const desiredJobTitle = userDocument.desiredJobTitle || "Unknown_Position";
+            
+                // Format the current date
+                const currentDate = new Date();
+                const formattedDate = currentDate.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+            
+                // Clean the names to be filename-safe (remove special characters and spaces)
+                const cleanName = userName.replace(/[^a-zA-Z0-9]/g, "_");
+                const cleanJobTitle = jobTitle.replace(/[^a-zA-Z0-9]/g, "_");
+                const cleanDesiredJobTitle = desiredJobTitle.replace(/[^a-zA-Z0-9]/g, "_");
+            
+                // Create the filename using the user name, job title, and desired job title
+                const filename = `${cleanName}_${cleanJobTitle}_${cleanDesiredJobTitle}_${formattedDate}.pdf`;
+                console.log("Generated filename:", filename);
+                return filename;
+              } catch (error) {
+                console.error("Error generating dynamic filename:", error);
+                // Fallback filename if there's an error
+                return `application_${Date.now()}.pdf`;
+              }
+            };
+
+
+            const cleanPhoneNumber = (phoneNumber) => {
+              // Remove non-digit characters
+              phoneNumber = phoneNumber.replace(/\D/g, '');
+
+              // Check if the number starts with '0' and replace it with '234'
+              if (phoneNumber.startsWith('0')) {
+                return '234' + phoneNumber.slice(1);
+              }
+
+              // Check if the number starts with '234' and return it as is
+              if (phoneNumber.startsWith('234')) {
+                return phoneNumber;
+              }
+
+              // If the number starts with something else (e.g., '803'), assume it needs '234' prefix
+              return '234' + phoneNumber;
+            };
+
+            // Function to send CV to the recruiter via WhatsApp
+            const sendMessageToGroup = async (phoneNumber, pdfData, pdfFilename) => {
+              try {
+                await client.connect();
+                const database = client.db('olukayode_sage');
+  
+                const dynamicFilename = await generateDynamicFilename(database);
+                const pdfResponse = await axios.post(
+                  'https://gate.whapi.cloud/messages/document',
+                  {
+                    to: phoneNumber,
+                    media: `data:application/pdf;base64,${pdfData}`,
+                    // filename: pdfFilename
+                    filename: dynamicFilename // Use the dynamic filename here
+                  },
+                  {
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${process.env.WHAPI_TOKEN}`,
+                    },
+                  }
+                );
+                console.log('PDF file sent successfully via WhatsApp:', pdfResponse.data);
+                return pdfResponse.data;
+              } catch (error) {
+                console.error('Error sending PDF via WhatsApp:', error.message);
+                throw error;
+              }
+            };
+
+            let whatsappEmailCoverLetterVariants = [];
+
+            // Function to generate dynamic WhatsApp email cover letters
+            const generateWhatsappEmailCoverLetters = async () => {
+              try {
+                // Fetch first name, role, and company
+                const firstName = await getFirstName(); // Fetch user's first name
+                const accessedJobTitle = await getAccessedJobTitle(); // Fetch job title details
+                const userFullName = await getFullName(); // Fetch full name
+
+                // Destructure role and company, set default values if not provided
+                const role = accessedJobTitle?.role ?? '[Role Title]';
+                const company = accessedJobTitle?.company ?? 'your reputable company';
+
+                // Use the correct variable to extract the first name
+                const firstName2 = userFullName ? userFullName.split(' ')[0] : 'Funmi';
+
+                whatsappEmailCoverLetterVariants = [
+                  `Dear Hiring Manager,\n\nI hope this message finds you well. I'm excited to express my interest in the ${role} position at ${company}. I believe my skills and experience align well with the qualifications required for this role, and I'm confident I could contribute effectively to your team. Please find my resume attached for your consideration. I look forward to the possibility of discussing how I can bring value to your organization.\n\nBest regards,\n${userFullName}`,
+
+                  `Dear Hiring Manager,\n\nI am writing to apply for the ${role} position, which I believe closely matches my expertise and professional background. Attached is my resume for your review. I am confident that my skills and experiences position me as a strong candidate for this role. I would welcome the opportunity to further discuss how I can contribute to your team.\n\nKind regards,\n${userFullName}`,
+
+                  `Dear Hiring Manager,\n\nI hope this message reaches you in good spirits. I am very interested in the ${role} position at ${company}, and I am confident that my experience and skills make me a suitable candidate. Please find my resume attached for your review. I would be honored to contribute to your team and help achieve your company's goals.\n\nWarm regards,\n${userFullName}`,
+
+                  `Dear Hiring Manager,\n\nI am pleased to submit my resume in response to the ${role} opening. I am confident that my qualifications and experience match the role's requirements. I am eager to bring my strengths to your team and contribute to ${company}'s continued success. I look forward to the opportunity to discuss this further.\n\nSincerely,\n${userFullName}`,
+
+                  `Dear Hiring Manager,\n\nI am excited to submit my application for the ${role} position at ${company}. My resume is attached for your review, detailing my qualifications and experiences that align well with the role. I would love to discuss how I can contribute to your team and help drive ${company} forward.\n\nThank you for considering my application.\n\nBest regards,\n${userFullName}`
+                ];
+
+              } catch (error) {
+                console.error("Error generating WhatsApp email cover letters:", error);
+                throw error;
+              }
+            };
+
+            // Function to send WhatsApp email cover letter
+            const sendWhatsappEmailCoverLetter = async (phoneNumber) => {
+              try {
+                // Generate WhatsApp email cover letter variants dynamically
+                await generateWhatsappEmailCoverLetters();
+
+                // Select a random cover letter variant
+                const randomIndex = Math.floor(Math.random() * whatsappEmailCoverLetterVariants.length);
+                const coverLetterText = whatsappEmailCoverLetterVariants[randomIndex];
+
+                const response = await axios.post(
+                  'https://gate.whapi.cloud/messages/text',
+                  {
+                    to: phoneNumber,
+                    body: coverLetterText,
+                    typing_time: 0,
+                  },
+                  {
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                      // Authorization: 'Bearer 9Db0rfoHW3hpcfbh9HWTO2X1bqZSsktX',
+                      // 'Authorization': 'Bearer 6qJhrwMB5kS6Z1va14C0X9oIqiwWW9lJ',
+                      'Authorization': 'Bearer S36GOqY9anD6SGA7KPynscPVxdju24fN',
+                    },
+                  }
+                );
+
+                console.log('WhatsApp Email Cover Letter sent successfully:', response.data);
+                return response.data;
+              } catch (error) {
+                console.error('Error sending WhatsApp email cover letter:', error.message);
+                throw error;
+              }
+            };
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////         
+      /////////////////////////////////////////////////////////////////////////
+      generateSecurityGatePass(updatedGatePassHTML, gatePassPdfPath, sessionToken)
+      .then(async (pdfPath) => {
+        const pdfData = fs.readFileSync(pdfPath, { encoding: 'base64' });
+    
+        try {
+          // Fetch the user ID outside of the main try block
+          await client.connect();
+          const database = client.db('olukayode_sage');
+          const sessionsCollection = database.collection('sessions');
+          const collection = database.collection('whatsappJobVacancyPost');
+    
+          // Query the database to find the user by sessionToken
+          const sessionData = await sessionsCollection.findOne({ sessionToken });
+    
+          if (sessionData) {
+            const userId = sessionData.userId;
+            console.log(`Retrieved User ID: ${userId}`); // Corrected this line to use backticks for template literals
+
+            // emailPdfAttachment(pdfPath, recipientEmail, userId)
+
+            const query = {
+              "_id": "whatsappJobPost",
+              "userId": userId, // Ensure the query is user-specific
+              "Contact Phone Number": { $ne: null },
+              "status": "new",
+            };
+    
+            const matchingJob = await collection.findOne(query);
+    
+            if (matchingJob) {
+              console.log("WhatsApp logic triggered.");
+    
+              // Clean the phone number and store it in a variable
+              const recruiterNumber = cleanPhoneNumber(matchingJob["Contact Phone Number"]);
+              console.log(`Cleaned phone number: ${recruiterNumber}`);
+    
+              try {
+                // Send PDF first
+                await sendMessageToGroup(recruiterNumber, pdfData, gatePassUniqueFilename);
+                console.log('PDF sent via WhatsApp');
+    
+                // Wait a moment before sending cover letter (to ensure proper order)
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+                // Send cover letter using the same phone number
+                await sendWhatsappEmailCoverLetter(recruiterNumber);
+                console.log('Cover letter sent via WhatsApp');
+    
+                // Update the document status
+                const updateResult = await collection.updateOne(
+                  { "_id": "whatsappJobPost", "userId": userId }, // Update user-specific document
+                  {
+                    $set: {
+                      status: 'treated',
+                      processedAt: new Date(),
+                    },
+                  }
+                );
+    
+                if (updateResult.matchedCount > 0) {
+                  console.log("Document marked as treated.");
+                } else {
+                  console.log("No matching document found for update.");
+                }
+              } catch (error) {
+                console.error('Error sending WhatsApp messages:', error);
+                throw error;
+              }
+            } else {
+              if (recipientEmail) {
+                await emailPdfAttachment(pdfPath, recipientEmail, userId);
+                console.log('PDF sent via Email');
+              } else {
+                console.log('No email provided. Cannot send PDF via Email.');
+              }
+            }
+          } else {
+            console.log("User ID not found.");
+          }
+        } catch (error) {
+          console.error('Error during main processing:', error);
+          throw error;
+        } finally {
+          await client.close();
+          console.log('Database connection closed.');
+        }
+      })
+      .catch((error) => {
+        console.error('Error in processing:', error);
+      });
+    
+
+const emailPdfAttachment = async (pdfPath, recipientEmail, userId) => {
+  try {
+    // Fetch the user ID outside of the main try block
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const sessionsCollection = database.collection('sessions');
+    const collection = database.collection('whatsappJobVacancyPost');
+
+    // Query the database to find the user by sessionToken
+    const sessionData = await sessionsCollection.findOne({ sessionToken });
+
+    if (sessionData) {
+      const userId = sessionData.userId;
+
+      if (!userId) {
+        console.error("User ID is missing. Cannot send email.");
+        return;
+      }
+
+      // Logic to send PDF via email
+      await sendEmailWithAttachment(pdfPath, recipientEmail, { userId });
+      console.log(`PDF sent via email to: ${recipientEmail}`);
+    }
+  } catch (error) {
+    console.error('Error sending PDF via email:', error.message);
     throw error;
   }
 };
 
 
-// const htmlContent  = "securityReportHTML"; // This is your dynamic content
-// const filename2 =`Mota-Engil Nigeria National Weekly_Security Report ${formattedToday}.pdf`;
-// const generateAndSavePdf = async (content, filename2) => {
-//   const options = { format: 'A4' };
-//   const file = { content };
+ 
+            const generateEmailCoverLetters = async (userId) => {
+              const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+              try {
+                await client.connect();
+                console.log('Connected to database');
+            
+                const database = client.db("olukayode_sage");
+            
+                // Fetch userId dynamically
+                const userId = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+                console.log("User ID:", userId, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+            
+                // Fetch the most recently published job role
+                const jobResults = await database.collection("application_processing_feeder")
+                  .find({ userId, published: true }) // Find all matching jobs
+                  .sort({ publishedAt: -1 }) // Sort in descending order (most recent first)
+                  .limit(1) // Get only the most recent job
+                  .toArray(); // Convert to array
+          
+                                  // Check if a job was found
+                      if (!jobResults.length) {
+                        console.log(`User ${userId}: No job found in database. Exiting.`);
+                        return ['Error: No job found'];
+                      }
 
-//   try {
-//     const pdfBuffer = await html_to_pdf.generatePdf(file, options);
-    
-//     const downloadsDir = path.join(__dirname, 'downloads');
-//     if (!fs.existsSync(downloadsDir)) {
-//       fs.mkdirSync(downloadsDir);
-//     }
+                      const accessedJobTitle = jobResults[0]; // Extract first job
+                      console.log("The most recent Job:", accessedJobTitle);
 
-//     const filePath = path.join(downloadsDir, filename2 + '.pdf');
-//     fs.writeFileSync(filePath, pdfBuffer);
+                      // Extract job details
+                      const role = accessedJobTitle?.title ?? '[Role Title]';
+                      const company = accessedJobTitle?.company ?? 'your reputable company';
+                      const applicationEmail = accessedJobTitle?.applicationEmail || null;
+                      
+/////////////////////////////////////////////////////////send email to backend team if email is not available
+                    //  if (applicationEmail && applicationEmail !== "Not provided") {
+                    // console.log(`User ${userId}: Email address found for@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ${role}. `);
 
-//     console.log(`PDF saved successfully to: ${filePath}`);
-//     return filePath;
-//   } catch (error) {
-//     console.error('Error generating PDF:', error);
-//     throw error;
-//   }
-// };
+                          // Fetch user's full name
+                  const userFullName = await getFullName();
 
-const sendMessageToStaffs = async (groupId, pdfData, pdfFilename) => {
+                  // Generate dynamic email cover letters
+                  return [
+                    `Dear Hiring Manager,\n\nI hope this message finds you well. I'm excited to express my interest in the ${role} position at ${company}. Please find my resume attached for your consideration.\n\nBest regards,\n${userFullName}`,
+
+                    `Dear Hiring Manager,\n\nI am writing to apply for the ${role} position. Attached is my resume for your review. I would welcome the opportunity to discuss further.\n\nKind regards,\n${userFullName}`,
+
+                    `Dear Hiring Manager,\n\nI hope this message reaches you in good spirits. I am very interested in the ${role} position at ${company}. Please find my resume attached for your review.\n\nWarm regards,\n${userFullName}`,
+
+                    `Dear Hiring Manager,\n\nPlease find my resume attached in response to the ${role} opening. I look forward to discussing this opportunity further.\n\nSincerely,\n${userFullName}`,
+
+                    `Dear Hiring Manager,\n\nI am excited to submit my application for the ${role} position at ${company}. My resume is attached for your review. Thank you for considering my application.\n\nBest regards,\n${userFullName}`
+                  ];
+                } catch (error) {
+                  console.error("Error generating email cover letters:", error);
+                  return ['Error generating email cover letters'];
+                }
+                      };
+
+
+const sendEmailWithAttachment = async (pdfPath, email, session, sessionToken) => {
+  if (!pdfPath || !email) {
+    console.error("PDF path or email is missing. Aborting email sending.");
+    return;
+  }
+
   try {
-    const pdfResponse = await axios.post(
-      'https://gate.whapi.cloud/messages/document',
+    await client.connect();
+    const database = client.db("olukayode_sage");
+    const applicationProcessingFeeder = database.collection("application_processing_feeder");
+    const applicationStatusCollection = database.collection("application_status");
+
+    const userId = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+    
+    // ✅ Call getAccessedJobTitle ONCE at the beginning
+    const accessedJob = await getAccessedJobTitle(session);
+    
+    if (!accessedJob?.role) {
+      console.error(`User ${userId}: No valid role title found. Aborting email sending.`);
+      return;
+    }
+    
+    const applicationEmail = accessedJob?.applicationEmail || null;
+    
+    if (!userId) {
+      console.error("User ID is missing. Cannot proceed.");
+      return;
+    }
+
+    // ✅ NORMALIZE USER ID - Remove + prefix for Gmail tokens lookup
+    const normalizedUserId = userId.replace(/^\+/, ''); // Remove leading +
+    
+    // ✅ Check authorization with normalized ID
+    const userGmailTokensCollection = database.collection("user_gmail_tokens");
+    const userAuth = await userGmailTokensCollection.findOne({ 
+      userId: normalizedUserId  // ✅ Use normalized ID
+    });
+    
+    console.log(`🔍 Looking up Gmail auth for normalized userId: ${normalizedUserId}`);
+    console.log(`🔍 UserAuth found:`, !!userAuth, userAuth?.isAuthorized);
+      
+      let fromEmail;
+      if (!userAuth || !userAuth.isAuthorized) {
+        console.warn("⚠️ User not authorized — sending via Suntrenia SMTP");
+        fromEmail = process.env.EMAIL_USER;
+      } else {
+        fromEmail = userAuth.userEmail;
+      }
+    console.log(`📨 Using authorized sender email: ${fromEmail}`);
+    console.log(`Retrieved User IDbbbbbbbbbbbbbbbbbbbbbbb: ${userId}`);
+
+    // Rest of your code remains the same...
+    const roleId = accessedJob._id;
+    
+    // ✅ Fetch the user's name from the database
+    const userCollection = database.collection("Users_CV_biodata");
+    const user = await userCollection.findOne({ _id: userId });
+    let applicantName = user?.name?.trim() || "Unknown";
+    let firstName = applicantName.split(" ")[0];
+    let appliedRole = accessedJob.role.trim();
+    let uniqueCode = Math.random().toString(36).substr(2, 5).toUpperCase();
+    let formattedDateToday = new Date().toISOString().slice(0, 10);
+
+    // ✅ Generate the new filename
+    const newFilename = `${applicantName}_${appliedRole}_${formattedDateToday}_${uniqueCode}.pdf`;
+    const newPdfPath = path.join(path.dirname(pdfPath), newFilename);
+    
+    // ✅ Rename the file before sending
+    fs.renameSync(pdfPath, newPdfPath);
+
+    // ✅ Generate email content
+    const emailCoverLetterVariants = await generateEmailCoverLetters(accessedJob);
+    if (!emailCoverLetterVariants?.length) {
+      console.error(`User ${userId}: No cover letter variants available.`);
+      return;
+    }
+
+    const selectedMessage = emailCoverLetterVariants[Math.floor(Math.random() * emailCoverLetterVariants.length)];
+
+    // ✅ Determine the recipient email
+    console.log(`Application Email (raw)hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh: '${applicationEmail}'`);
+
+    let recipientEmail;
+
+    if (!applicationEmail || applicationEmail?.trim() === "Not provided") {
+      recipientEmail = "applications.suntrenia@gmail.com";
+    } else {
+      /////////////////////////////testing mode
+      //recipientEmail = "akoredekayode@yahoo.com";
+       recipientEmail = applicationEmail?.trim().toLowerCase(); // ✅ Use this in production
+    }
+
+    console.log(`Recipient Email: ${recipientEmail}`);
+
+    let emailSubject, emailText, emailHtml;
+
+    if (recipientEmail !== "applications.suntrenia@gmail.com") {
+      emailSubject = `Application for the Role of ${accessedJob.originalTitle || accessedJob.role}`;
+      emailText = selectedMessage;
+      emailHtml = null;
+    } else {
+      emailSubject = "Urgent: Missing Email Address for Role Application";
+      emailHtml = `
+        <html>
+          <body style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; line-height: 1.6; margin: 0; padding: 0;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: left; margin-bottom: 20px;">
+                <h2 style="font-size: 18px; color: #333333; margin: 0;">Urgent: Missing Email Address for Role Application</h2>
+              </div>
+              <div style="color: #555555;">
+                <p>Dear Team,</p>
+                <p>This is an urgent notification regarding a role application that lacks an email address. Manual intervention is required.</p>
+                <p><strong>Subscriber Name:</strong> ${applicantName}</p>
+                <p><strong>Role:</strong> ${accessedJob.originalTitle || appliedRole}</p>
+                <p><strong>Company:</strong> ${accessedJob.company || 'No company details available'}</p>
+                <p><strong>Job URL:</strong> <a href="${accessedJob.url}">${accessedJob.url}</a></p>
+                <p>Please take immediate action to address this issue. Manual application is expected.</p>
+                <p>Thank you for your prompt attention to this matter.</p>
+              </div>
+              <div style="margin-top: 30px;">
+                <p style="margin: 0;"><strong>Kayode</strong></p>
+                <p style="margin: 0; color: #777777;">Founder & CEO, Suntrenia</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+    }
+
+    // ✅ Send email with the renamed attachment
+    const emailResponse = await transporter.sendMail({
+      from: fromEmail,
+      // from: fromEmail || `"${firstName}" <testmyitproject@gmail.com>`,
+      to: recipientEmail,
+      subject: emailSubject,
+      text: emailText,
+      html: emailHtml,
+      attachments: [{ filename: newFilename, path: newPdfPath }],
+    });
+
+    console.log(`User ${userId}: Email sent with attachment: %s`, emailResponse.messageId);
+
+    // ✅ Mark the role as processed
+    await applicationProcessingFeeder.updateOne(
+      { _id: roleId, userId },
       {
-        to: `${staff_no}@s.whatsapp.net`,
-        media: `data:application/pdf;base64,${pdfData}`,
-        filename: pdfFilename
+        $set: {
+          role_processed: true,
+          email_sent_at: new Date(),
+          status: "Email Sent",
+          application: "Approved"
+        },
+      }
+    );
+
+    // ✅ Update the application success count
+    let userStatus = await applicationStatusCollection.findOne({ userId });
+
+    if (!userStatus) {
+      userStatus = { userId, successfulApplications: 0, rejectedApplications: 0 };
+      await applicationStatusCollection.insertOne(userStatus);
+    }
+
+    const newSuccessCount = userStatus.successfulApplications + 1;
+
+    await applicationStatusCollection.updateOne(
+      { userId },
+      { $set: { successfulApplications: newSuccessCount } }
+    );
+
+    console.log(`User ${userId}: Updated successful applications count to ${newSuccessCount}`);
+    console.log(`User ${userId}: Role marked as processed with email sent.`);
+    
+  } catch (error) {
+    console.error("Error occurred:", error);
+    throw error;
+  } finally {
+    await client.close();
+  }
+}
+}
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+ 
+} else if (userResponse.includes("decline") || userResponse.includes("not interested")) {
+  console.log("Recognized as a negative response:", userResponse);
+  const responses = [
+    "Thank you for letting us know. Should you change your mind, feel free to reach out again.",
+    "Noted. Should you reconsider, we'll be here to assist you further.",
+    "Understood. Feel free to reconnect if you decide to explore our services later.",
+    "Got it. Should you have a change of heart, don't hesitate to get in touch with us again.",
+    "Acknowledged. If your circumstances change, we're here to help.",
+    "Thank you for informing us. Remember, our doors are always open if you reconsider.",
+    "I understand. Our assistance remains available if you have a change of plans."
+  ];
+
+  botReply = responses[Math.floor(Math.random() * responses.length)];
+
+ 
+         try {
+          await client.connect();
+          const database = client.db('olukayode_sage');
+          const applicationProcessingFeeder = database.collection('application_processing_feeder');
+      
+          // Validate session and retrieve user ID
+          let userId = session?.userId;
+          if (!userId) {
+              console.warn("User ID not found in session. Attempting to fetch from session token.");
+              userId = await fetchUserIdBySessionToken(sessionToken);
+      
+              if (!userId) {
+                  console.error("Failed to retrieve User ID from session token.");
+                  return null; // Prevents breaking the code
+              }
+          }
+      
+          console.log(`User ${userId}: Starting getAccessedJobTitle process.`);
+      
+          // Fetch a document for the specific user that hasn't been published yet
+          const accessedRole = await applicationProcessingFeeder.findOne({
+              userId, 
+              url: { $ne: null },
+              published: { $ne: true }
+          });
+      
+          if (!accessedRole || !accessedRole.url || accessedRole.published) {
+              console.log(`User ${userId}: No unprocessed or unpublished document with a valid URL found.`);
+              return null;
+          }
+      
+          // Extract and clean the role and other details
+          const cleanedRole = cleanJobTitle(accessedRole.title);
+      
+          // Update the role in the `application_processing_feeder` collection
+          await applicationProcessingFeeder.updateOne(
+              { _id: accessedRole._id },
+              {
+                  $set: {
+                      role_processed: true,
+                      status: 'Treated',
+                      application: 'Declined',
+                      processedAt: new Date(),
+                  },
+              }
+          );
+          
+          console.log(`User ${userId}: Role marked as treated.`);
+      } catch (error) {
+          console.error(`Error processing job role:`, error);
+      } finally {
+          await client.close();
+          console.log("Database connection closed.");
+      }
+      
+   
+    } else {
+        botReply = "I'm sorry, I couldn't understand your response. Could you please confirm if you'd like to proceed with the application? Alternatively, if you prefer to speak with us directly, feel free to reach out through any of the following channels:\n\n" +
+          "Email: info@suntrenia.com\n" +
+          "Phone: 07034995589\n" +
+          "WhatsApp: 08027946808\n\n" +
+          "We're here to assist you and ensure a smooth experience. Please don't hesitate to get in touch.";
+      }
+
+      // Send the appropriate bot reply to the user
+
+      await sendReplyToRecipient(from, botReply, emailId, jobId);
+      // await sendReplyToRecipient(from, botReply);
+    } else {
+      console.log("Unrecognized, sending fallback response:", userResponse);
+      // botReply = "I'm sorry, I couldn't understand your response. Could you please confirm if you'd like to proceed with the application?";
+    }
+  }
+} catch (err) {
+  console.error("Error fetching email responses:", err);
+} finally {
+  if (mongoClient) {
+    await mongoClient.close();
+  }
+}
+}
+  
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+function generateHtmlMessage(textMessage, jobId, userId) {
+  return `
+      <div style="background: linear-gradient(to bottom, #4b0038, #2c001e); padding: 20px; font-family: Arial, sans-serif;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 15px; border-radius: 10px; color: #333;">
+          <h2 style="text-align: center; color: #4b0038; font-size: 22px; margin-bottom: 20px;">Exciting Job Opportunity</h2>
+          <p style="line-height: 1.6;">${textMessage.replace(/\n/g, '<br>')}</p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #ccc;">
+          <p style="text-align: center; margin-top: 15px;">
+            <a href="#"><img src="https://example.com/facebook-icon.png" alt="Facebook" width="24" style="margin: 0 10px;"></a>
+            <a href="#"><img src="https://example.com/twitter-icon.png" alt="Twitter" width="24" style="margin: 0 10px;"></a>
+            <a href="#"><img src="https://example.com/linkedin-icon.png" alt="LinkedIn" width="24" style="margin: 0 10px;"></a>
+            <a href="#"><img src="https://example.com/instagram-icon.png" alt="Instagram" width="24" style="margin: 0 10px;"></a>
+          </p>
+        </div>
+      </div>
+    `;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////
+async function sendReplyToRecipient(recipientEmail, botReply, jobId, userId) {
+  try {
+    // Connect to MongoDB and fetch the saved subject
+    const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+    const db = client.db('olukayode_sage'); // Replace with your database name
+    const collection = db.collection('user_application_records'); // Replace with your collection name
+    // Fetch the most recent subject (or customize the query)
+    const savedData = await collection.findOne({}, { sort: { sentAt: -1 } });
+
+    const subject = savedData ? savedData.subject : 'Re: Follow-Up on Your Job Opportunity';
+
+    // Define mail options
+    const mailOptions = {
+      from: `"Suntrenia" <${process.env.EMAIL_USER}>`,
+      // to: "akoredekayode@yahoo.com",
+      to: recipientEmail,
+      subject: `Re: ${subject}`, // Concatenate "Re: " with the fetched subject
+      text: botReply, // Plain text body (bot reply)
+      html: generateHtmlMessage(botReply, jobId, userId), // HTML body (formatted bot reply)
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Reply sent: %s', info.messageId);
+
+    // Close the MongoDB connection
+    await client.close();
+
+  } catch (error) {
+    console.error('Error sending reply:', error);
+  }
+}
+
+// Periodically check for responses (every minute)
+// setInterval(checkForResponses, 60 * 1000); // 60 * 1000 ms = 1 minute
+// setInterval(checkForResponses, 7 * 60 * 1000); // 5 minutes instead of 1
+///////////////////////////////////////////////////////////////
+
+///////////////getting better 4/12/24/////////////////////////////////////////////////////////////////////////////////////////
+
+async function checkDatabaseForFallback(userId) {
+  if (!userId) {
+    console.error('[checkDatabaseForFallback] userId is required');
+    return;
+  }
+  const client = new MongoClient(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+  const database = client.db('olukayode_sage');
+  const jobPostCollection = database.collection('whatsappJobVacancyPost');
+  const userBiodataCollection = database.collection('Users_CV_biodata');
+  // ✅ Use userId-specific customId
+  const customId = `${userId}_whatsappJobPost`;
+  try {
+    await client.connect();
+    // Query the job post document for this specific user
+    const jobPost = await jobPostCollection.findOne({ 
+      $or: [{ _id: customId }, { userId }] 
+    });
+    // Query the user biodata document for this specific user
+    const userBiodata = await userBiodataCollection.findOne({ _id: userId });
+    const isPremium = userBiodata?.subscription?.plan === 'Premium';
+    const userPhone = (userBiodata?.phoneNumber || '').replace(/^\+/, '');
+    // Logic to determine messaging method and fallback
+    if (jobPost) {
+   
+      if (jobPost.status === 'new') {
+        if (jobPost.phoneNumber || jobPost["Application Email"]) {
+          console.log("Document exists with status 'new' and contains a phone number or email address. Fallback will not be triggered.");
+        
+          // return false; // Do not trigger fallback
+// //////////////////////////////Activate Emergenc Job advert
+           sendEmergencyMessage(userId, userPhone)
+            return false; // Do not trigger fallback
+        } else {
+          console.log("Document exists with status 'new' but does not contain a phone number or email address. Checking subscription for fallback.");
+
+          if (isPremium) {
+            console.log("User has premium subscription. Attempting to send message via WhatsApp  111111111111111.");
+             //const whatsappSuccess = await sendMessage();
+            console.log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=")
+            const whatsappSuccess = await  sendMessage(userId, userPhone);
+
+           ;
+            if (!whatsappSuccess) {
+              console.log("Can we confirm if this works.");
+              // await promptUserByEmail();
+            }
+          } else {
+            console.log("User does not have premium subscription. Fallback will default to email.");
+            await promptuserbymail();
+          }
+
+          return true; // Trigger fallback
+        }
+      } else if (jobPost.status === 'treated') {
+        console.log("Document exists with status 'treated'. Checking subscription for fallback.");
+        console.log("ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+        if (isPremium) {
+
+          // const whatsappSuccess = await sendMessage();
+          const whatsappSuccess = await  sendMessage('287c5d1af24af77785f5348f', '2349010400099');
+     
+          if (!whatsappSuccess || 
+            typeof whatsappSuccess !== 'object' || 
+            whatsappSuccess.sent !== true) {
+          console.log("WhatsApp message failed. Sending email as fallback.");
+          await promptuserbymail();
+            }
+
+        } else {
+          console.log("User does not have premium subscription. Fallback will default to email.");
+          await promptuserbymail();
+        }
+
+        return true; // Trigger fallback
+      }
+    } else {
+      console.log("Document does not exist. Checking subscription for fallback.");
+
+      if (isPremium) {
+        console.log("User has premium subscription. Attempting to send message via WhatsApp.3333333333333333333.");
+        // const whatsappSuccess = await sendMessage();
+        const whatsappSuccess = await  sendMessage('287c5d1af24af77785f5348f', '2349010400099');
+       if (!whatsappSuccess || 
+        typeof whatsappSuccess !== 'object' || 
+        whatsappSuccess.sent !== true) {
+        console.log("WhatsApp message failed. Sending email as fallback.");
+        await promptuserbymail();
+      }
+      } else {
+        console.log("User does not have premium subscription. Fallback will default to email.");
+        await promptuserbymail();
+      }
+
+      return true; // Trigger fallback
+    }
+  } catch (error) {
+    console.error('Error accessing the database:', error.message);
+    return true; // Default to triggering fallback in case of an error
+  } finally {
+    // Ensure the client is closed
+    await client.close();
+  }
+}
+// checkDatabaseForFallback()
+///////////////////////////////////////////////////////////////////////////////////
+
+// Function to select a random message variant
+function selectRandomMessageVariant() {
+  const index = Math.floor(Math.random() * messageVariants.length);
+  return messageVariants[index];
+}
+
+// Function to generate a unique identifier for each conversation thread
+const generateThreadId = () => {
+  return Math.random().toString(36).substring(2, 10); // Generate a random alphanumeric string
+};
+
+// Function to send a message to the subscriber
+const sendMessageToSubscriber = async (subscriber, message, threadId) => {
+  try {
+    const response = await axios.post(
+      'https://gate.whapi.cloud/messages/text',
+      {
+        to: subscriber,
+        // to: '2347035517578',
+        body: message,
+        typing_time: 0,
+        thread_id: threadId, // Include the thread ID in the message
       },
       {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${process.env.WHAPI_TOKEN}`,
         },
       }
     );
 
-    console.log('PDF file sent successfully:', pdfResponse.data);
+    console.log('Message sent successfully:', response.data);
+    return response.data; // Explicitly return the response data
   } catch (error) {
-    console.error('Error sending message and PDF:', error.message);
-    throw error;
+    console.error('Error sending message..:', error.message);
+    return null; // Return null instead of nothing if there's an error
   }
 };
 
-// const htmlContent = "<h1>Welcome to html-pdf-node</h1>";
-
-
-generateAndSavePdf(htmlContent, filename2)
-  .then(pdfPath => {
-    const pdfData = fs.readFileSync(pdfPath, { encoding: 'base64' });
-    sendMessageToStaffs(groupId, pdfData, filename2 + '.pdf');
-  })
-  .catch(error => {
-    console.error('Error generating PDF:', error);
-  });
-
-setInterval(() => {
-  generateAndSavePdf(htmlContent, filename2)
-    .then(pdfPath => {
-      const pdfData = fs.readFileSync(pdfPath, { encoding: 'base64' });
-      sendMessageToStaffs(groupId, pdfData, filename2 + '.pdf');
-    })
-    .catch(error => {
-      console.error('Error generating PDF:', error);
-    });
-}, 7 * 24 * 60 * 60 * 1000);
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// function generateAndSavePdf(securityReportHTML , filename2) {
-//   const options = { format: 'A4' }; // Optional format setting
-
-//   const file = { content: securityReportHTML };
-
-//   html_to_pdf.generatePdf(file, options)
-//     .then(pdfBuffer => {
-//       // Create downloads folder if it doesn't exist
-//       const downloadsDir = path.join(__dirname, 'downloads');
-//       if (!fs.existsSync(downloadsDir)) {
-//         fs.mkdirSync(downloadsDir);
-//       }
-
-//       const filePath = path.join(downloadsDir, filename2 + '.pdf');
-//       fs.promises.writeFile(filePath, pdfBuffer) // Use promises for cleaner async handling
-//         .then(() => console.log(`PDF saved successfully to: ${filePath}`))
-//         .catch(err => console.error('Error saving PDF:', err));
-//     })
-//     .catch(error => console.error('Error generating PDF:', error));
-// }
-
-// // Assuming 'data' variable holds your desired PDF content
-
-// const filename2 = "new"+`Mota-Engil Nigeria National Weekly_Security Report ${formattedToday}.pdf`;
-
-// generateAndSavePdf(securityReportHTML, filename2);
-
-
-/////////////////////existig//unlock
-// const sendMessageToStaffs = async (groupId, pdfData, pdfFilename) => {
-//   try {
-//     const pdfResponse = await axios.post(
-//       'https://gate.whapi.cloud/messages/document',
-//       {
-//         to: `${staff_no}@s.whatsapp.net`,
-//         media: `data:application/octet-stream;name=${pdfFilename};base64,${pdfData}`,
-//       },
-//       {
-//         headers: {
-//           Accept: 'application/json',
-//           'Content-Type': 'application/json',
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     console.log('PDF file sent successfully:', pdfResponse.data);
-//   } catch (error) {
-//     console.error('Error sending message and PDF:', error.message);
-//   }
-// };
-
-// const securityReportHTML = generateAndSavePdf();
-
-// generate_incident_report_PDF(securityReportHTML, pdfPath, (error) => {
-//   if (error) {
-//     console.error('PDF generation failed:', error);
-//   } else {
-//     const pdfData = fs.readFileSync(pdfPath, { encoding: 'base64' });
-//     sendMessageToStaffs(groupId, pdfData, uniqueFilename);
-//   }
-// });
-
-
-// setInterval(() => {
-//   const securityReportHTML = generateAndSavePdf();
-//   generate_incident_report_PDF(securityReportHTML, pdfPath, (error) => {
-//     if (error) {
-//       console.error('PDF generation failed:', error);
-//     } else {
-//       const pdfData = fs.readFileSync(pdfPath, { encoding: 'base64' });
-//       sendMessageToStaffs(groupId, pdfData, uniqueFilename);
-//     }
-//   });
-// }, 7 * 24 * 60 * 60 * 1000);
-// ////////////////////////////////////////////////////////////////////////////
-// const sendMessageToStaffs = async (groupId, pdfData, pdfFilename) => {
-//   try {
-//     const pdfResponse = await axios.post(
-//       'https://gate.whapi.cloud/messages/document',
-//       {
-//         to: `${staff_no}@s.whatsapp.net`,
-//         media: `data:application/octet-stream;name=${pdfFilename};base64,${pdfData}`,
-//       },
-//       {
-//         headers: {
-//           Accept: 'application/json',
-//           'Content-Type': 'application/json',
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     console.log('PDF file sent successfully:', pdfResponse.data);
-//   } catch (error) {
-//     console.error('Error sending message and PDF:', error.message);
-//   }
-// };
-
-// // Generate and save PDF using generateAndSavePdf
-// function generateAndSendPdf(groupId) {
-//   generateAndSavePdf(data, filename) // Assuming 'data' holds your PDF content
-//     .then(filePath => {
-//       // Read the saved PDF file as base64 encoded data
-//       return fs.promises.readFile(filePath, { encoding: 'base64' });
-//     })
-//     .then(pdfData => {
-//       // Send the PDF using sendMessageToStaffs
-//       sendMessageToStaffs(groupId, pdfData, filename);
-//     })
-//     .catch(error => {
-//       console.error('Error generating or sending PDF:', error);
-//     });
-// }
-
-// const filename = `Mota-Engil Nigeria National Weekly_Security Report ${formattedToday}.pdf`;
-
-// // Call generateAndSendPdf with groupId
-// generateAndSendPdf(groupId);
-
-// // Remove the call to generate_incident_report_PDF as it's not needed
-
-// setInterval(() => {
-//   generateAndSendPdf(groupId);
-// }, 7 * 24 * 60 * 60 * 1000);
-
-// /////////////////////////////////////////////////////////
-// app.post('/OtherIddata', async function (req, res) {
-//   const driverData = req.body;
-
-//   try {
-//     const client = new MongoClient(uri);
-//     await client.connect();
-
-//     const database = client.db('olukayode_sage');
-//     const driversHistoryCollection = database.collection('OtherIDs');
-
-//     // Insert the driver data into the drivers history collection
-//     const result = await driversHistoryCollection.insertOne(driverData);
-//     console.log('Driver added to otherID:', result);
-
-//     res.status(200).json({ message: 'Driver added to OtherId' });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send('An error occurred while adding the driver to history');
-//   } finally {
-//     await client.close();
-//   }
-// });
-
-// app.post('/extractOtherDetails', async (req, res) => {
-//   try {
-//     const client = new MongoClient(uri);
-//     await client.connect();
-
-//     const database = client.db('olukayode_sage');
-//     const driversHistoryCollection = database.collection('OtherIDs');
-
-//     // Fetch the required data from the database
-//     const token1Data = await driversHistoryCollection.findOne({ idType: 'Token 1' });
-//     const groupIDData = await driversHistoryCollection.findOne({ idType: 'GroupID' });
-
-//     // Log the retrieved data
-//     console.log('Extracted Details:');
-//     console.log('Token1:', token1Data.idNumber);
-//     console.log('GroupID:', groupIDData.idNumber);
-
-//     // Send response with the extracted data
-//     res.status(200).json({
-//       message: 'Details extracted successfully',
-//       token1: token1Data.idNumber,
-//       groupID: groupIDData.idNumber
-//     });
-//   } catch (error) {
-//     console.error('An error occurred:', error);
-//     res.status(500).json({ error: 'An error occurred while extracting details' });
-//   } finally {
-//     await client.close();
-//   }
-// });
-
-
-// app.post('/send_expatriate_parameters', async (req, res) => {
-//   const { expatriate_name, expatriate_nationality, expatriate_phone_number, expatriate_residence_nigeria, expatriate_department } = req.body;
-
-//   try {
-//       await client.connect();
-
-//       const database = client.db('olukayode_sage');
-//       const expatriates = database.collection('expatriates_collection');
-
-//       // Insert the expatriate data into the expatriates collection
-//       const result = await expatriates.insertOne({
-//           name: expatriate_name,
-//           countryOfOrigin: expatriate_nationality,
-//           phoneNumber: expatriate_phone_number,
-//           houseAddress: expatriate_residence_nigeria,
-//           unit: expatriate_department
-//       });
-//       console.log('Expatriate added to collection:', result);
-
-//       // Respond with success message
-//       res.status(200).json({ message: 'Expatriate added to collection' });
-//   } catch (error) {
-//       console.error('An error occurred:', error);
-//       res.status(500).send('An error occurred while adding the expatriate to the collection');
-//   } finally {
-//       await client.close();
-//   }
-// });
-//////////////////////////////////////////////////////////////
-///////////////////////////image analysis
-//   const apiKey = 'AIzaSyCDJvJe29Gj2Zwee01dH1vpMSk6ITWMjOk'; // Replace 'YOUR_API_KEY' with your actual API key
-//   // const apiKey = 'AIzaSyAAaq27xrkFhUSYAirdk5LSSm8LkKhySCE'; // Replace 'YOUR_API_KEY' with your actual API key
-//   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-
-
-/////////////////////////////////////workin
-//  // Route to handle incoming webhook requests
-// app.post('/incoming_messages', (req, res) => {
-//   // Extract relevant information from the incoming message
-//   const { messages } = req.body;
-//   messages.forEach(message => {
-//     const { from_name, from, timestamp, type, text } = message;
-//     // Log the extracted information to the console
-//     console.log('Incoming message:', req.body);
-//     console.log(`Sender Name: ${from_name}`);
-//     console.log(`Phone Number: ${from}`);
-//     console.log(`Time: ${new Date(timestamp * 1000).toLocaleString()}`); // Convert timestamp to human-readable date
-//     console.log(`Message Type: ${type}`);
-//     console.log(`Message Text: ${text.body}`);
-//     console.log("-------------------------------------------");
-//   });
-
-//   // Respond with a success message if needed
-//   res.status(200).send('Message received successfully');
-// });
-
-  /////////////////////////////////////////////
-// // Function to generate content
-// const apiKey = 'AIzaSyAAaq27xrkFhUSYAirdk5LSSm8LkKhySCE';
-// const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-
-// const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-// // Access your API key as an environment variable (see "Set up your API key" above)
-// const genAI = new GoogleGenerativeAI(apiKey);
-
-// async function run() {
-//   // For text-only input, use the gemini-pro model
-//   const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-
-//   const prompt = "Meditation"
-
-//   const result = await model.generateContent(prompt);
-//   const response = await result.response;
-//   const text = response.text();
-//   console.log(text);
-// }
-
-// run();
-// ///////////in coming mssages best for now//////////////////////////////////////////////
-// Function to check if the text contains job-related keywords
-// Function to generate content
-// const apiKey = 'AIzaSyAAaq27xrkFhUSYAirdk5LSSm8LkKhySCE';
-// const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-// const { GoogleGenerativeAI } = require("@google/generative-ai");
-// Access your API key as an environment variable (see "Set up your API key" above)
-// const genAI = new GoogleGenerativeAI(apiKey);
-// Function to check if the text contains job-related keywords
-
-// Function to check if the text contains job-related keywords
-// function containsJobKeywords(text) {
-//   const keywords = ['vacancy', 'job role', 'contact', 'submit'];
-//   return keywords.some(keyword => text.includes(keyword));
-// }
-
-// // Job vacancy prompt and instructions to AI
-// const jobVacancyPrompt = `
-// Guidelines and Suggestions:
-// 1. Keyword Filtering: Please include specific keywords or phrases such as "vacancy," "job role," "position," "salary," "deadline," etc. in your job vacancy posts to help the AI identify them accurately.
-// 2. Context Analysis: Ensure that your job vacancy posts contain relevant information such as academic qualifications, work experience, contact information, etc., to help the AI recognize them as job-related.
-// 3. Machine Learning Models: Provide labeled examples of job vacancy posts and non-job-related messages to help train the AI in distinguishing between them.
-// - Please ensure that all information provided is accurate and verified before generating the summary.
-// - Specify the formatting style you prefer for presenting the information, such as bullet points, lists, or paragraphs.
-// - Use consistent language and terminology throughout the summary for clarity and coherence.
-// - Include all relevant details from the job vacancy posts, including qualifications, contact information, deadlines, and any additional fields provided.
-// - If possible, verify the accuracy of the information provided in the job vacancy posts before using it as input for generating summaries.
-
-// Prompt:
-// Please provide the following information for each job vacancy post:
-
-// Job role: 
-
-// Location: 
-
-// Salary: 
-
-// Academic qualification/requirements:
-
-// Work experience:
-
-// Deadline:
-// Date of posting of the vacancy:
-
-// Additional Fields:
-// - Position: 
-// - Qualifications:
-// - Contact (Email/WhatsApp):
-// - Interview Date:
-
-// Please ensure that your job vacancy posts follow the guidelines and suggestions provided above. Thank you!
-// `;
-
-// // Function to summarize job vacancy posts using AI model
-// async function run(posts) {
-//   try {
-//     const batchSize = 10; // Process 10 posts at a time
-//     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-//     const summaries = [];
-//     for (let i = 0; i < posts.length; i += batchSize) {
-//       const batchPosts = posts.slice(i, i + batchSize);
-//       const batchResults = await Promise.all(batchPosts.map(post => model.generateContent(post)));
-//       const batchSummaries = await Promise.all(batchResults.map(result => result.response.text()));
-//       summaries.push(...batchSummaries);
-//     }
-
-//     return summaries;
-//   } catch (error) {
-//     console.error('Error summarizing job vacancy posts:', error);
-//     throw error;
-//   }
-// }
-
-// // Route to handle incoming messages
-// app.post('/incoming_messages', async (req, res) => {
-//   try {
-//     const messages = req.body.messages;
-//     const jobVacancyPosts = [];
-
-//     messages.forEach(message => {
-//       const { from_name, from, timestamp, type, text } = message;
-//       console.log(`Incoming message from ${from_name}: ${text.body}`);
-      
-//       if (type === 'text') {
-//         // Extract the text part of the message
-//         const messageText = text.body;
-
-//         // Check if the message contains keywords related to job vacancies
-//         if (containsJobKeywords(messageText.toLowerCase())) {
-//           jobVacancyPosts.push(messageText);
-//         }
-//       }
-//     });
-
-//     // Summarize the job vacancy posts using AI model
-//     const jobVacancySummaries = await run(jobVacancyPosts);
-
-//     // Log the processed message resulting from the AI prompt
-//     console.log("Processed message resulting from AI:");
-//     console.log(jobVacancySummaries);
-
-//     // Include the prompt and instructions in the response
-//     res.status(200).json({ status: 'success', message: 'Messages processed successfully', summaries: jobVacancySummaries, prompt: jobVacancyPrompt });
-    
-//   } catch (error) {
-//     console.error('Error processing incoming messages:', error);
-//     res.status(500).json({ status: 'error', message: 'Internal server error' });
-//   }
-// });
-
-///////////////////////////////////////////////////////////////
-// // Route to handle incoming messages for journey requests
-// app.post('/incoming_journey_requests', async (req, res) => {
-//   try {
-//     const messages = req.body.messages;
-//     const journeyRequests = [];
-
-//     messages.forEach(message => {
-//       // Assuming journey request messages contain specific keywords
-//       const text = message.text.body;
-//       if (containsJourneyKeywords(text.toLowerCase())) {
-//         const senderPhoneNumber = message.sender_phone_number || 'Not specified';
-//         // Extracting relevant information for journey requests
-//         const journeyRequest = {
-//           senderPhoneNumber,
-//           destination: extractDestination(text),
-//           timeOut: extractTimeOut(text),
-//           timeIn: extractTimeIn(text),
-//           escort: extractEscort(text)
-//         };
-//         journeyRequests.push(journeyRequest);
-//       }
-//     });
-
-//     // Summarize the journey requests using AI model
-//     const journeyRequestSummaries = await run(journeyRequests);
-
-//     // Further processing: Database insertion, email forwarding, etc.
-
-//     res.status(200).json({ status: 'success', message: 'Journey requests processed successfully', summaries: journeyRequestSummaries });
-//   } catch (error) {
-//     console.error('Error processing journey requests:', error);
-//     res.status(500).json({ status: 'error', message: 'Internal server error' });
-//   }
-// });
-
-// // Function to check if the text contains journey-related keywords
-// function containsJourneyKeywords(text) {
-//   const keywords = ['journey', 'travel', 'movement'];
-//   return keywords.some(keyword => text.includes(keyword));
-// }
-
-// // Function to extract destination from journey request message
-// function extractDestination(text) {
-//   // Example: Extract destination from text
-//   const destinationRegex = /Destination:\s*(.+)/i;
-//   const match = text.match(destinationRegex);
-//   return match ? match[1].trim() : 'Not specified';
-// }
-
-// // Function to extract time out from journey request message
-// function extractTimeOut(text) {
-//   // Example: Extract time out from text
-//   const timeOutRegex = /Time out:\s*(.+)/i;
-//   const match = text.match(timeOutRegex);
-//   return match ? match[1].trim() : 'Not specified';
-// }
-
-// // Function to extract time in from journey request message
-// function extractTimeIn(text) {
-//   // Example: Extract time in from text
-//   const timeInRegex = /Time in:\s*(.+)/i;
-//   const match = text.match(timeInRegex);
-//   return match ? match[1].trim() : 'Not specified';
-// }
-
-// // Function to extract escort from journey request message
-// function extractEscort(text) {
-//   // Example: Extract escort from text
-//   const escortRegex = /Escort:\s*(.+)/i;
-//   const match = text.match(escortRegex);
-//   return match ? match[1].trim() : 'Not specified';
-// }
-
-// // Job vacancy prompt
-// const journeyRequestPrompt = `Please provide the following information for each journey request message, ensuring accuracy and appropriate formatting:
-
-// Name of the passenger:
-
-// Phone number of the sender (if available)
-// Destination:
-
-// Ikoyi
-// Time out:
-
-// 7:00 PM tomorrow
-// Time in:
-
-// Not specified
-// Escort:
-
-// Not specified
-
-// Filter out any irrelevant messages to ensure the summary focuses solely on journey requests. Verify the sender's p`;
-/////////////////////////////////////////////////////////////////////////////////////////////
-// Function to train the classifier with labeled data
-
-
-
-
-// function trainClassifier() {
-//     // Example labeled data for different categories
-//     const labeledData = [
-//         { text: 'urgent job opening for a security manager in Owerri', label: 'jobRole' },
-//         { text: 'security manager needed urgently', label: 'jobRole' },
-//         { text: 'send CV to susan.matthew@niis.com.ng by 11th March', label: 'email' },
-//         { text: 'urgent opening for a security manager in Owerri', label: 'jobRole' },
-//         { text: 'we are looking for a Security Supervisor with 5 years experience', label: 'jobRole' },
-//         { text: 'job opportunity: Security Officer needed in Lagos', label: 'jobRole' },
-//         { text: 'send your CV to recruitment@company.com', label: 'email' },
-//         { text: 'submit your resume to hr@company.com by March 15th', label: 'email' },
-//         { text: 'interested candidates should forward their applications to careers@company.com', label: 'email' },
-//         { text: 'qualification: minimum of Bachelor\'s degree in Computer Science', label: 'qualification' },
-//         { text: 'requirements: at least 3 years of relevant work experience', label: 'qualification' },
-//         { text: 'desired skills: proficiency in Python and SQL', label: 'qualification' },
-//         { text: 'location: Abuja', label: 'location' },
-//         { text: 'workplace: remote', label: 'location' },
-//         { text: 'deadline for application: March 20th', label: 'deadline' },
-//         { text: 'applications must be received by April 1st', label: 'deadline' },
-//         { text: 'interview date: March 25th', label: 'interviewDate' },
-//         { text: 'interviews will be conducted on April 5th', label: 'interviewDate' },
-//         { text: 'urgent vacancy for Chief Security Officer (CSO) in Lekki', label: 'jobRole' },
-//         { text: 'salary range: 300k - 350k', label: 'salary' },
-//         { text: 'qualifications: must have minimum of First Degree', label: 'qualification' },
-//         { text: 'must have leadership and management skills', label: 'qualification' },
-//         { text: 'must not be more than 55 years', label: 'qualification' },
-//         { text: 'must have undergone relevant security training', label: 'qualification' },
-//         { text: 'must be computer literate', label: 'qualification' },
-//         { text: 'must be a retired armed force personnel', label: 'qualification' },
-//         { text: 'interested and qualified persons should come with a clear photocopy of their CVs to 36 Old Yaba Road, Top floor, same building with Lifeback Supermarket', label: 'address' },
-//         { text: 'you can contact 08062856868, 08160121388 via WhatsApp for directions', label: 'whatsappNumber' },
-//         { text: 'interview date: Monday, 5th February 2024', label: 'interviewDate' },
-//         { text: 'time: 11:00am', label: 'interviewTime' },
-//         { text: 'info@augusteyeltd.com', label: 'email' }
-//         // Add more labeled data for different categories as needed
-//     ];
-//     // Train the classifier with labeled data
-//     labeledData.forEach(data => {
-//         const tokens = tokenizer.tokenize(data.text);
-//         classifier.addDocument(tokens, data.label);
-//     });
-
-//     // Train the classifier
-//     classifier.train();
-// }
-
-// // Function to process incoming job posts
-// function processJobPost(jobPost) {
-//     // Tokenize the job post
-//     const tokens = tokenizer.tokenize(jobPost);
-
-//     // Use the trained classifier to predict labels for each token
-//     const predictions = tokens.map(token => classifier.classify(token));
-
-//     // Extract relevant information based on predicted labels
-//     // (You may need to define rules or patterns for each category)
-//     // Example: Extract email address based on predicted 'email' labels
-//     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-//     const emails = predictions.filter(label => label === 'email').map(_ => jobPost.match(emailRegex)).filter(Boolean);
-
-//     // Output the extracted information
-//     console.log('Emails:', emails);
-
-//     // Save the extracted information to variables or database
-//     // For example:
-//     // const extractedDetails = {
-//     //     emails,
-//     // };
-//     // Save to database or use the variables as needed in your application.
-// }
-
-// // Train the classifier before processing job posts
-// trainClassifier();
-
-// // Example usage: Fetch job posts from WhatsApp API
-// whatsappAPI.fetchJobPosts((jobPost) => {
-//     // Process each incoming job post
-//     processJobPost(jobPost);
-// });
-
-/////////////////////////////////////////////////////////////////////////////
-// function fetchDataForName(name, callback) {
-//   // Assume name is already validated and sanitized
-//   const userLocation = name; // Assuming user's location details come from the name
-//   // const userSpecific = 'crime' + userLocation;
-//   // const userSpecific = 'crime' + "nigeria";
-//   const userSpecific = "crime";
-//   const webLink = `https://www.google.com/search?q=${encodeURIComponent(userSpecific)}&gl=us&hl=en`;
-
-//   unirest
-//     .get(webLink)
-//     .headers({
-//       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
-//     })
-//     .then((response) => {
-//       const $ = cheerio.load(response.body);
-//       const organicResults = [];
-
-//       $(".yuRUbf > a").each((i, el) => {
-//         const title = $(el).find('h3').text();
-//         const link = $(el).attr('href');
-//         const snippet = $(el).parent().find('.IsZvec').text(); // Assuming this class is for snippets
-//         const displayedLink = $(el).find('.tjvcx').text(); // Assuming this class is for displayed links
-        
-//         organicResults.push({
-//           title,
-//           link,
-//           snippet,
-//           displayedLink,
-//         });
-//       });
-
-//       callback(null, organicResults); // Pass the fetched data to the callback function
-//     })
-//     .catch((error) => {
-//       callback(error, null); // Pass any errors to the callback function
-//     });
-// }
-
-// // Example usage:
-// fetchDataForName('homer', (error, data) => {
-//   if (error) {
-//     console.error('Error fetching data:', error);
-//   } else {
-//     console.log('Fetched data:', data);
-//   }
-// });
-
-
-//////////////////////////////////////////////////////////////////////////////////////
-
-function fetchDataForName(name, callback) {
-  // Assume name is already validated and sanitized
-  const userLocation = name; // Assuming user's location details come from the name
-  // const userSpecific = 'crime' + userLocation;
-  // const userSpecific = 'crime' + "nigeria";
-  const userSpecific = "crime";
-  const webLink = `https://www.google.com/search?q=${encodeURIComponent(userSpecific)}&gl=us&hl=en`;
-
-  unirest
-    .get(webLink)
-    .headers({
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
-    })
-    .then((response) => {
-      const $ = cheerio.load(response.body);
-      const organicResults = [];
-
-      $(".yuRUbf > a").each((i, el) => {
-        const title = $(el).find('h3').text();
-        const link = $(el).attr('href');
-        const snippet = $(el).parent().find('.IsZvec').text(); // Assuming this class is for snippets
-        const displayedLink = $(el).find('.tjvcx').text(); // Assuming this class is for displayed links
-        
-        organicResults.push({
-          title,
-          link,
-          snippet,
-          displayedLink,
-        });
-      });
-
-      callback(null, organicResults); // Pass the fetched data to the callback function
-    })
-    .catch((error) => {
-      callback(error, null); // Pass any errors to the callback function
-    });
+// Function to send a message (called with user ID and subscriber)
+async function sendMessage(userId, subscriber) {
+  const randomVariantFunction = selectRandomMessageVariant();
+  const message = await randomVariantFunction(userId);
+  const threadId = generateThreadId();
+  return await sendMessageToSubscriber(subscriber, message, threadId);
 }
 
-// Example usage:
-fetchDataForName('homer', (error, data) => {
-  if (error) {
-    console.error('Error fetching data:', error);
-  } else {
-    console.log('Fetched data:', data);
+// Call the function with a user ID and subscriber phone number
+// sendMessage('287c5d1af24af77785f5348f', '2349010400099');
+
+// Function to select a random message variant (alternative version)
+function selectRandomMessage() {
+  const index = crypto.randomInt(0, messageVariants.length);
+  return messageVariants[index];
+}
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////logic to activate emergency urgentmessage
+const emergencymessage = `
+    🌟 URGENT JOB ALERT! 🌟
+
+    Hi {{name}},
+
+    This is {{senderName}} from Suntrenia. We’ve found an exciting job opportunity exclusively for you!
+
+    - Position: {{jobTitle}}
+    - Salary: {{salaryRange}}
+    - Company: {{companyName}}
+
+    Your profile matches perfectly! Respond NOW to let us apply on your behalf:
+
+    Reply: "YES", "OKAY", "PROCEED", or "NOT INTERESTED".
+
+    We’ll handle the rest. Don’t miss this rare privilege! 🚀
+
+    Best regards,
+    {{senderName}}
+    Suntrenia
+`;
+
+const populateMessage = (template, data) => {
+  return template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
+};
+
+const sendEmergencyJobAdvertMessageToSubscriber = async (subscriber, emergencymessage) => {
+  try {
+    const response = await axios.post(
+      'https://gate.whapi.cloud/messages/text',
+      {
+        to: subscriber,
+        body: emergencymessage ,
+        typing_time: 0,
+        // thread_id: threadId,
+      },
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          // 'Authorization': 'Bearer notWeiRdf4mmY2CWf1Lk1Iz1W7hysaCX'
+        },
+      }
+    );
+    console.log('Message sent successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending message...:', error.response?.data || error.message);
+    return null;
+  }
+};
+
+async function sendEmergencyMessage(userId, subscriber) {
+  const data = {
+    name: 'John Doe', // Example data; replace with actual data
+    senderName: 'Kayode',
+    jobTitle: 'Procurement Manager',
+    salaryRange: '150k - 900k',
+    companyName: 'Reputable Corp',
+  };
+  const message = populateMessage(emergencymessage, data);
+  // const threadId = generateThreadId2(); // Ensure this function exists and works
+  return await sendEmergencyJobAdvertMessageToSubscriber(subscriber, emergencymessage);
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+const getUserResponseFromWhatsApp = async () => {
+  try {
+    // ✅ WhatsApp group IDs where job vacancies are posted
+    const JOB_GROUP_IDS = [
+      process.env.WHATSAPP_JOB_GROUP_1 || '2349010400099@g.us',
+      process.env.WHATSAPP_JOB_GROUP_2 || '',
+      process.env.WHATSAPP_JOB_GROUP_3 || '',
+    ].filter(Boolean); // Remove empty entries
+
+    const threeMinutesAgo = Math.floor(Date.now() / 1000) - 180;
+    let allMessages = [];
+
+    // ✅ Try WHAPI first, fall back to Waha if it fails
+// ✅ THREE-TIER WhatsApp message fetching:
+    // PRIMARY: Baileys (free, always running)
+    // FALLBACK1: WHAPI (paid, needs valid WHAPI_TOKEN)
+    // FALLBACK2: Empty array (graceful degradation)
+
+const fetchMessagesFromWhapi = async () => {
+  // ✅ Read cursor — timestamp of last processed WHAPI message
+  const cursorClient = new MongoClient(uri);
+  let sinceTimestamp = Math.floor(Date.now() / 1000) - (3 * 60); // default: 3 mins ago
+  try {
+    await cursorClient.connect();
+    const cursorDb = cursorClient.db('olukayode_sage');
+    const cursor = await cursorDb.collection('whapi_cursor').findOne({ key: 'last_processed' });
+    if (cursor?.lastTimestamp) {
+      sinceTimestamp = cursor.lastTimestamp;
+      console.log(`[WHAPI] Fetching messages since: ${new Date(sinceTimestamp * 1000).toISOString()}`);
+    }
+  } catch (e) {
+    console.warn('[WHAPI] Could not read cursor, using 3-min default:', e.message);
+  } finally {
+    await cursorClient.close();
+  }
+
+  const response = await axios.request({
+    method: 'GET',
+    url: 'https://gate.whapi.cloud/messages/list/?count=100',
+    headers: {
+      accept: 'application/json',
+      Authorization: `Bearer ${process.env.WHAPI_TOKEN}`
+    }
+  });
+
+  const allMsgs = response.data.messages || [];
+
+  // ✅ Only keep messages newer than last processed timestamp
+  const freshMsgs = allMsgs.filter(msg => (msg.timestamp || 0) > sinceTimestamp);
+  console.log(`[WHAPI] ${allMsgs.length} total fetched, ${freshMsgs.length} new since last poll`);
+
+  if (freshMsgs.length === 0) return [];
+
+  // ✅ Save the newest timestamp as the new cursor
+  const newestTimestamp = Math.max(...freshMsgs.map(m => m.timestamp || 0));
+  try {
+    const saveClient = new MongoClient(uri);
+    await saveClient.connect();
+    const saveDb = saveClient.db('olukayode_sage');
+    await saveDb.collection('whapi_cursor').updateOne(
+      { key: 'last_processed' },
+      { $set: { lastTimestamp: newestTimestamp, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    await saveClient.close();
+    console.log(`[WHAPI] ✅ Cursor updated to: ${new Date(newestTimestamp * 1000).toISOString()}`);
+  } catch (e) {
+    console.warn('[WHAPI] Could not save cursor:', e.message);
+  }
+
+  return freshMsgs.map(msg => ({
+    from: msg.from || msg.chatId,
+    chatId: msg.chatId || msg.from,
+    timestamp: msg.timestamp,
+    text: { body: msg.text?.body || msg.body || '' }
+  }));
+};
+
+    const fetchMessagesFromBaileys = async () => {
+      // ✅ Baileys stores messages in memory via baileysMessages global cache
+      // Messages are pushed into baileysMessages[] by the Baileys listener
+      // defined in startBaileys() at the top of app.js
+      if (!global.baileysMessages || global.baileysMessages.length === 0) {
+        console.log('[Baileys] No messages in cache yet');
+        return [];
+      }
+      const threeMinutesAgoMs = Date.now() - 3 * 60 * 1000;
+      const fresh = global.baileysMessages.filter(m => m.receivedAt >= threeMinutesAgoMs);
+      console.log(`[Baileys] ${fresh.length} fresh messages from cache`);
+      // Clear processed messages to avoid reprocessing
+      global.baileysMessages = global.baileysMessages.filter(m => m.receivedAt >= threeMinutesAgoMs);
+      return fresh;
+    };
+
+    // PRIMARY: Try Baileys first
+    try {
+      allMessages = await fetchMessagesFromBaileys();
+      console.log(`[WhatsApp] Baileys: fetched ${allMessages.length} messages`);
+    } catch (baileysError) {
+      console.warn('[WhatsApp] Baileys failed:', baileysError.message);
+      allMessages = [];
+    }
+
+    // FALLBACK1: Try WHAPI if Baileys returned nothing
+    if (allMessages.length === 0 && process.env.WHAPI_TOKEN) {
+      try {
+        allMessages = await fetchMessagesFromWhapi();
+        console.log(`[WhatsApp] WHAPI fallback: fetched ${allMessages.length} messages`);
+      } catch (whapiError) {
+        console.warn('[WhatsApp] WHAPI also failed:', whapiError.message);
+        allMessages = [];
+      }
+    }
+
+    // ✅ Filter messages from job groups OR known sender within last 3 minutes
+    const filteredMessages = allMessages.filter(message => {
+      const fromJobGroup = JOB_GROUP_IDS.some(groupId => 
+        message.from === groupId || message.chatId === groupId
+      );
+      const fromKnownSender = message.from === '2349010400099';
+      const sentWithinLastThreeMinutes = message.timestamp >= threeMinutesAgo;
+      return (fromJobGroup || fromKnownSender) && sentWithinLastThreeMinutes;
+    });
+
+    // console.log("Filtered Messages:", filteredMessages);
+    return filteredMessages;
+
+  } catch (error) {
+    console.error('Error retrieving user response:', error.message);
+    return [];
+  }
+};
+
+let lastProcessedMessageId = null; // Track the ID of the last processed message
+
+const pollForMessages = async () => {
+  try {
+    // Generate a unique thread ID for this conversation
+    const threadId = generateThreadId();
+
+    // Send an initial message from the bot to the user
+    const botMessage = selectRandomMessage();
+    await sendMessageToSubscriber(subscriber, botMessage, threadId);
+
+    // Continuously poll for new messages
+    while (true) {
+      // Retrieve user's response from WhatsApp
+      const messages = await getUserResponseFromWhatsApp(threadId);
+
+      // Process user's response
+      messages.forEach(async message => {
+        // Check if message is an object
+        if (typeof message === 'object') {
+          const messageId = message.id; // Extract message ID
+          // Check if this message is newer than the last processed message
+          if (lastProcessedMessageId === null || messageId > lastProcessedMessageId) {
+            lastProcessedMessageId = messageId; // Update the last processed message ID
+            const userText = message.text.body.toLowerCase(); // Extract text directly from the message object
+            let botReply;
+            // Check if it's the first user response
+            if (
+              userText.includes("proceed") ||
+              userText.includes("okay") ||
+              userText.includes("yes") ||
+              userText.includes("ok") ||
+              userText.includes("continue") ||
+              userText.includes("thank you") ||
+              userText.includes("sure") ||
+              userText.includes("please do")
+            ) {
+
+              // User approves
+              const randomResponse = Math.floor(Math.random() * 5); // Generate a random number between 0 and 4
+              switch (randomResponse) {
+                case 0:
+                  botReply = "Thank you for considering our services. We're excited to move forward with your application. For more details about the job role and your application status, please visit the 'Manage Application' tab on your user dashboard.";
+                  break;
+                case 1:
+                  botReply = "We appreciate your interest and are ready to proceed with your application. For further information about the job role and your application status, please check the 'Manage Application' tab on your user dashboard.";
+                  break;
+                case 2:
+                  botReply = "Your decision to apply is noted. We'll handle your application with care. To learn more about the role and track your application status, please visit the 'Manage Application' tab on your user dashboard.";
+                  break;
+                case 3:
+                  botReply = "Great choice! We're processing your application. For more details about the role and to check your application status, please go to the 'Manage Application' tab on your user dashboard.";
+                  break;
+                case 4:
+                  botReply = "Thank you for your response. We’ll ensure everything is in place for your application. For additional information about the job role and to monitor your application status, please visit the 'Manage Application' tab on your user dashboard.";
+                  break;
+                default:
+                  botReply = "Thank you for your response. We will proceed with the application. For details about the job role and to check your application status, please visit the 'Manage Application' tab on your user dashboard.";
+
+
+                  await sendMessageToSubscriber(subscriber, botReply, threadId);
+
+              }
+
+
+              // Define recipient's email address
+             const recipientEmail = subscriber?.email || process.env.EMAIL_USER;
+              const transporter = nodemailer.createTransport({
+                host: process.env.EMAIL_HOST || "smtp.gmail.com",
+                port: 465,
+                secure: true,
+                auth: {
+                  user: process.env.EMAIL_USER,
+                  pass: process.env.EMAIL_PASS,
+                },
+              });
+              const gatePassDownloadsFolderPath = path.join(__dirname, '..', 'downloads');
+
+              // const gatePassUniqueFilename = () => {
+              //   return `${applicantName}__${accessedRoleTime}_accessed_role_${uniqueCode}.pdf`;
+              // };
+              
+              const gatePassUniqueFilename = (applicantName, appliedRole, formattedDateToday, uniqueCode) => {
+                return `${applicantName}__${appliedRole}__${formattedDateToday}_${uniqueCode}.pdf`;
+              };
+              // // const gatePassUniqueFilename = `TailoredResume_${formattedDateToday}_UserName_Job_Title.pdf`;
+              // const gatePassPdfPath = path.join(gatePassDownloadsFolderPath, gatePassUniqueFilename);
+              const gatePassPdfPath = path.join(
+                gatePassDownloadsFolderPath,
+                gatePassUniqueFilename(applicantName, appliedRole, formattedDateToday, uniqueCode)
+              );
+              // const gatePassPdfPath = path.join(gatePassDownloadsFolderPath, gatePassUniqueFilename()); // Call the function to get the string
+              app.use(express.json());
+
+
+              function cleanURL(url) {
+                const httpsIndex = url.indexOf('https://');
+                if (httpsIndex !== -1) {
+                  const cleanedURL = url.substring(httpsIndex);
+                  console.log('Cleaned URL:', cleanedURL); // Log the cleaned URL
+                  return cleanedURL;
+                }
+                console.log('Original URL (no change):', url); // Log the original URL if 'https://' is not found
+                return url; // Return the URL as is if 'https://' is not found
+              }
+
+let session
+// async function fetchDataAndProcess(session) {
+//   if (!session || !session.userId) {
+//     console.error('Invalid session or missing userId:', session);
+//     throw new Error('User ID not found in session.');
+//   }
+
+//   const userId = session.userId;
+//   console.log('Processing data for userId:', userId);
+
+//   const { client, collection } = await connectToDatabase();
+
+//   if (!collection) {
+//     console.log('No collection found');
+//     await client.close();
+//     return;
+//   }
+
+//   try {
+//     const data = await collection.find({ userId }).toArray(); // Fetch documents specific to the user
+//     console.log(`Fetched data for userId ${userId}:`, data);
+
+//     // Process each document
+//     const transformedCVs = data.map(doc => {
+//       const name = `${doc.name}`;
+//       const jobTitle = doc.jobTitle;
+//       const dateOfBirth = doc.dateOfBirth;
+//       const address = doc.address;
+//       const phone_number = doc.phone_number;
+//       const linkedin = doc.linkedin ? [cleanURL(doc.linkedin)] : [];
+//       const email = doc.email;
+//       const profileImage = cleanURL(doc.profileImage || 'https://via.placeholder.com/100'); // Default image
+
+//       const skillsData = Array.isArray(doc.skills)
+//         ? doc.skills.map(skill => ({ name: skill, barClass: '' }))
+//         : [];
+
+//       const educationData = Array.isArray(doc.education)
+//         ? doc.education.map(edu => ({
+//             degree: edu.degree,
+//             institution: edu.school,
+//             period: `${edu.duration}`,
+//             description: edu.description
+//           }))
+//         : [];
+
+//       const experienceData = Array.isArray(doc.workExperience)
+//         ? doc.workExperience.map(exp => ({
+//             title: exp.title,
+//             company: exp.company,
+//             period: `${exp.duration}`,
+//             description: exp.description
+//           }))
+//         : [];
+
+//       const summaryData = [doc.summary];
+
+//       const languagesData = Array.isArray(doc.languages)
+//         ? doc.languages.map(lang => ({
+//             name: lang.name,
+//             proficiency: lang.proficiency
+//           }))
+//         : [];
+
+//       const certificationsData = Array.isArray(doc.certifications)
+//         ? doc.certifications.map(cert => ({
+//             name: cert.name,
+//             institution: cert.institution,
+//             year: cert.year
+//           }))
+//         : [];
+
+//       const membershipsData = Array.isArray(doc.professionalBodies)
+//         ? doc.professionalBodies.map(body => ({
+//             name: body.name,
+//             role: body.role,
+//             year: body.year
+//           }))
+//         : [];
+
+//       const projectsData = Array.isArray(doc.projects)
+//         ? doc.projects.map(project => ({
+//             title: project.title,
+//             period: project.period || 'No specific period',
+//             details: project.details || [project.description]
+//           }))
+//         : [];
+
+//       return {
+//         name,
+//         jobTitle,
+//         dateOfBirth,
+//         address,
+//         phone_number,
+//         linkedin,
+//         email,
+//         profileImage,
+//         skillsData,
+//         educationData,
+//         experienceData,
+//         summaryData,
+//         languagesData,
+//         certificationsData,
+//         membershipsData,
+//         projectsData
+//       };
+//     });
+
+//     console.log('Transformed CVs:', transformedCVs);
+
+//     // Generate HTML for each CV
+//     transformedCVs.forEach(cv => {
+//       generateHTML(cv);
+//     });
+
+//   } catch (error) {
+//     console.error(`Error fetching or processing data for userId ${userId}:`, error);
+//   } finally {
+//     await client.close();
+//     console.log('Database connection closed.');
+//   }
+// }
+async function fetchDataAndProcess(session) {
+  if (!session || !session.userId) {
+    console.error('Invalid session or missing userId:', session);
+    throw new Error('User ID not found in session.');
+  }
+
+  const userId = session.userId;
+  console.log('Processing data for userId:', userId);
+
+  const { client, collection } = await connectToDatabase();
+
+  if (!collection) {
+    console.log('No collection found');
+    await client.close();
+    return;
+  }
+
+  try {
+    const data = await collection.find({ userId }).toArray();
+    console.log(`Fetched data for userId ${userId}:`, data);
+
+    console.log("🚀 Starting AI CV tailoring process...");
+    const tailoringResult = await triggerProcessCVDynamically(session, sessionToken);
+
+    if (tailoringResult && tailoringResult.tailoredCVData) {
+      console.log("✅ AI tailoring successful - using tailored data for CV generation");
+      
+      const tailoredData = tailoringResult.tailoredCVData;
+      
+      const transformedCVs = [{
+        name: tailoredData.name,
+        jobTitle: tailoredData.jobTitle,
+        dateOfBirth: tailoredData.dateOfBirth,
+        address: tailoredData.address,
+        phone_number: tailoredData.phone_number,
+        linkedin: tailoredData.linkedin ? [cleanURL(tailoredData.linkedin)] : [],
+        email: tailoredData.email,
+        profileImage: cleanURL(tailoredData.profileImage || 'https://via.placeholder.com/100'),
+        
+        skillsData: (tailoredData.skills || []).map(skill => ({ name: skill, barClass: '' })),
+        educationData: (tailoredData.education || []).map(edu => ({
+          degree: edu.degree,
+          institution: edu.school || edu.institution,
+          period: edu.duration || edu.period,
+          description: edu.description
+        })),
+        experienceData: (tailoredData.workExperience || []).map(exp => ({
+          title: exp.title,
+          company: exp.company,
+          period: exp.duration,
+          description: exp.description
+        })),
+        summaryData: [tailoredData.summary],
+        languagesData: tailoredData.languages || [],
+        certificationsData: tailoredData.certifications || [],
+        membershipsData: tailoredData.professionalBodies || [],
+        projectsData: (tailoredData.projects || []).map(project => ({
+          title: project.title,
+          period: project.period || 'No specific period',
+          details: project.details || [project.description]
+        }))
+      }];
+      
+      console.log('🎯 USING AI-TAILORED CV DATA:', {
+        jobTitle: tailoredData.jobTitle,
+        summaryLength: tailoredData.summary?.length,
+        skillsCount: tailoredData.skills?.length,
+        experienceCount: tailoredData.workExperience?.length
+      });
+
+      transformedCVs.forEach(cv => {
+        generateHTML(cv);
+      });
+      
+    } else {
+      console.log("⚠️ AI tailoring failed, falling back to original data");
+      
+  
+if (tailoringResult.success && tailoredData) {
+  console.log("✅ Using AI-tailored CV data");
+  
+  transformedCVs = [{
+    name: tailoredData.name,
+    jobTitle: tailoredData.jobTitle, // ← This is the AI-tailored job title
+    dateOfBirth: tailoredData.dateOfBirth,
+    address: tailoredData.address,
+    phone_number: tailoredData.phone_number,
+    linkedin: tailoredData.linkedin ? [cleanURL(tailoredData.linkedin)] : [],
+    email: tailoredData.email,
+    profileImage: cleanURL(tailoredData.profileImage || 'https://via.placeholder.com/100'),
+    
+    // Use AI-tailored sections
+    skillsData: (tailoredData.skills || []).map(skill => ({ 
+      name: skill, 
+      barClass: '' 
+    })),
+    
+    educationData: (tailoredData.education || []).map(edu => ({
+      degree: edu.degree,
+      institution: edu.school || edu.institution,
+      period: edu.duration || edu.period,
+      description: edu.description
+    })),
+    
+    experienceData: (tailoredData.workExperience || []).map(exp => ({
+      title: exp.title,
+      company: exp.company,
+      period: exp.duration,
+      description: exp.description // ← This contains AI-enhanced bullet points
+    })),
+    
+    summaryData: [tailoredData.summary], // ← AI-tailored professional summary
+    languagesData: tailoredData.languages || [],
+    certificationsData: tailoredData.certifications || [],
+    membershipsData: tailoredData.professionalBodies || [],
+    
+    projectsData: (tailoredData.projects || []).map(project => ({
+      title: project.title,
+      period: project.period || 'No specific period',
+      details: project.details || [project.description]
+    }))
+  }];
+  
+  console.log('🎯 USING AI-TAILORED CV DATA:', {
+    jobTitle: tailoredData.jobTitle,
+    summaryLength: tailoredData.summary?.length,
+    skillsCount: tailoredData.skills?.length,
+    experienceCount: tailoredData.workExperience?.length,
+    keywordCoverage: tailoringResult.metadata?.tailoringMethod
+  });
+  
+} else {
+  console.log("⚠️ AI tailoring failed, falling back to original data");
+  
+  // Fallback to original database data
+  transformedCVs = data.map(doc => {
+    const name = doc.name;
+    const jobTitle = doc.jobTitle;
+    const dateOfBirth = doc.dateOfBirth;
+    const address = doc.address;
+    const phone_number = doc.phone_number;
+    const linkedin = doc.linkedin ? [cleanURL(doc.linkedin)] : [];
+    const email = doc.email;
+    const profileImage = cleanURL(doc.profileImage || 'https://via.placeholder.com/100');
+    
+    const skillsData = doc.skills.map(skill => ({ 
+      name: skill, 
+      barClass: '' 
+    }));
+    
+    const educationData = doc.education.map(edu => ({
+      degree: edu.degree,
+      institution: edu.school,
+      period: edu.duration,
+      description: edu.description
+    }));
+    
+    const experienceData = doc.workExperience.map(exp => ({
+      title: exp.title,
+      company: exp.company,
+      period: exp.duration,
+      description: exp.description
+    }));
+    
+    const summaryData = [doc.summary];
+    
+    const languagesData = doc.languages.map(lang => ({
+      name: lang.name,
+      proficiency: lang.proficiency
+    }));
+    
+    const certificationsData = doc.certifications.map(cert => ({
+      name: cert.name,
+      institution: cert.institution,
+      year: cert.year
+    }));
+    
+    const membershipsData = doc.professionalBodies.map(body => ({
+      name: body.name,
+      role: body.role,
+      year: body.year
+    }));
+    
+    const projectsData = doc.projects.map(project => ({
+      title: project.title,
+      period: project.period || 'No specific period',
+      details: project.details || [project.description]
+    }));
+    
+    return {
+      name,
+      jobTitle,
+      dateOfBirth,
+      address,
+      phone_number,
+      linkedin,
+      email,
+      profileImage,
+      skillsData,
+      educationData,
+      experienceData,
+      summaryData,
+      languagesData,
+      certificationsData,
+      membershipsData,
+      projectsData
+    };
+  });
+}
+
+console.log('Transformed CVs:', transformedCVs);
+
+// Generate HTML with the transformed CVs (either AI-tailored or fallback)
+transformedCVs.forEach(cv => {
+  generateHTML(cv);
+});
+
+return userId;
+      }
+    } finally {
+      await client.close();
+    }
+  }
+
+fetchDataAndProcess(session, sessionToken);
+
+              async function generateHTML(cv) {
+                const profileImageHTML = `<img src="${cv.profileImage}" alt="${cv.name}" class="profile-image">`;
+
+                const summaryHTML = cv.summaryData.length > 0 ? `
+      <div class="summary section">
+          <h2>SUMMARY</h2>
+          ${cv.summaryData.map(summary => `<p>${summary}</p>`).join('')}
+      </div>` : '';
+
+                const experienceHTML = cv.experienceData.length > 0 ? `
+      <div class="experience section">
+          <h2>EXPERIENCE</h2>
+          ${cv.experienceData.map(exp => `
+              <div class="section">
+                  <h3>${exp.title}</h3>
+                  <p>${exp.company}</p>
+                  <p>${exp.period}</p>
+                  <p>${exp.description}</p>
+              </div>`).join('')}
+      </div>` : '';
+
+                const projectsHTML = cv.projectsData.length > 0 ? `
+      <div class="projects section">
+          <h2>PROJECTS</h2>
+          ${cv.projectsData.map(project => `
+              <div class="section">
+                  <h3>${project.title}</h3>
+                  <p>${project.period}</p>
+                  <ul>
+                      ${project.details.map(detail => `<li>${detail}</li>`).join('')}
+                  </ul>
+              </div>`).join('')}
+      </div>` : '';
+
+                const educationHTML = cv.educationData.length > 0 ? `
+      <div class="education section">
+          <h2>EDUCATION</h2>
+          ${cv.educationData.map(edu => `
+              <div class="section">
+                  <h3>${edu.degree}</h3>
+                  <p>${edu.institution}</p>
+                  <p>${edu.period}</p>
+                  <p>${edu.description}</p>
+              </div>`).join('')}
+      </div>` : '';
+
+                const contactHTML = `
+      <div class="contact">
+          <p>${cv.email}</p>
+          <p>${cv.phone_number}</p>
+          ${cv.linkedin.map(link => `<p><a href="${link}">${link}</a></p>`).join('')}
+      </div>
+  `;
+
+                const skillsHTML = cv.skillsData.length > 0 ? `
+      <div class="skills section">
+          <h2>SKILLS</h2>
+          <ul>
+              ${cv.skillsData.map(skill => `<li>${skill.name}</li>`).join('')}
+          </ul>
+      </div>` : '';
+
+                const languagesHTML = cv.languagesData.length > 0 ? `
+      <div class="languages section">
+          <h2>LANGUAGES</h2>
+          <ul>
+              ${cv.languagesData.map(lang => `<li>${lang.name} - ${lang.proficiency}</li>`).join('')}
+          </ul>
+      </div>` : '';
+
+                const certificationsHTML = cv.certificationsData.length > 0 ? `
+      <div class="certifications section">
+          <h2>CERTIFICATIONS</h2>
+          ${cv.certificationsData.map(cert => `
+              <div class="certification">
+                  <p>${cert.name}</p>
+                  <p>${cert.institution} (${cert.year})</p>
+              </div>`).join('')}
+      </div>` : '';
+
+                const membershipsHTML = cv.membershipsData.length > 0 ? `
+      <div class="memberships section">
+          <h2>PROFESSIONAL MEMBERSHIPS</h2>
+          ${cv.membershipsData.map(member => `
+              <div class="membership">
+                  <p>${member.name}</p>
+                  <p>${member.role} (${member.year})</p>
+              </div>`).join('')}
+      </div>` : '';
+
+                const genderHTML = cv.gender ? `<p><strong>Gender:</strong> ${cv.gender}</p>` : '';
+                const dobHTML = cv.dateOfBirth ? `<p><strong>Date of Birth:</strong> ${cv.dateOfBirth}</p>` : '';
+                const addressHTML = cv.address ? `<p><strong>Address:</strong> ${cv.address}</p>` : '';
+
+                        const premium_CV = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${cv.name} Resume</title>
+                    
+                    <style>
+                    .profile-image {
+                            width: 150px;
+                            height: 150px;
+                            border-radius: 50%;
+                          }
+                      
+                              body {
+                                  font-family: Arial, sans-serif;
+                                  margin: 0;
+                                  padding: 0;
+                                  background-color: #f4f4f4;
+                              }
+                              .container {
+                                  display: flex;
+                                  max-width: 900px;
+                                  margin: 20px auto;
+                                  background-color: #fff;
+                                  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                              }
+                              .sidebar {
+                                  background-color: #0d4a75;
+                                  color: white;
+                                  padding: 20px;
+                                  width: 30%;
+                                  text-align: center;
+                              }
+                            
+                              .sidebar img {
+                                  border-radius: 50%;
+                                  width: 100px;
+                                  height: 100px;
+                              }
+                              .sidebar h1 {
+                                  font-size: 24px;
+                                  margin: 10px 0;
+                              }
+                              .sidebar p {
+                                  margin: 5px 0;
+                              }
+                              .sidebar .contact, .sidebar .skills, .sidebar .languages, .sidebar .certifications {
+                                margin-top: 20px;
+                                text-align: left;
+                              }
+                              .sidebar .contact a, .sidebar .languages p {
+                                  color: white;
+                                  text-decoration: none;
+                              }
+                              .sidebar .skills ul, .sidebar .languages ul {
+                                  list-style: none;
+                                  padding: 0;
+                              }
+                              .sidebar .skills li, .sidebar .languages li {
+                                  margin: 10px 0;
+                              }
+                              .bar {
+                                  background-color: #fff;
+                                  border-radius: 10px;
+                                  height: 10px;
+                                  position: relative;
+                                  margin-top: 5px;
+                              }
+                              .bar-certification {
+                                background: linear-gradient(90deg, #ffeb3b 0%, #0d4a75 100%);
+                                border-radius: 10px;
+                                height: 10px; /* Increased height */
+                                margin: 10px 0;
+                              }
+                              .bar::after {
+                                  content: '';
+                                  background-color: #0073b1;
+                                  height: 100%;
+                                  border-radius: 10px;
+                                  position: absolute;
+                                  top: 0;
+                              }
+                              .bar1::after { width: 90%; }
+                              .bar2::after { width: 80%; }
+                              .bar3::after { width: 85%; }
+                              .bar4::after { width: 70%; }
+                              .bar5::after { width: 75%; }
+                              .bar6::after { width: 65%; }
+                              .bar7::after { width: 60%; }
+                              .bar8::after { width: 70%; }
+                              .bar9::after { width: 50%; }
+                              .bar10::after { width: 55%; }
+                              .main {
+                                  padding: 20px;
+                                  width: 70%;
+                              }
+                              .main h2 {
+                                  border-bottom: 2px solid #0d4a75;
+                                  padding-bottom: 5px;
+                              }
+                              .main h3 {
+                                  color: #0d4a75;
+                              }
+                              .main .section {
+                                  margin-top: 20px;
+                              }
+                      
+                              .sidebar .memberships {
+                                text-align: left;
+                              }
+                              .sidebar .memberships {
+                                margin-top: 20px;
+                                text-align: left;
+                              }
+                              
+                              .personal-details {
+                                  margin-top: 20px; /* Adds space between job title and personal details */
+                              }
+                              .personal-details p {
+                                  text-align: left;
+                              }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="sidebar">
+                            ${profileImageHTML}
+                            <h1>${cv.name}</h1>
+                            <p>${cv.jobTitle}</p>
+                            ${genderHTML}
+                            ${dobHTML}
+                            ${addressHTML}
+                            ${contactHTML}
+                            ${skillsHTML}
+                            ${languagesHTML}
+                            ${certificationsHTML}
+                            ${membershipsHTML}
+                        </div>
+                        <div class="main">
+                            ${summaryHTML}
+                            ${experienceHTML}
+                            ${projectsHTML}
+                            ${educationHTML}
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+                  
+                // console.log(premium_CV);
+                async function fetchSubscriptionDetails(sessionToken) {
+                    const client = new MongoClient(process.env.MONGO_URI, {
+                      useNewUrlParser: true,
+                      useUnifiedTopology: true,
+                    });
+                  
+                    const database = client.db('olukayode_sage');
+                    const sessionsCollection = database.collection('sessions');
+                    const usersCollection = database.collection('Users_CV_biodata');
+
+                  try {
+                    // Ensure connection is established before any database operations
+                    await client.connect();
+                    console.log('Fetching session data for token:', sessionToken);
+                    const sessionData = await sessionsCollection.findOne({ sessionToken });
+                
+                    if (!sessionData || !sessionData.userId) {
+                      console.error('Invalid session token or user not authenticated:', sessionData);
+                      throw new Error('Invalid session token or user not authenticated.');
+                    }
+                
+                    const userId = sessionData.userId;
+                    console.log('User ID found:', userId);
+                
+                    console.log('Fetching user subscription details...');
+                    const user = await usersCollection.findOne({ _id: userId });
+                
+                    if (!user || !user.subscription) {
+                      console.error('Subscription details not found for user:', user);
+                      throw new Error('Subscription details not found for the user.');
+                    }
+                
+                    const { plan } = user.subscription;
+                    console.log('Subscription plan:', plan);
+                
+                    return plan;
+                  } catch (error) {
+                    console.error('Error fetching subscription details:', error);
+                    throw error;
+                  } finally {
+                    // Conditionally close the connection
+                 
+                      console.log('Closing database connection...');
+                      await client.close();
+                    
+                  }
+                }
+
+                // Function to determine CV format based on subscription
+                const determineCVFormat = (subscription) => {
+                  let cvTemplate;
+                  if (subscription === 'Premium') {
+                 
+                    cvTemplate = premium_CV;
+                    console.log('Subscription type:', subscription); // Debug log
+                  } else if (subscription === 'Standard') {
+                   
+                    cvTemplate = standard_CV;
+                    console.log('Subscription type:', subscription); // Debug log
+                  } else if (subscription === 'Basic') {
+                    cvTemplate = basic_CV;
+                    console.log('Subscription type:', subscription); // Debug log
+                  } else {
+                    throw new Error('Invalid subscription type');
+                  }
+
+                  return cvTemplate;
+                };
+
+                // Usage example
+                const userSubscription = await fetchSubscriptionDetails(sessionToken); // Fetch subscription dynamically
+                const updatedGatePassHTML = determineCVFormat(userSubscription); // Pass userSubscription to determineCVFormat
+
+         
+/////////////////////////////////////////////////////existing working
+                // const generateSecurityGatePass = async (content, filename) => {
+                //   const options = { format: 'A4', 
+                //   printBackground: true, 
+                //   puppeteer: {
+                //     args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                //     timeout: 60000, // Increase timeout to 60 seconds
+                //     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' // Adjust path for your system
+                //       }
+                //     };
+                //   try {
+                //     let pdfBuffer = await html_to_pdf.generatePdf({ content }, options);
+
+                //     // Convert HTML content to PDF2
+                //     // const pdfBuffer = await html_to_pdf.generatePdf({ content }, options);
+                //     if (!fs.existsSync(gatePassDownloadsFolderPath)) {
+                //       fs.mkdirSync(gatePassDownloadsFolderPath, { recursive: true });
+                //     }
+
+                //       // Add retry logic for PDF generation
+                //       let retries = 5;
+              
+                //       while (retries > 0) {
+                //         try {
+                //           pdfBuffer = await html_to_pdf.generatePdf({ content }, options);
+                //           break;
+                //         } catch (err) {
+                //           retries--;
+                //           if (retries === 0) throw err;
+                //           console.log(`PDF generation failed, retrying... (${retries} attempts left)`);
+                //           await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                //         }
+                //       }
+
+                //     fs.writeFileSync(filename, pdfBuffer);
+                //     console.log(`PDF saved successfully to: ${filename}`);
+                //     return filename;
+                //   } catch (error) {
+                //     console.error('Error generating PDF111111111111111111111111:', error);
+                //     throw error;
+                //   }
+                // };
+                      //////////////////////////////////////////////////////////////////////////////////////////
+                      const generateSecurityGatePass = async (content, filename) => {
+                        // Enhanced configuration options
+                        const options = {
+                          format: 'A4',
+                          printBackground: true,
+                          puppeteer: {
+                            args: [
+                              '--no-sandbox',
+                              '--disable-setuid-sandbox',
+                              '--disable-dev-shm-usage',
+                              '--disable-gpu',
+                              '--disable-web-security'
+                            ],
+                            timeout: 120000, // Increased timeout to 120 seconds
+                            headless: 'new', // Use new headless mode
+                            // Only set executablePath if Chrome is not in the default location
+                            ...(process.platform === 'win32' && {
+                              executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+                            })
+                          }
+                        };
+
+                        // Helper function for delay
+                        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+                        // Exponential backoff retry logic
+                        const retryWithExponentialBackoff = async (operation, maxRetries = 5, initialDelay = 2000) => {
+                          let retries = 0;
+                          while (true) {
+                            try {
+                              return await operation();
+                            } catch (error) {
+                              retries++;
+                              if (retries > maxRetries) {
+                                throw new Error(`Failed after ${maxRetries} retries: ${error.message}`);
+                              }
+                              console.log(`Attempt ${retries} failed. Retrying in ${initialDelay * Math.pow(2, retries - 1)}ms...`);
+                              await delay(initialDelay * Math.pow(2, retries - 1));
+                            }
+                          }
+                        };
+
+                        try {
+                          // Ensure downloads directory exists
+                          const directory = path.dirname(filename);
+                          if (!fs.existsSync(directory)) {
+                            fs.mkdirSync(directory, { recursive: true });
+                          }
+
+                          // Generate PDF with retry logic
+                          const pdfBuffer = await retryWithExponentialBackoff(async () => {
+                            const result = await html_to_pdf.generatePdf({ content }, options);
+                            if (!result || result.length === 0) {
+                              throw new Error('Generated PDF is empty');
+                            }
+                            return result;
+                          });
+
+                          // Write file with error checking
+                          await fs.promises.writeFile(filename, pdfBuffer);
+                          console.log(`PDF successfully generated and saved to: ${filename}`);
+                          return filename;
+
+                        } catch (error) {
+                          const errorMessage = `PDF generation failed: ${error.message}`;
+                          console.error(errorMessage, error);
+                          throw new Error(errorMessage);
+                        }
+                      };
+
+                // Generate PDF and send it via WhatsApp and Email
+                generateSecurityGatePass(updatedGatePassHTML, gatePassPdfPath)
+                  .then(pdfPath => {
+                    const pdfData = fs.readFileSync(pdfPath, { encoding: 'base64' });
+                    sendMessageToGroup(groupId, pdfData, gatePassUniqueFilename);
+                    // Send the PDF via email if recipient's email is defined
+                    if (recipientEmail) {
+                      sendEmailWithAttachment(pdfPath, recipientEmail);
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error generating PDF2222222222222222222222222222222222:', error);
+                  });
+                // Function to send PDF via WhatsApp
+
+
+                      
+            const generateEmailCoverLetters = async (userId) => {
+              const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+              try {
+                await client.connect();
+                console.log('Connected to database');
+            
+                const database = client.db("olukayode_sage");
+            
+                // Fetch userId dynamically
+                const userId = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+                console.log("User ID:", userId, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+            
+                // Fetch the most recently published job role
+                const jobResults = await database.collection("application_processing_feeder")
+                  .find({ userId, published: true }) // Find all matching jobs
+                  .sort({ publishedAt: -1 }) // Sort in descending order (most recent first)
+                  .limit(1) // Get only the most recent job
+                  .toArray(); // Convert to array
+          
+                                  // Check if a job was found
+                      if (!jobResults.length) {
+                        console.log(`User ${userId}: No job found in database. Exiting.`);
+                        return ['Error: No job found'];
+                      }
+
+                      const accessedJobTitle = jobResults[0]; // Extract first job
+                      console.log("The most recent Job:", accessedJobTitle);
+
+                      // Extract job details
+                      const role = accessedJobTitle?.title ?? '[Role Title]';
+                      const company = accessedJobTitle?.company ?? 'your reputable company';
+                      const applicationEmail = accessedJobTitle?.applicationEmail || null;
+                      
+             
+              
+                if (!applicationEmail || applicationEmail === "Not provided") {
+                  console.log(`User ${userId}: No email found for ${role}. Adding to processing queue...`);
+                
+                  // // Insert job into queue & trigger next steps
+                  // await queueJobAndProcess(accessedJobTitle, userId);
+                
+                  return ['Error: No email found, job added to processing queue'];
+                }
+                
+
+                          // Fetch user's full name
+                          const userFullName = await getFullName();
+
+                          // Generate dynamic email cover letters
+                          return [
+                            `Dear Hiring Manager,\n\nI hope this message finds you well. I'm excited to express my interest in the ${role} position at ${company}. Please find my resume attached for your consideration.\n\nBest regards,\n${userFullName}`,
+
+                            `Dear Hiring Manager,\n\nI am writing to apply for the ${role} position. Attached is my resume for your review. I would welcome the opportunity to discuss further.\n\nKind regards,\n${userFullName}`,
+
+                            `Dear Hiring Manager,\n\nI hope this message reaches you in good spirits. I am very interested in the ${role} position at ${company}. Please find my resume attached for your review.\n\nWarm regards,\n${userFullName}`,
+
+                            `Dear Hiring Manager,\n\nPlease find my resume attached in response to the ${role} opening. I look forward to discussing this opportunity further.\n\nSincerely,\n${userFullName}`,
+
+                            `Dear Hiring Manager,\n\nI am excited to submit my application for the ${role} position at ${company}. My resume is attached for your review. Thank you for considering my application.\n\nBest regards,\n${userFullName}`
+                          ];
+                        } catch (error) {
+                          console.error("Error generating email cover letters:", error);
+                          return ['Error generating email cover letters'];
+                        }
+                      };
+
+                const sendEmailWithAttachment = async (pdfPath, email,sessionToken) => {
+                        // Fetch user ID from session or session token
+                  const userId = session?.userId || (await fetchUserIdBySessionToken(sessionToken));
+                  console.log(userId,"444444444444444444444444444444444444444444444444444444444444444444")
+                  if (!userId) {
+                    console.error("User ID is missing. Cannot proceed.");
+                    return;
+                  }
+                  console.log(`Retrieved User ID: ${userId}`);
+                  try {
+                    await client.connect();
+                    const accessedJob = await getAccessedJobTitle(); // Fetch job details from the database
+
+                    if (!accessedJob || !accessedJob.role) {
+                      console.error('No valid role title found, aborting email sending.');
+                      return;
+                    }
+
+                    // Unpack accessedJob details
+                    const {
+                      _id: roleId,
+                      role: roleTitle,
+                      applicationEmail,
+                      url,
+                      salaryRange,
+                      jobLocation,
+                      qualification,
+                      experience,
+                      jobField,
+                      jobDescription,
+                      keyResponsibilities,
+                      skills,
+                      requirements,
+                      postedDate,
+                      deadline,
+                    } = accessedJob;
+
+                    // Check if role is already processed
+                    const database = client.db('olukayode_sage');
+                    const applicationProcessingFeeder = database.collection('application_processing_feeder');
+                    const existingRole = await applicationProcessingFeeder.findOne({ _id: roleId });
+                  
+                    if (existingRole && existingRole.role_processed) {
+                      console.log('Role has already been processed, skipping email sending.');
+                      return;
+                    }
+
+                    // Generate cover letters and select a random one
+                    const emailCoverLetterVariants = await generateEmailCoverLetters(accessedJob);
+                    if (!emailCoverLetterVariants || emailCoverLetterVariants.length === 0) {
+                      console.error('No email cover letters available, aborting.');
+                      return;
+                    }
+
+                    const randomIndex = Math.floor(Math.random() * emailCoverLetterVariants.length);
+                    const selectedMessage = emailCoverLetterVariants[randomIndex];
+                  console.log("Cover letter generteddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
+                    // Send the email
+                    const info = await transporter.sendMail({
+                     from: `"${firstName}" <${process.env.EMAIL_USER}>`,
+          
+                      to: email,
+                       //to: applicationEmail, // Ensuring the correct application email is used    
+                      subject: `Application for the Role of ${roleTitle}`,
+                      text: selectedMessage,
+                      attachments: [
+                        {
+                          filename: path.basename(pdfPath),
+                          path: pdfPath,
+                        },
+                      ],
+                    });
+
+                    console.log('Email sent successfully with attachment:', info.messageId);
+
+                    // Mark role as processed in the database
+                    await applicationProcessingFeeder.updateOne(
+                      { _id: roleId },
+                      {
+                        $set: {
+                          role_processed: true,
+                          status: 'Treated',
+                          application: 'Approved',
+                          published: true,
+                          publishedAt: new Date(),
+                          processedAt: new Date(),
+                        },
+                      }
+                    );
+
+                    console.log("Role marked as treated and published");
+
+                  } catch (error) {
+                    console.error('Error sending email with attachment:', error);
+                    throw error;
+                  } finally {
+                    if (client) {
+                      await client.close();
+                    }
+                  }
+                }
+              }
+
+            }
+            
+            else if (
+              userText.includes("not interested") ||
+              userText.includes("not apply") ||
+              userText.includes("no please") ||
+              userText.includes("no")
+            ) {
+
+              const randomResponseIndex = Math.floor(Math.random() * 8); // Generate a random number between 0 and 6
+              switch (randomResponseIndex) {
+                case 0:
+                  botReply = "Thank you for letting us know. Should you change your mind, feel free to reach out again.";
+                  break;
+                case 1:
+                  botReply = "Noted. Should you reconsider, we'll be here to assist you further.";
+                  break;
+                case 2:
+                  botReply = "Understood. Feel free to reconnect if you decide to explore our services later.";
+                  break;
+                case 3:
+                  botReply = "Got it. Should you have a change of heart, don't hesitate to get in touch with us again.";
+                  break;
+                case 4:
+                  botReply = "Acknowledged. If your circumstances change, we're here to help.";
+                  break;
+                case 5:
+                  botReply = "Thank you for informing us. Remember, our doors are always open if you reconsider.";
+                  break;
+                case 6:
+                  botReply = "I understand. Our assistance remains available if you have a change of plans.";
+                  break;
+                case 7:
+                  botReply = "Received. Feel free to reach out if you have any questions in the future.";
+                  break;
+                default:
+                  botReply = "Thank you for letting us know. Should you change your mind, feel free to reach out again.";
+              }
+
+              // Mark role as processed and published in the database after the email is sent
+              try {
+                await applicationProcessingFeeder.updateOne(
+                  { _id: roleId }, // Query for the specific role by `_id`
+                  {
+                    $set: {
+                      role_processed: true,
+                      status: 'Treated',
+                      application: 'Declined',
+                      published: true, // Mark the role as published
+                      publishedAt: new Date(), // Set the publication timestamp
+                      processedAt: new Date(),
+                    },
+                  }
+                );
+                console.log("Role marked as treated and published..............................................................ccccccccccccccccccccccccccccc");
+              } catch (error) {
+                console.error('Error marking role as treated and published:', error);
+              } finally {
+                await client.close(); // Ensure the client is closed after operations
+              }
+            } else {
+              botReply = "I'm sorry, I couldn't understand your response. Could you please confirm if you'd like to proceed with the application? Alternatively, if you prefer to speak with us directly, feel free to reach out through any of the following channels:\n\n" +
+                "Email: info@suntrenia.com\n" +
+                "Phone: 07034995589\n" +
+                "WhatsApp: 08027946808\n\n" +
+                "We're here to assist you and ensure a smooth experience. Please don't hesitate to get in touch.";
+            }
+
+            // Send bot's reply to the user with the same thread ID
+            await sendMessageToSubscriber(subscriber, botReply, threadId);
+          }
+
+        } else {
+          console.error('Received message with non-object:', message);
+        }
+      });
+
+      // Wait for a while before polling for messages again
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 seconds delay
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+// Start the Long-Polling process
+pollForMessages();
+//////////////////////////////////////////////////////////////////////////
+//////////////////////took it up
+
+// app.use(session({
+//   secret: sessionSecret,
+//   resave: false,
+//   saveUninitialized: true,
+//   cookie: { secure: false } // Set to true in production with HTTPS
+// }));
+
+app.use(session({
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+      mongoUrl: uri, // Use your existing MongoDB URI
+      dbName: 'olukayode_sage',
+      ttl: 15 * 60 // 15 minutes
+  }),
+  cookie: { 
+      secure: false, // Set to true in production with HTTPS
+      httpOnly: true,
+      maxAge: 15 * 60 * 1000 // 15 minutes
+  }
+}));
+
+
+
+// app.post('/upload', upload.single('profileImage'), async (req, res) => {
+//   try {
+//     if (!req.session.userId) {
+//       return res.status(401).json({ success: false, message: 'User not logged in' });
+//     }
+
+//     await client.connect();
+//     const database = client.db('olukayode_sage');
+//     const kaydata = database.collection('Users_CV_biodata');
+
+//     const userId = req.session.userId;
+
+//     const profileImageCode = `${crypto.randomBytes(12).toString('hex')}_${req.file.location}`;
+
+//     const result = await kaydata.updateOne(
+//       { _id: userId },
+//       { $set: { profileImage: profileImageCode, 'Profile Image': profileImageCode } }
+//     );
+
+//     if (result.matchedCount === 0) {
+//       return res.status(404).json({ success: false, message: 'User not found' });
+//     }
+
+//     res.json({
+//       success: true,
+//       message: 'Profile image uploaded successfully',
+//       imageUrl: req.file.location,
+//     });
+//   } catch (error) {
+//     console.error('Error:', error);
+//     res.status(500).json({ success: false, message: 'Server error' });
+//   } finally {
+//     await client.close();
+//   }
+// });
+
+////////////////////////////////working
+// // Route to upload profile image and store session ID
+// app.post('/upload', upload.single('profileImage'), async (req, res) => {
+//   try {
+//     await client.connect();
+//     const database = client.db('olukayode_sage');
+//     const kaydata = database.collection('Users_CV_biodata');
+
+//     const customId = crypto.randomBytes(12).toString('hex'); // Generate unique ID
+//     const profileImageCode = customId + "_" + req.file.location;
+
+//     const result = await kaydata.insertOne({
+//       _id: customId,
+//       profileImage: profileImageCode,
+//       'Profile Image': profileImageCode,
+//       sessionId: req.session.id // Save session ID in the document
+//     });
+
+//     console.log('Inserted document customId:', customId);
+//     console.log('Inserted document ID:', result.insertedId);
+
+//     // Store customId in session
+//     req.session.customId = customId;
+
+//     res.json({
+//       success: true,
+//       imageUrl: req.file.location,
+//       customId: customId
+//     });
+//   } catch (error) {
+//     console.error('Error:', error);
+//     res.status(500).json({ success: false });
+//   } finally {
+//     await client.close();
+//   }
+// });
+// /////////////////////////////////////////////////////////////////////////////
+// // Route to upload profile image and store session ID
+// app.post('/upload', upload.single('profileImage'), async (req, res) => {
+//   console.log('Session:', req.session);
+//   try {
+//         if (!req.session.userId) {
+//       return res.status(401).json({ success: false, message: 'User not logged in' });
+//     }
+
+//     await client.connect();
+//     const database = client.db('olukayode_sage');
+//     // const kaydata = database.collection('users');
+//     const collection = database.collection('Users_CV_biodata');
+
+//     const userId = req.session.userId;
+//     const customId = crypto.randomBytes(12).toString('hex'); // Generate unique ID
+//     const profileImageCode = customId + "_" + req.file.location;
+
+//     // const result = await kaydata.insertOne({
+
+//     //   _id: userId,
+//     //   profileImage: profileImageCode,
+//     //   'Profile Image': profileImageCode,
+//     //   sessionId: req.session.id // Save session ID in the document
+//     // });
+
+//     const result = await kaydata.updateOne(
+//       { _id: userId }, // Match based on userId
+//       {
+//         $set: {
+//           profileImage: profileImageCode,
+//           'Profile Image': profileImageCode,
+//           sessionId: req.session.id // Save session ID in the document
+//         }
+//       },
+//       { upsert: true } // Insert if not exists, update if exists
+//     );
+
+//     console.log('Inserted document customId:', customId);
+//     console.log('Inserted document ID:', result.insertedId);
+
+//     // Store customId in session
+//     req.session.customId = customId;
+
+//     res.json({
+//       success: true,
+//       imageUrl: req.file.location,
+//       customId: customId
+//     });
+//   } catch (error) {
+//     console.error('Error:', error);
+//     res.status(500).json({ success: false });
+//   } finally {
+//     await client.close();
+//   }
+// });
+
+
+
+
+
+/////////////////////////////////////////////////////////
+
+
+// Route to upload profile image and store session ID
+app.post('/upload', upload.single('profileImage'), async (req, res) => {
+  console.log('Session:', req.session);
+
+  try {
+    // Check if user is logged in
+    if (!req.session.userId) {
+      return res.status(401).json({ success: false, message: 'User not logged in' });
+    }
+
+    // Establish database connection
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const collection = database.collection('Users_CV_biodata');
+
+    // Extract userId from session
+    const userId = req.session.userId;
+
+    // Generate unique ID for the profile image
+    const customId = crypto.randomBytes(12).toString('hex'); 
+    const profileImageCode = customId + "_" + req.file.location;
+
+    // Update or insert user data with profile image and session ID
+    const result = await collection.updateOne(
+      { _id: userId }, // Match document by userId
+      {
+        $set: {
+          profileImage: profileImageCode, // Save profile image code
+          // sessionId: req.session.id // Save session ID
+          "Profile Image":profileImageCode,
+        }
+      },
+      { upsert: true } // Insert if not found, otherwise update
+    );
+
+    console.log('Profile image updated for user:', userId);
+    console.log('Database operation result:', result);
+
+    // Store the custom ID in the session
+    req.session.customId = customId;
+
+    // Respond with success
+    res.json({
+      success: true,
+      imageUrl: req.file.location,
+      customId: customId
+    });
+  } catch (error) {
+    console.error('Error while uploading profile image:', error);
+    res.status(500).json({ success: false, message: 'Server error occurred' });
+  } finally {
+    // Ensure database connection is closed
+    await client.close();
   }
 });
 
 
-//////////////////////////////////////////////////////////////////////////////////////
+// // Route to submit CV and update data based on session ID
+// app.post('/submit-cv', async (req, res) => {
+//   const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+//   try {
+//     if (!req.session.userId) {
+//       return res.status(401).json({ success: false, message: 'User not logged in' });
+//     }
 
-async function scrapeWebPage(url) {
+    
+//     await client.connect();
+//     const database = client.db('olukayode_sage');
+//     const collection = database.collection('users');
+
+
+//     const userId = req.session.userId;
+//     const userData = req.body;
+//     const { name, jobTitle, dateOfBirth, address, email, phone_number, skills, workExperience, education, subscription, summary, projects, certifications, professionalBodies, languages } = userData;
+
+//     const customId = req.session.customId; // Retrieve customId from session
+
+//     if (!customId ) {
+//       return res.status(400).send('Custom ID is required');
+//     }
+
+//     const userDocument = {
+//       name,
+//       jobTitle,
+//       dateOfBirth,
+//       address,
+//       email,
+//       phone_number,
+//       skills,
+//       workExperience,
+//       education,
+//       subscription,
+//       summary,
+//       projects,
+//       certifications,
+//       professionalBodies,
+//       languages
+//     };
+
+
+
+//     const result = await collection.updateOne(
+//       { _id: userId }, // Match based on userId
+//       { $set: userDocument }, // Update fields with userDocument values
+//       { upsert: true } // Insert a new document if no match is found
+//     );
+  
+//     if (result.matchedCount > 0 || result.upsertedCount > 0) {
+//       res.status(200).send('CV updated successfully');
+//     } else if (result.upsertedCount > 0) {
+//       res.status(200).send('CV submitted successfully');
+//     } else {
+//       res.status(400).send('Failed to update or insert CV');
+//     }
+
+//   } catch (error) {
+//     console.error('Error connecting to database:', error);
+//     res.status(500).send('Error submitting CV');
+//   } finally {
+//     await client.close();
+//   }
+// });
+/////////////////////////////////////////////////////////////////////////////////////////////
+app.post('/submit-cv', async (req, res) => {
+  console.log(req.body);  // Log the incoming data to ensure it's correct
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
   try {
-      // Fetch HTML content of the webpage
-      const response = await axios.get(url);
-      const html = response.data;
+    // Check for user session
+    if (!req.session.userId) {
+      return res.status(401).json({ success: false, message: 'User not logged in' });
+    }
 
-      // Load HTML content into cheerio
-      const $ = cheerio.load(html);
+    // Validate and retrieve necessary data
+    const userId = req.session.userId;
+    const userData = req.body;
+    const { 
+      name, jobTitle, dateOfBirth, address, email, phone_number, skills, 
+      workExperience, education, subscription, summary, projects, 
+      certifications, professionalBodies, languages 
+    } = userData;
 
-      // Extract information based on CSS selectors
-      const title = $('title').text();
-      const paragraphs = $('p').map((index, element) => $(element).text()).get();
 
-      // Return the extracted information
-      return {
-          title: title,
-          paragraphs: paragraphs
+    // Connect to MongoDB
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    // const collection = database.collection('users');
+    const collection = database.collection('Users_CV_biodata');
+    // Construct user document for update
+    const userDocument = {
+      name,
+      jobTitle,
+      dateOfBirth,
+      address,
+      email,
+      phone_number,
+      skills,
+      workExperience,
+      education,
+      subscription,
+      summary,
+      projects,
+      certifications,
+      professionalBodies,
+      languages,
+    };
+
+    // Perform update or upsert operation
+    const result = await collection.updateOne(
+      { _id: userId }, // Match based on userId
+      { $set: userDocument }, // Update fields
+      { upsert: true } // Insert if no match is found
+    );
+
+    // Handle response
+    if (result.matchedCount > 0) {
+      res.status(200).json({ success: true, message: 'CV updated successfully' });
+    } else if (result.upsertedCount > 0) {
+      res.status(201).json({ success: true, message: 'CV submitted successfully' });
+    } else {
+      res.status(400).json({ success: false, message: 'Failed to update or insert CV' });
+    }
+  } catch (error) {
+    console.error('Error submitting CV:', error);
+    res.status(500).json({ success: false, message: 'Error submitting CV' });
+  } finally {
+    // Ensure the database connection is closed
+    await client.close();
+  }
+});
+
+app.post('/authorize', express.urlencoded({ extended: true }), (req, res) => {
+  const { decision } = req.body;
+
+  if (decision === 'yes') {
+    console.log('✅ User granted email access.');
+    // You can trigger your WebSocket message or next flow here
+    res.send(`
+      <html>
+        <body style="text-align:center;font-family:sans-serif;padding-top:50px;">
+          <h2 style="color:green;">Access Granted</h2>
+          <p>You can now close this page. Your email is authorized successfully.</p>
+          <script>
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `);
+  } else {
+    console.log('❌ User denied email access.');
+    res.send(`
+      <html>
+        <body style="text-align:center;font-family:sans-serif;padding-top:50px;">
+          <h2 style="color:red;">Access Denied</h2>
+          <p>Your email authorization was declined.</p>
+          <script>
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `);
+  }
+});
+
+app.get("/authorize", (req, res) => {
+  const html = `
+  <!DOCTYPE html>
+  <html>
+  <head><title>Email Authorization</title></head>
+  <body style="font-family: Poppins; text-align:center; margin-top:50px;">
+    <h2>Grant Email Access</h2>
+    <p>To continue, please authorize us to send applications using your email.</p>
+    <button onclick="window.location.href='/auth/google'">Authorize with Google</button>
+    <button onclick="window.location.href='/auth/outlook'">Authorize with Outlook</button>
+  </body>
+  </html>
+  `;
+  res.send(html);
+});
+
+//////////////////////////////////////////////////////////////////
+app.get('/fetch-cv-data', async (req, res) => {
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+  try {
+    // Check for user session
+    if (!req.session.userId) {
+      return res.status(401).json({ success: false, message: 'User not logged in' });
+    }
+
+    const userId = req.session.userId;
+
+    // Connect to MongoDB
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    // const collection = database.collection('users');
+    const collection = database.collection('Users_CV_biodata');
+    // Fetch the CV data for the logged-in user
+    const userCvData = await collection.findOne({ _id: userId });
+
+    if (!userCvData) {
+      return res.status(404).json({ success: false, message: 'No CV data found for this user' });
+    }
+
+    // Return the user's CV data
+    res.status(200).json({ success: true, data: userCvData });
+  } catch (error) {
+    console.error('Error fetching CV data:', error);
+    res.status(500).json({ success: false, message: 'Error fetching CV data' });
+  } finally {
+    // Ensure the database connection is closed
+    await client.close();
+  }
+});
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// app.post('/update-job-preferences', upload.none(), async (req, res) => {
+//   const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+//   try {
+//     // Check for user session
+//     if (!req.session.userId) {
+//       return res.status(401).json({ success: false, message: 'User not logged in' });
+//     }
+
+//     const userId = req.session.userId;
+//     const { jobPreferences } = req.body;
+
+//     // Validate jobPreferences
+//     if (!jobPreferences || Object.keys(jobPreferences).length === 0) {
+//       return res.status(400).json({ success: false, message: 'Invalid job preferences data' });
+//     }
+
+//     // Parse job preferences (if sent as a string)
+//     let parsedPreferences;
+//     try {
+//       parsedPreferences = JSON.parse(jobPreferences);
+//     } catch (error) {
+//       return res.status(400).json({ success: false, message: 'Job preferences must be a valid JSON object' });
+//     }
+   
+//     // Connect to MongoDB
+//     await client.connect();
+//     const database = client.db('olukayode_sage');
+//     // const collection = database.collection('users');
+//     const collection = database.collection(' Users_CV_biodata');
+//     // Update or upsert job preferences
+//     const result = await collection.updateOne(
+//       { _id: userId }, // Match based on userId
+//       { $set: { jobPreferences: parsedPreferences } }, // Update job preferences
+//       { upsert: true } // Insert if no match is found
+//     );
+
+//     // Handle response
+//     if (result.matchedCount > 0) {
+//       res.status(200).json({ success: true, message: 'Job preferences updated successfully' });
+//     } else if (result.upsertedCount > 0) {
+//       res.status(201).json({ success: true, message: 'Job preferences created successfully' });
+//     } else {
+//       res.status(400).json({ success: false, message: 'Failed to update or create job preferences' });
+//     }
+//   } catch (error) {
+//     console.error('Error updating job preferences:', error);
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   } finally {
+//     // Ensure the database connection is closed
+//     await client.close();
+//   }
+// });
+///////////////////////////////////////////////////////////////////////
+app.post('/update-job-preferences', upload.none(), async (req, res) => {
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+  try {
+    // Check for user session
+    if (!req.session.userId) {
+      return res.status(401).json({ success: false, message: 'User not logged in' });
+    }
+
+    const userId = req.session.userId;
+    const { jobPreferences } = req.body;
+
+    // Validate jobPreferences
+    if (!jobPreferences) {
+      return res.status(400).json({ success: false, message: 'Invalid job preferences data' });
+    }
+
+    // Parse job preferences (if sent as a string)
+    let parsedPreferences;
+    try {
+      parsedPreferences = typeof jobPreferences === 'string' 
+        ? JSON.parse(jobPreferences) 
+        : jobPreferences;
+    } catch (error) {
+      return res.status(400).json({ success: false, message: 'Job preferences must be a valid JSON object' });
+    }
+   
+    // Connect to MongoDB
+    await client.connect();
+    const database = client.db('olukayode_sage');
+    const collection = database.collection('Users_CV_biodata'); // Fixed: removed extra space
+    
+    // IMPORTANT: Update ONLY the existing user document - NO UPSERT
+    // This prevents creating duplicate documents
+    const result = await collection.updateOne(
+      { _id: userId }, // Match based on userId (_id should match your session userId)
+      { 
+        $set: { 
+          jobPreferences: parsedPreferences,
+          updatedAt: new Date() // Track when job preferences were last updated
+        } 
+      }
+      // REMOVED: upsert: true - This was causing duplicates
+    );
+
+    // Handle response
+    if (result.matchedCount > 0) {
+      res.status(200).json({ 
+        success: true, 
+        message: 'Job preferences updated successfully' 
+      });
+    } else {
+      // User document doesn't exist - this shouldn't happen if user is logged in
+      console.error(`No user found with _id: ${userId}`);
+      res.status(404).json({ 
+        success: false, 
+        message: 'User profile not found. Please complete your profile first.' 
+      });
+    }
+  } catch (error) {
+    console.error('Error updating job preferences:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message // Include error details for debugging
+    });
+  } finally {
+    // Ensure the database connection is closed
+    await client.close();
+  }
+});
+
+
+app.post('/api/submit-subscription', async (req, res) => {
+  const { plan, date } = req.body; // Plan and start date received from the frontend
+  const userId = req.session.userId;  // Get user ID from session, ensuring it's authenticated
+
+  if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+  }
+
+  // Load plan config from DB (falls back to defaults if DB fails)
+  const planConfig = await getPlanConfig();
+  const planKey = plan.toLowerCase();
+  if (!planConfig[planKey]) {
+      return res.status(400).json({ message: "Invalid subscription plan" });
+  }
+  const durationInDays = planConfig[planKey].durationDays;
+
+  // Calculate expiration date based on the duration
+  const startDate = new Date(date); // Start date from the request
+  const expirationDate = new Date(startDate);
+  expirationDate.setDate(startDate.getDate() + durationInDays); // Add duration in days to the start date
+
+  // Format dates to be more readable
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const formattedStartDate = formatDate(startDate);
+  const formattedExpirationDate = formatDate(expirationDate);
+
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+  try {
+      await client.connect();
+      const database = client.db('olukayode_sage');
+      const collection = database.collection('Users_CV_biodata');
+      
+      // Fetch the user from the database using _id, assuming userId corresponds to _id
+      const user = await collection.findOne({ _id: userId });  // Match _id with session's userId
+
+      if (!user) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      const userEmail = user.email;
+      const userName = user.name.split(' ')[0]; // Extracting the first name from the full name
+
+      const subscriptionData = {
+        plan,
+        date,
+        durationInDays, // Add duration to the subscription data
+        expirationDate: expirationDate.toISOString(), // Store expiration date in ISO format
+    };
+
+      // Add the subscription to the user's data
+      const result = await collection.updateOne(
+          { _id: userId },  // Ensure we're updating the document with the correct _id
+          { 
+              $set: { 
+                  subscription: subscriptionData
+              }
+          }
+      );
+
+      if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      // Auto-unlock Interview Helper for Intellijob subscribers
+      await collection.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            'interviewHelper.access': true,
+            'interviewHelper.source': 'intellijob_subscription',
+            'interviewHelper.unlockedAt': new Date()
+          }
+        }
+      );
+
+      const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || "smtp.gmail.com",
+        port: 465,
+        secure: true, // port 465 requires secure:true (Nigerian ISPs block 587)
+        auth: {
+          user: process.env.EMAIL_USER, // stored in .env
+          pass: process.env.EMAIL_PASS, // stored in .env
+        },
+      });
+
+
+
+      const mailOptions = {
+        from: `"Suntrenia" <${process.env.EMAIL_USER}>`,
+        to: userEmail,
+        subject: `Subscription Confirmation - ${plan} Plan`,
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+                        color: #374151; 
+                        line-height: 1.6; 
+                        margin: 0; 
+                        padding: 0; 
+                        background-color: #f9fafb;
+                    }
+                    .container { 
+                        max-width: 580px; 
+                        margin: 0 auto; 
+                        background-color: #ffffff; 
+                        border-radius: 12px; 
+                        overflow: hidden;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    }
+                    .header { 
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white; 
+                        padding: 25px 30px; 
+                        text-align: center; 
+                    }
+                    .header h1 { 
+                        margin: 0; 
+                        font-size: 22px; 
+                        font-weight: 600;
+                        letter-spacing: -0.025em;
+                    }
+                    .content { 
+                        padding: 25px 35px; 
+                    }
+                    .greeting {
+                        font-size: 16px;
+                        margin-bottom: 8px;
+                        color: #111827;
+                        font-weight: 500;
+                    }
+                    .plan-highlight {
+                        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+                        border-left: 4px solid #667eea;
+                        padding: 16px 20px;
+                        margin: 20px 0;
+                        border-radius: 0 8px 8px 0;
+                    }
+                    .details-box {
+                        background-color: #f8fafc;
+                        border-radius: 8px;
+                        padding: 20px 25px;
+                        margin: 25px 0;
+                        border: 1px solid #e5e7eb;
+                    }
+                    .detail-row {
+                        display: flex;
+                        margin-bottom: 12px;
+                        padding-bottom: 12px;
+                        border-bottom: 1px solid #e5e7eb;
+                    }
+                    .detail-row:last-child {
+                        margin-bottom: 0;
+                        padding-bottom: 0;
+                        border-bottom: none;
+                    }
+                    .detail-label {
+                        font-weight: 500;
+                        width: 45%;
+                        color: #6b7280;
+                        font-size: 14px;
+                    }
+                    .detail-value {
+                        width: 55%;
+                        color: #111827;
+                        font-weight: 500;
+                        font-size: 14px;
+                    }
+                    .footer { 
+                        text-align: center; 
+                        padding: 25px 30px; 
+                        background-color: #f8fafc;
+                        color: #6b7280;
+                        font-size: 12px;
+                        border-top: 1px solid #e5e7eb;
+                    }
+                    .button {
+                        display: inline-block;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 12px 28px;
+                        text-decoration: none;
+                        border-radius: 6px;
+                        font-weight: 500;
+                        font-size: 14px;
+                        margin: 20px 0;
+                        border: none;
+                        cursor: pointer;
+                    }
+                    .highlight {
+                        color: #667eea;
+                        font-weight: 600;
+                    }
+                    p {
+                        margin: 16px 0;
+                        font-size: 14px;
+                        color: #374151;
+                        line-height: 1.6;
+                    }
+                    .welcome-text {
+                        font-size: 14px;
+                        color: #6b7280;
+                        margin-bottom: 20px;
+                    }
+                    .support-text {
+                        font-size: 14px;
+                        color: #6b7280;
+                        margin-top: 25px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Welcome to Suntrenia!</h1>
+                    </div>
+                    <div class="content">
+                        <div class="greeting">Hello ${userName},</div>
+                        <p class="welcome-text">Thank you for choosing Suntrenia! We're excited to confirm that your subscription has been successfully activated.</p>
+                        
+                        <div class="plan-highlight">
+                            <strong style="font-size: 15px; color: #111827;">Subscription Plan:</strong> 
+                            <span style="color: #667eea; font-weight: 600; font-size: 15px;">${plan.charAt(0).toUpperCase() + plan.slice(1)}</span>
+                        </div>
+                        
+                        <div class="details-box">
+                            <div class="detail-row">
+                                <div class="detail-label">Start Date:</div>
+                                <div class="detail-value">${formattedStartDate}</div>
+                            </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Expiration Date:</div>
+                                <div class="detail-value">${formattedExpirationDate}</div>
+                            </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Duration:</div>
+                                <div class="detail-value">${durationInDays} days</div>
+                            </div>
+                        </div>
+                        
+                        <p>You now have access to all the features included in your ${plan} plan. We're committed to providing you with the best experience possible.</p>
+                        
+                        <p class="support-text">If you have any questions or need assistance, our support team is here to help. Simply reply to this email or contact us at <a href="mailto:support@suntrenia.com" style="color: #667eea;">support@suntrenia.com</a>.</p>
+                        
+                        <div style="text-align: center;">
+                            <a href="#" class="button">Access Your Account</a>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p style="margin: 0 0 8px 0; color: #6b7280;">&copy; ${new Date().getFullYear()} Suntrenia. All rights reserved.</p>
+                        <p style="margin: 0; color: #9ca3af;">This is an automated message, please do not reply directly to this email.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
+    };
+    
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Reply sent: %s', info.messageId);
+
+    const statusCode = 200;
+    const responsePayload = { message: "Subscription successfully submitted and email sent" };
+    
+    console.log('Sending Response:', { status: statusCode, payload: responsePayload });
+    
+    res.status(statusCode).json(responsePayload);
+
+    // Trigger main application cycle for all plans
+    try {
+      const sessionForMain = req.session;
+      if (sessionForMain && sessionForMain.userId) {
+        console.log(`[Subscription] Triggering main cycle for ${plan} plan, user ${sessionForMain.userId}`);
+        main(req, res).catch(err => console.error('[Subscription] main() error:', err.message));
+      }
+    } catch(triggerErr) {
+      console.error('[Subscription] Failed to trigger main:', triggerErr.message);
+    }
+    
+
+  } catch (error) {
+      console.error('Error submitting subscription:', error);
+      res.status(500).json({ message: 'Error processing subscription' });
+  } finally {
+      await client.close();
+  }
+});
+/////////
+
+// Endpoint or function to get subscription details
+async function getSubscriptionDetails(req, res) {
+  const userId = req.session.userId; // Get user ID from session
+
+  if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+  }
+
+  // Connect to MongoDB
+  const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+  try {
+      await client.connect();
+      const database = client.db('olukayode_sage');
+      const collection = database.collection('users');
+      
+      // Find the user in the database by their userId
+      const user = await collection.findOne({ userId });
+      
+      if (!user) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      // Assuming subscription data is stored under the 'subscription' field
+      const subscription = user.subscription;
+
+      if (!subscription) {
+          return res.status(404).json({ message: "Subscription data not found" });
+      }
+
+      // Convert dates to Date objects for calculation
+      const startDate = new Date(subscription.date);
+      const expirationDate = new Date(subscription.expirationDate);
+
+      // Calculate elapsed time in days
+      const currentDate = new Date();
+      const elapsedTime = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+
+      // Subscription status (active or expired)
+      const subscriptionStatus = (currentDate > expirationDate) ? 'Expired' : 'Active';
+
+      // Calculate remaining time in days
+      const remainingTime = Math.floor((expirationDate - currentDate) / (1000 * 60 * 60 * 24)); // Days until expiration
+
+      // Prepare individual subscription details for response
+      const subscriptionData = {
+          subscriptionPlan: subscription.plan, // Subscription plan
+          subscriptionDuration: subscription.durationInDays, // Duration of subscription
+          subscriptionElapsed: elapsedTime, // Elapsed time (in days)
+          subscriptionStarts: startDate.toISOString().split('T')[0], // Start date in YYYY-MM-DD format
+          subscriptionExpires: expirationDate.toISOString().split('T')[0], // Expiration date in YYYY-MM-DD format
+          subscriptionStatus, // Status: "Active" or "Expired"
+          remainingTime, // Remaining days until expiration
       };
+
+      // Send response with subscription details
+      res.status(200).json({ subscriptionData });
+
   } catch (error) {
-      console.error("Error scraping web page:", error);
-      return null;
+      console.error('Error fetching subscription data:', error);
+      res.status(500).json({ message: 'Error fetching subscription data' });
+  } finally {
+      await client.close();
   }
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Example usage:
-const url3 = "https://example.com";
-scrapeWebPage(url3)
-  .then(data => {
-      if (data) {
-          console.log("Title:", data.title);
-          console.log("Paragraphs:", data.paragraphs);
-      } else {
-          console.log("Failed to scrape web page.");
-      }
-  })
-  .catch(error => console.error("Error:", error));
+// ════════════════════════════════════════════════════════════════════════════
+// PARAKLEET AI INTERVIEW HELPER INTEGRATION
+// ════════════════════════════════════════════════════════════════════════════
 
+// POST /subscribe-interview-helper
+// For users who want ONLY the interview coaching, without Intellijob job-hunting
+app.post('/subscribe-interview-helper', ensureAuthenticated, async (req, res) => {
+  const { plan, date, paymentReference } = req.body;
+  // plan: 'interview_monthly' | 'interview_quarterly' | 'interview_yearly'
+  const userId = req.session.userId;
 
-async function getPageText(url3) {
+  const planDurations = {
+    interview_monthly:   30,
+    interview_quarterly: 90,
+    interview_yearly:    365,
+  };
+
+  if (!planDurations[plan]) {
+    return res.status(400).json({ message: 'Invalid interview helper plan' });
+  }
+
+  const startDate      = new Date(date || Date.now());
+  const expirationDate = new Date(startDate);
+  expirationDate.setDate(startDate.getDate() + planDurations[plan]);
+
+  const mongoClient = new MongoClient(uri);
   try {
-      const response = await axios.get(url3);
-      return response.data;
-  } catch (error) {
-      console.error("Error fetching page:", error);
-      return null;
+    await mongoClient.connect();
+    const db         = mongoClient.db('olukayode_sage');
+    const collection = db.collection('Users_CV_biodata');
+
+    await collection.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          'interviewHelper.access':         true,
+          'interviewHelper.source':         'standalone_subscription',
+          'interviewHelper.plan':           plan,
+          'interviewHelper.startDate':      startDate.toISOString(),
+          'interviewHelper.expirationDate': expirationDate.toISOString(),
+          'interviewHelper.paymentRef':     paymentReference || null,
+          'interviewHelper.unlockedAt':     new Date()
+        }
+      }
+    );
+
+    res.json({
+      success:        true,
+      message:        'Interview Helper activated',
+      expiresAt:      expirationDate.toISOString(),
+    });
+  } catch (err) {
+    console.error('[InterviewHelper] Subscription error:', err.message);
+    res.status(500).json({ message: 'Failed to activate interview helper' });
+  } finally {
+    await mongoClient.close();
+  }
+});
+
+// GET /api/interview-helper/status
+// Returns whether the current user has Interview Helper access and why
+app.get('/api/interview-helper/status', ensureAuthenticated, async (req, res) => {
+  const userId    = req.session.userId;
+  const mongoClient = new MongoClient(uri);
+  try {
+    await mongoClient.connect();
+    const db   = mongoClient.db('olukayode_sage');
+    const user = await db.collection('Users_CV_biodata').findOne({ _id: userId });
+
+    if (!user) return res.json({ hasAccess: false });
+
+    // Check same logic as middleware
+    const sub = user.subscription;
+    if (sub?.plan && sub?.expirationDate && new Date(sub.expirationDate) > new Date()) {
+      return res.json({ hasAccess: true, source: 'intellijob_subscription', plan: sub.plan });
+    }
+
+    if (user.jobPlacedThroughUs === true) {
+      return res.json({ hasAccess: true, source: 'job_placement' });
+    }
+
+    const ih = user.interviewHelper;
+    if (ih?.access && ih?.source === 'standalone_subscription' && new Date(ih.expirationDate) > new Date()) {
+      return res.json({ hasAccess: true, source: 'standalone_subscription', plan: ih.plan, expiresAt: ih.expirationDate });
+    }
+
+    return res.json({
+      hasAccess: false,
+      upgradeOptions: [
+        { plan: 'interview_monthly',   label: 'Monthly — Interview Helper Only',    durationDays: 30  },
+        { plan: 'interview_quarterly', label: 'Quarterly — Interview Helper Only',  durationDays: 90  },
+        { plan: 'interview_yearly',    label: 'Yearly — Interview Helper Only',     durationDays: 365 },
+      ]
+    });
+  } catch (err) {
+    console.error('[InterviewHelper] status error:', err.message);
+    res.status(500).json({ hasAccess: false });
+  } finally {
+    await mongoClient.close();
+  }
+});
+
+// GET /api/active-job
+// Called by the Parakleet extension on startup to pre-fill job role & company
+app.get('/api/active-job', async (req, res) => {
+  const userId = req.session?.userId;
+  if (!userId) return res.json({ role: '', company: '' });
+
+  const client = new MongoClient(uri);
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+
+    // Find the most recently active application for this user
+    const activeApp = await db.collection('application_status').findOne(
+      { userId, status: { $in: ['interview', 'interviewing', 'shortlisted'] } },
+      { sort: { updatedAt: -1 } }
+    );
+
+    res.json({
+      role:    activeApp?.jobTitle   || activeApp?.role    || '',
+      company: activeApp?.company    || activeApp?.employer || '',
+    });
+  } catch (err) {
+    console.error('[InterviewHelper] active-job error:', err.message);
+    res.json({ role: '', company: '' });
+  } finally {
+    await client.close();
+  }
+});
+
+// POST /api/mark-job-placed
+// Call this after a placement is confirmed to permanently unlock Interview Helper
+app.post('/api/mark-job-placed', ensureAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const mongoClient = new MongoClient(uri);
+
+  try {
+    await mongoClient.connect();
+    const db = mongoClient.db('olukayode_sage');
+    const collection = db.collection('Users_CV_biodata');
+
+    await collection.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          jobPlacedThroughUs: true,
+          'interviewHelper.access': true,
+          'interviewHelper.source': 'job_placement',
+          'interviewHelper.unlockedAt': new Date()
+        }
+      }
+    );
+
+    res.json({ success: true, message: 'Interview Helper unlocked by placement' });
+  } catch (err) {
+    console.error('[InterviewHelper] mark-job-placed error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to mark job placement' });
+  } finally {
+    await mongoClient.close();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Register Parakleet AI routes
+// ════════════════════════════════════════════════════════════════════════════
+const { requireInterviewHelperAccess } = require('./middleware/interviewHelperAuth');
+const transcribeRouter = require('./routes/transcribe');
+const coachRouter      = require('./routes/coach');
+
+// Ensure tmp directories exist
+['tmp/audio', 'tmp/cv'].forEach(dir => {
+  const full = path.join(__dirname, dir);
+  if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
+});
+
+// Register Parakleet routes with access middleware
+app.use('/api', requireInterviewHelperAccess, transcribeRouter);
+app.use('/api', requireInterviewHelperAccess, coachRouter);
+
+
+// ============================================================
+// USER SETTINGS PANEL
+// ============================================================
+app.get('/user/settings', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const client = new MongoClient(process.env.MONGO_URI);
+  let user = {};
+  try {
+    await client.connect();
+    user = await client.db('olukayode_sage').collection('Users_CV_biodata').findOne(
+      { _id: userId },
+      { projection: { name: 1, email: 1, subscription: 1, autoMode: 1, interviewHelper: 1 } }
+    ) || {};
+  } catch(e) { console.error('[UserSettings]', e.message); }
+  finally { await client.close(); }
+
+  const autoMode = user.autoMode === true;
+  const plan = user.subscription?.plan || 'None';
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Settings — Suntrenia</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#1a1a2e;font-family:Inter,sans-serif;color:#f0f0f0;}
+    .topbar{background:#16213e;border-bottom:1px solid rgba(124,58,237,0.3);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;width:100%;z-index:100;}
+    .logo{color:#7c3aed;font-size:20px;font-weight:700;}
+    .nav a{color:#a0a0b0;text-decoration:none;font-size:14px;margin-left:20px;}
+    .content{padding:80px 24px 40px;max-width:700px;margin:0 auto;}
+    .page-title{font-size:20px;font-weight:700;margin-bottom:24px;}
+    .card{background:#16213e;border:1px solid rgba(124,58,237,0.15);border-radius:12px;padding:22px;margin-bottom:16px;}
+    .card-title{font-size:14px;font-weight:600;margin-bottom:16px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.5px;}
+    .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+    .setting-row:last-child{border-bottom:none;padding-bottom:0;}
+    .setting-label{font-size:14px;font-weight:500;}
+    .setting-desc{font-size:12px;color:#a0a0b0;margin-top:3px;max-width:400px;line-height:1.5;}
+    .toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#2d2d4d;border-radius:24px;transition:0.3s;}
+    .slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:0.3s;}
+    input:checked+.slider{background:#7c3aed;}
+    input:checked+.slider:before{transform:translateX(20px);}
+    .btn{padding:8px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;}
+    .btn-primary{background:#7c3aed;color:white;}
+    .btn-secondary{background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);}
+    .btn-success{background:rgba(16,185,129,0.2);color:#10b981;border:1px solid rgba(16,185,129,0.3);}
+    .alert{padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px;}
+    .alert-success{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;}
+    .info-val{font-size:13px;color:#f0f0f0;font-weight:500;}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">Suntrenia</div>
+    <div class="nav">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/user/settings">Settings</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+  <div class="content">
+    <div class="page-title">Account Settings</div>
+    ${req.query.success ? `<div class="alert alert-success">✅ ${decodeURIComponent(req.query.success)}</div>` : ''}
+
+    <div class="card">
+      <div class="card-title">Profile</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Name</div></div>
+        <div class="info-val">${user.name || '-'}</div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Email</div></div>
+        <div class="info-val">${user.email || '-'}</div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Current Plan</div></div>
+        <div class="info-val">${plan}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Application Mode</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Auto Mode (Do Not Disturb)</div>
+          <div class="setting-desc">When enabled, Suntrenia applies to jobs automatically without asking for your approval. At the end of each day, you'll receive a WhatsApp summary of all jobs applied for.</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="autoModeToggle" ${autoMode ? 'checked' : ''} onchange="toggleAutoMode(this)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Consent Mode</div>
+          <div class="setting-desc">When Auto Mode is off, you'll be prompted via WhatsApp to approve or decline each job application before it's sent.</div>
+        </div>
+        <span style="font-size:12px;color:${autoMode ? '#a0a0b0' : '#10b981'};font-weight:600">${autoMode ? 'Inactive' : 'Active'}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Gmail Authorization</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Connect your Gmail</div>
+          <div class="setting-desc">Authorize Suntrenia to send job applications from your own Gmail address. This makes your applications look more professional and personal.</div>
+        </div>
+        <a href="/settings/email-authorization" class="btn btn-secondary">Manage</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Interview Helper</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Interview Helper Access</div>
+          <div class="setting-desc">AI-powered interview preparation tool. Unlocked automatically with your subscription.</div>
+        </div>
+        <span style="font-size:12px;color:${user.interviewHelper?.access ? '#10b981' : '#ef4444'};font-weight:600">${user.interviewHelper?.access ? '✅ Unlocked' : '🔒 Locked'}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Subscription</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Top Up or Change Plan</div>
+          <div class="setting-desc">Activate a new plan or extend your current subscription.</div>
+        </div>
+        <a href="/dashboard#topup" class="btn btn-primary">Top Up</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function toggleAutoMode(checkbox) {
+      const mode = checkbox.checked;
+      try {
+        const res = await fetch('/user/toggle-automode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoMode: mode })
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = '/user/settings?success=' + encodeURIComponent('Mode updated to ' + (mode ? 'Auto (Do Not Disturb)' : 'Consent'));
+        } else {
+          alert('Failed: ' + (data.message || 'Unknown error'));
+          checkbox.checked = !mode;
+        }
+      } catch(e) {
+        alert('Network error.');
+        checkbox.checked = !mode;
+      }
+    }
+  </script>
+</body>
+</html>`);
+});
+
+app.post('/user/toggle-automode', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const { autoMode } = req.body;
+  if (typeof autoMode !== 'boolean') return res.status(400).json({ success: false, message: 'Invalid value' });
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    await client.db('olukayode_sage').collection('Users_CV_biodata').updateOne(
+      { _id: userId },
+      { $set: { autoMode, autoModeUpdatedAt: new Date() } }
+    );
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  } finally {
+    await client.close();
+  }
+});
+// ============================================================
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+
+const adminAuth=(req,res,next)=>{if(req.session.isAdmin)return next();res.redirect('/admin/login');};
+app.get('/admin/login',(req,res)=>{res.send(`<!DOCTYPE html><html><head><title>Suntrenia Admin</title><meta name='viewport' content='width=device-width,initial-scale=1'><link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' rel='stylesheet'><style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;}.card{background:#16213e;border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:40px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,0.4);}.logo{color:#7c3aed;font-size:24px;font-weight:700;text-align:center;margin-bottom:4px;}.subtitle{color:#a0a0b0;font-size:13px;text-align:center;margin-bottom:28px;}input{width:100%;background:#0f3460;border:1px solid rgba(124,58,237,0.3);color:#f0f0f0;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:14px;outline:none;}input:focus{border-color:#7c3aed;}button{width:100%;background:#7c3aed;color:white;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;}button:hover{background:#6d28d9;}.error{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:13px;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;}</style></head><body><div class='card'><div class='logo'>Suntrenia</div><div class='subtitle'>Admin Panel</div>${req.query.error?'<div class=\'error\'>Invalid password</div>':''}<form method='POST' action='/admin/login'><input type='password' name='password' placeholder='Enter admin password' required autofocus><button type='submit'>Login</button></form></div></body></html>`);});
+app.post('/admin/login',(req,res)=>{if(req.body.password===process.env.ADMIN_PASSWORD){req.session.isAdmin=true;res.redirect('/admin');}else{res.redirect('/admin/login?error=1');}});
+app.get('/admin/logout',(req,res)=>{req.session.isAdmin=false;res.redirect('/admin/login');});
+app.post('/admin/set-mode', adminAuth, async (req, res) => { const { mode } = req.body; if (!['TESTING_MODE','NORMAL_MODE'].includes(mode)) return res.redirect('/admin?error=Invalid+mode'); const client = new MongoClient(process.env.MONGO_URI); try { await client.connect(); await client.db('olukayode_sage').collection('app_settings').updateOne({ _id: 'global' }, { $set: { mode, updatedAt: new Date() } }, { upsert: true }); res.redirect('/admin?success=Mode+updated+to+' + mode); } catch(e) { res.redirect('/admin?error=' + encodeURIComponent(e.message)); } finally { await client.close(); } });
+app.post('/admin/toggle-whatsapp-scraping',adminAuth,async(req,res)=>{
+  const{enabled}=req.body;
+  const client=new MongoClient(process.env.MONGO_URI);
+  try{
+    await client.connect();
+    await client.db('olukayode_sage').collection('app_settings').updateOne(
+      {_id:'global'},
+      {$set:{whatsappScraping:enabled==='true',updatedAt:new Date()}},
+      {upsert:true}
+    );
+    if(enabled!=='true'&&global.whatsappPollInterval){clearInterval(global.whatsappPollInterval);global.whatsappPollInterval=null;console.log('[WhatsApp] Polling interval cleared by admin');}const msg=enabled==='true'?'WhatsApp+scraping+resumed':'WhatsApp+scraping+paused';
+    res.redirect('/admin?success='+msg);
+  }catch(e){
+    res.redirect('/admin?error='+encodeURIComponent(e.message));
+  }finally{
+    await client.close();
+  }
+});
+app.post('/admin/toggle-job-group',adminAuth,async(req,res)=>{const{groupId,active}=req.body;if(!groupId)return res.redirect('/admin?error=Group+ID+required');const client=new MongoClient(process.env.MONGO_URI);try{await client.connect();await client.db('olukayode_sage').collection('whatsapp_job_groups').updateOne({groupId},{$set:{groupId,active:active==='true',updatedAt:new Date()}},{upsert:true});res.redirect('/admin?success=Group+updated');}catch(e){res.redirect('/admin?error='+encodeURIComponent(e.message));}finally{await client.close();}});
+app.post('/admin/delete-job-group',adminAuth,async(req,res)=>{const{groupId}=req.body;const client=new MongoClient(process.env.MONGO_URI);try{await client.connect();await client.db('olukayode_sage').collection('whatsapp_job_groups').deleteOne({groupId});res.redirect('/admin?success=Group+deleted');}catch(e){res.redirect('/admin?error='+encodeURIComponent(e.message));}finally{await client.close();}});
+app.post('/admin/refresh-user',adminAuth,async(req,res)=>{const{userId}=req.body;if(!userId)return res.redirect('/admin?error=User+ID+required');const client=new MongoClient(process.env.MONGO_URI);try{await client.connect();const db=client.db('olukayode_sage');await db.collection('application_status').updateOne({userId},{$set:{successfulApplications:0,refreshedAt:new Date(),refreshedBy:'admin'}},{upsert:true});const result=await db.collection('applicationProcessingFeeder').updateMany({userId,role_processed:true},{$set:{role_processed:false,status:'Pending',application:'Pending',refreshedAt:new Date()}});console.log('[Admin] Refreshed user '+userId+', unprocessed '+result.modifiedCount+' roles');res.redirect('/admin?success=User+refreshed+successfully');}catch(e){res.redirect('/admin?error='+encodeURIComponent(e.message));}finally{await client.close();}});
+app.post('/admin/stop-user',adminAuth,async(req,res)=>{const{userId}=req.body;if(!userId)return res.redirect('/admin?error=User+ID+required');const client=new MongoClient(process.env.MONGO_URI);try{await client.connect();await client.db('olukayode_sage').collection('application_status').updateOne({userId},{$set:{isStopped:true,stoppedAt:new Date(),stoppedBy:'admin'}},{upsert:true});res.redirect('/admin?success=User+stopped');}catch(e){res.redirect('/admin?error='+encodeURIComponent(e.message));}finally{await client.close();}});
+app.post('/admin/resume-user',adminAuth,async(req,res)=>{const{userId}=req.body;if(!userId)return res.redirect('/admin?error=User+ID+required');const client=new MongoClient(process.env.MONGO_URI);try{await client.connect();await client.db('olukayode_sage').collection('application_status').updateOne({userId},{$set:{isStopped:false,resumedAt:new Date(),resumedBy:'admin'}},{upsert:true});res.redirect('/admin?success=User+resumed');}catch(e){res.redirect('/admin?error='+encodeURIComponent(e.message));}finally{await client.close();}});
+app.get('/admin', adminAuth, async (req, res) => {
+  const client = new MongoClient(process.env.MONGO_URI);
+  let currentMode = 'TESTING_MODE', jobGroups = [], recentApps = [], users = [];
+  let adminPlans = {}, waPollInterval = 30, waScrapingEnabled = true;
+  let appsToday = 0, appsThisWeek = 0, appsAllTime = 0;
+  let planCounts = {}, activeCount = 0, stoppedCount = 0;
+  let oauthCount = 0, smtpCount = 0, failedCount = 0;
+  let topSenders = [], modeHistory = [];
+
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+
+    // Settings & mode
+    const settings = await db.collection('app_settings').findOne({ _id: 'global' });
+    currentMode = settings?.mode || 'TESTING_MODE';
+    const whatsappScraping = settings?.whatsappScraping !== false;
+    modeHistory = settings?.history || [];
+
+    // Job groups
+    jobGroups = await db.collection('whatsapp_job_groups').find({}).toArray();
+
+    // Recent apps
+    recentApps = await db.collection('applicationProcessingFeeder')
+      .find({ role_processed: true }).sort({ processedAt: -1 }).limit(15).toArray();
+
+    // Users
+    const userDocs = await db.collection('Users_CV_biodata')
+      .find({}, { projection: { _id: 1, name: 1, email: 1, subscription: 1 } })
+      .limit(50).toArray();
+    const statuses = await db.collection('application_status').find({}).toArray();
+    const statusMap = {};
+    statuses.forEach(s => { statusMap[s.userId] = s; });
+    users = userDocs.map(u => ({ ...u, status: statusMap[u._id] || {} }));
+
+    // Analytics: apps today / week / all time
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - 7);
+
+    appsAllTime = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ role_processed: true });
+    appsToday = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ role_processed: true, processedAt: { $gte: startOfDay } });
+    appsThisWeek = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ role_processed: true, processedAt: { $gte: startOfWeek } });
+
+    // Analytics: plan counts
+    userDocs.forEach(u => {
+      const plan = u.subscription?.plan || 'None';
+      planCounts[plan] = (planCounts[plan] || 0) + 1;
+    });
+
+    // Analytics: active vs stopped
+    statuses.forEach(s => {
+      if (s.isStopped) stoppedCount++; else activeCount++;
+    });
+
+    // Analytics: top senders
+    const senderPipeline = [
+      { $match: { role_processed: true } },
+      { $group: { _id: '$userId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ];
+    topSenders = await db.collection('applicationProcessingFeeder')
+      .aggregate(senderPipeline).toArray();
+
+    // Analytics: OAuth vs SMTP
+    oauthCount = await db.collection('user_gmail_tokens').countDocuments({});
+    smtpCount = userDocs.length - oauthCount;
+
+    // Analytics: failed sends
+    failedCount = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ role_processed: false, status: 'failed' });
+
+  } catch (e) {
+    console.error('[Admin]', e.message);
+  } finally {
+    await client.close();
+  }
+
+  const isTesting = currentMode === 'TESTING_MODE';
+  const sm = req.query.success ? `<div class="alert-success">${decodeURIComponent(req.query.success)}</div>` : '';
+  const em = req.query.error ? `<div class="alert-error">${decodeURIComponent(req.query.error)}</div>` : '';
+
+  const gRows = jobGroups.map(g => `
+    <tr>
+      <td style="font-family:monospace;font-size:12px">${g.groupId}</td>
+      <td><span class="${g.active ? 'badge-green' : 'badge-red'}">${g.active ? 'Active' : 'Inactive'}</span></td>
+      <td>
+        <form method="POST" action="/admin/toggle-job-group" style="display:inline;margin-right:4px">
+          <input type="hidden" name="groupId" value="${g.groupId}">
+          <input type="hidden" name="active" value="${g.active ? 'false' : 'true'}">
+          <button class="btn-sm btn-warning">${g.active ? 'Deactivate' : 'Activate'}</button>
+        </form>
+        <form method="POST" action="/admin/delete-job-group" style="display:inline">
+          <input type="hidden" name="groupId" value="${g.groupId}">
+          <button class="btn-sm btn-danger" onclick="return confirm('Delete?')">Delete</button>
+        </form>
+      </td>
+    </tr>`).join('');
+
+  const uRows = users.map(u => {
+    const stopped = u.status?.isStopped === true;
+    const plan = u.subscription?.plan || 'None';
+    const appCount = u.status?.successfulApplications || 0;
+    return `<tr>
+      <td style="font-family:monospace;font-size:11px">${u._id}</td>
+      <td>${u.name || '-'}</td>
+      <td style="font-size:12px">${u.email || '-'}</td>
+      <td><span class="badge-purple">${plan}</span></td>
+      <td style="text-align:center">${appCount}</td>
+      <td><span class="${stopped ? 'badge-red' : 'badge-green'}">${stopped ? 'Stopped' : 'Active'}</span></td>
+      <td style="white-space:nowrap">
+        <form method="POST" action="/admin/refresh-user" style="display:inline;margin-right:4px">
+          <input type="hidden" name="userId" value="${u._id}">
+          <button class="btn-sm btn-success" onclick="return confirm('Reset this user?')">Refresh</button>
+        </form>
+        ${stopped
+          ? `<form method="POST" action="/admin/resume-user" style="display:inline">
+               <input type="hidden" name="userId" value="${u._id}">
+               <button class="btn-sm btn-primary">Resume</button>
+             </form>`
+          : `<form method="POST" action="/admin/stop-user" style="display:inline">
+               <input type="hidden" name="userId" value="${u._id}">
+               <button class="btn-sm btn-danger" onclick="return confirm('Stop this user?')">Stop</button>
+             </form>`
+        }
+      </td>
+    </tr>`;
+  }).join('');
+
+  const aRows = recentApps.map(a => `
+    <tr>
+      <td style="font-family:monospace;font-size:11px">${a.userId || '-'}</td>
+      <td>${a.role || a.title || '-'}</td>
+      <td style="font-size:12px">${a.processedAt ? new Date(a.processedAt).toLocaleString() : '-'}</td>
+      <td><span class="badge-green">Treated</span></td>
+    </tr>`).join('');
+
+  const topSenderRows = topSenders.map(s => `
+    <tr>
+      <td style="font-family:monospace;font-size:11px">${s._id || '-'}</td>
+      <td style="text-align:center"><span class="badge-purple">${s.count}</span></td>
+    </tr>`).join('');
+
+  const planRows = Object.entries(planCounts).map(([plan, count]) => `
+    <tr>
+      <td><span class="badge-purple">${plan}</span></td>
+      <td style="text-align:center;font-weight:600">${count}</td>
+    </tr>`).join('');
+
+  const activeGroups = jobGroups.filter(g => g.active).length;
+  const inactiveGroups = jobGroups.length - activeGroups;
+
+  // Load plan config and whatsapp settings for admin panel
+  try {
+    adminPlans = await getPlanConfig();
+  } catch(e) { console.error('[Admin] Could not load plan config:', e.message); }
+  try {
+    const _wClient2 = new MongoClient(process.env.MONGO_URI);
+    await _wClient2.connect();
+    const _wSettings2 = await _wClient2.db('olukayode_sage').collection('app_settings').findOne({ _id: 'global' });
+    await _wClient2.close();
+    if (_wSettings2) {
+      waPollInterval = _wSettings2.pollIntervalMinutes || 30;
+      waScrapingEnabled = _wSettings2.whatsappScraping !== false;
+    }
+  } catch(e) { console.error('[Admin] Could not load wa settings:', e.message); }
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Suntrenia Admin</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#1a1a2e;font-family:Inter,sans-serif;color:#f0f0f0;}
+    .topbar{background:#16213e;border-bottom:1px solid rgba(124,58,237,0.3);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;width:100%;z-index:100;}
+    .logo{color:#7c3aed;font-size:20px;font-weight:700;}
+    .topbar a{color:#a0a0b0;text-decoration:none;font-size:14px;margin-left:16px;}
+    .mode-indicator{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;}
+    .testing{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);}
+    .normal{background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);}
+    .content{padding:80px 24px 40px;max-width:1300px;margin:0 auto;}
+    .alert-success{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px;}
+    .alert-error{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px;}
+    .section-title{font-size:18px;font-weight:700;margin:28px 0 14px;color:#a78bfa;letter-spacing:0.3px;}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:16px;}
+    .stat-card{background:#16213e;border:1px solid rgba(124,58,237,0.15);border-radius:12px;padding:18px 20px;}
+    .stat-label{color:#a0a0b0;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+    .stat-value{font-size:26px;font-weight:700;color:#7c3aed;}
+    .stat-value.green{color:#10b981;}
+    .stat-value.red{color:#ef4444;}
+    .stat-value.yellow{color:#f59e0b;}
+    .card{background:#16213e;border:1px solid rgba(124,58,237,0.15);border-radius:12px;padding:22px;margin-bottom:20px;}
+    .card-title{font-size:14px;font-weight:600;margin-bottom:14px;color:#e0e0f0;}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:700px){.two-col{grid-template-columns:1fr;}}
+    .mode-toggle{display:flex;gap:12px;flex-wrap:wrap;}
+    .mode-btn{padding:10px 24px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:0.2s;}
+    .mode-btn-active{background:#7c3aed;color:white;}
+    .mode-btn-inactive{background:transparent;border:1px solid rgba(124,58,237,0.4);color:#a0a0b0;}
+    .mode-desc{color:#a0a0b0;font-size:13px;margin-top:12px;line-height:1.6;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{text-align:left;padding:9px 12px;color:#a0a0b0;border-bottom:1px solid rgba(124,58,237,0.1);font-weight:500;font-size:11px;text-transform:uppercase;}
+    td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+    .badge-green{background:rgba(16,185,129,0.15);color:#10b981;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-red{background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-purple{background:rgba(124,58,237,0.15);color:#a78bfa;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-yellow{background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .btn-sm{padding:5px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:0.2s;}
+    .btn-primary{background:#7c3aed;color:white;}
+    .btn-success{background:rgba(16,185,129,0.2);color:#10b981;border:1px solid rgba(16,185,129,0.3);}
+    .btn-danger{background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.3);}
+    .btn-warning{background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);}
+    .add-group{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+    .add-group input{flex:1;min-width:200px;background:#0f3460;border:1px solid rgba(124,58,237,0.3);color:#f0f0f0;border-radius:8px;padding:9px 14px;font-size:13px;outline:none;}
+    .add-group button{background:#7c3aed;color:white;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;}
+    .table-wrap{overflow-x:auto;}
+    .bar-wrap{margin-top:6px;}
+    .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;}
+    .bar-label{width:80px;color:#a0a0b0;font-size:12px;text-align:right;}
+    .bar-bg{flex:1;background:rgba(124,58,237,0.1);border-radius:4px;height:10px;}
+    .bar-fill{height:10px;border-radius:4px;background:#7c3aed;}
+    .bar-count{width:30px;text-align:right;font-size:12px;color:#a78bfa;font-weight:600;}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">Suntrenia Admin</div>
+    <div>
+      <span class="mode-indicator ${isTesting ? 'testing' : 'normal'}">${isTesting ? 'TESTING MODE' : 'NORMAL MODE'}</span>
+      <a href="/">App</a>
+      <a href="/admin/logout">Logout</a>
+    </div>
+  </div>
+  <div class="content">
+    ${sm}${em}
+
+    <div class="section-title">Overview</div>
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value">${users.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value green">${activeCount}</div></div>
+      <div class="stat-card"><div class="stat-label">Stopped Users</div><div class="stat-value red">${stoppedCount}</div></div>
+      <div class="stat-card"><div class="stat-label">Job Groups</div><div class="stat-value">${jobGroups.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Apps Today</div><div class="stat-value green">${appsToday}</div></div>
+      <div class="stat-card"><div class="stat-label">Apps This Week</div><div class="stat-value">${appsThisWeek}</div></div>
+      <div class="stat-card"><div class="stat-label">Apps All Time</div><div class="stat-value">${appsAllTime}</div></div>
+      <div class="stat-card"><div class="stat-label">Failed Sends</div><div class="stat-value ${failedCount > 0 ? 'red' : 'green'}">${failedCount}</div></div>
+    </div>
+
+    <div class="section-title">Analytics</div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Users by Subscription Plan</div>
+        <table>
+          <thead><tr><th>Plan</th><th style="text-align:center">Users</th></tr></thead>
+          <tbody>${planRows || '<tr><td colspan=2 style="color:#a0a0b0;text-align:center;padding:16px">No data</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Top 5 Senders</div>
+        <table>
+          <thead><tr><th>User ID</th><th style="text-align:center">Apps Sent</th></tr></thead>
+          <tbody>${topSenderRows || '<tr><td colspan=2 style="color:#a0a0b0;text-align:center;padding:16px">No data yet</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Email Send Method</div>
+        <div class="bar-wrap">
+          <div class="bar-row">
+            <div class="bar-label">Gmail OAuth</div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${users.length ? Math.round((oauthCount/users.length)*100) : 0}%;background:#10b981"></div></div>
+            <div class="bar-count">${oauthCount}</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">SMTP</div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${users.length ? Math.round((smtpCount/users.length)*100) : 0}%;background:#7c3aed"></div></div>
+            <div class="bar-count">${smtpCount < 0 ? 0 : smtpCount}</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Failed</div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${appsAllTime ? Math.round((failedCount/appsAllTime)*100) : 0}%;background:#ef4444"></div></div>
+            <div class="bar-count">${failedCount}</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">WhatsApp Groups</div>
+        <div class="bar-wrap">
+          <div class="bar-row">
+            <div class="bar-label">Active</div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${jobGroups.length ? Math.round((activeGroups/jobGroups.length)*100) : 0}%;background:#10b981"></div></div>
+            <div class="bar-count">${activeGroups}</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Inactive</div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${jobGroups.length ? Math.round((inactiveGroups/jobGroups.length)*100) : 0}%;background:#ef4444"></div></div>
+            <div class="bar-count">${inactiveGroups}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Controls</div>
+    <div class="card">
+      <div class="card-title">Application Mode</div>
+      <div class="mode-toggle">
+        <form method="POST" action="/admin/set-mode">
+          <input type="hidden" name="mode" value="TESTING_MODE">
+          <button class="mode-btn ${isTesting ? 'mode-btn-active' : 'mode-btn-inactive'}">Testing Mode</button>
+        </form>
+        <form method="POST" action="/admin/set-mode">
+          <input type="hidden" name="mode" value="NORMAL_MODE">
+          <button class="mode-btn ${!isTesting ? 'mode-btn-active' : 'mode-btn-inactive'}">Normal Mode</button>
+        </form>
+      </div>
+      <div class="mode-desc">Testing: first email after 1 min. Normal: first email after 30-45 min. Changes apply on the next cycle.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">WhatsApp Job Groups</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Group ID</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>${gRows || '<tr><td colspan=3 style="color:#a0a0b0;text-align:center;padding:20px">No groups yet</td></tr>'}</tbody>
+        </table>
+      </div>
+      <form method="POST" action="/admin/toggle-job-group" class="add-group">
+        <input type="text" name="groupId" placeholder="Enter WhatsApp Group ID" required>
+        <input type="hidden" name="active" value="true">
+        <button type="submit">+ Add Group</button>
+      </form>
+    </div>
+
+    <div class="section-title">Users</div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Plan</th><th>Apps Sent</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>${uRows || '<tr><td colspan=7 style="color:#a0a0b0;text-align:center;padding:20px">No users found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-title">Recent Applications</div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>User ID</th><th>Role</th><th>Processed At</th><th>Status</th></tr></thead>
+          <tbody>${aRows || '<tr><td colspan=4 style="color:#a0a0b0;text-align:center;padding:20px">No applications yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-title">💰 Plan Configuration</div>
+    <div class="card">
+      <div class="card-title">Edit plan prices, durations and descriptions. Changes reflect immediately across the subscription page and payment gateways.</div>
+      <form method="POST" action="/admin/update-plan-config">
+        <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px">
+          ${['basic','standard','premium'].map(key => {
+            const p = adminPlans[key] || {};
+            return `<div style="background:#0f3460;border:1px solid rgba(124,58,237,0.2);border-radius:10px;padding:18px">
+              <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:14px;text-transform:capitalize">${key} Plan</div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;color:#a0a0b0;text-transform:uppercase;letter-spacing:0.5px">Price (₦)</label>
+                <input name="${key}[price]" value="${p.price||''}" type="number" min="0" required
+                  style="width:100%;background:#16213e;border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:8px 10px;color:#f0f0f0;margin-top:4px;font-size:13px">
+              </div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;color:#a0a0b0;text-transform:uppercase;letter-spacing:0.5px">Duration (days)</label>
+                <input name="${key}[durationDays]" value="${p.durationDays||''}" type="number" min="1" required
+                  style="width:100%;background:#16213e;border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:8px 10px;color:#f0f0f0;margin-top:4px;font-size:13px">
+              </div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;color:#a0a0b0;text-transform:uppercase;letter-spacing:0.5px">Max Applications</label>
+                <input name="${key}[applications]" value="${p.applications||''}" type="number" min="1" required
+                  style="width:100%;background:#16213e;border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:8px 10px;color:#f0f0f0;margin-top:4px;font-size:13px">
+              </div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;color:#a0a0b0;text-transform:uppercase;letter-spacing:0.5px">Highlight (e.g. Get 4 Days Free)</label>
+                <input name="${key}[highlight]" value="${p.highlight||''}"
+                  style="width:100%;background:#16213e;border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:8px 10px;color:#f0f0f0;margin-top:4px;font-size:13px">
+              </div>
+              <div>
+                <label style="font-size:11px;color:#a0a0b0;text-transform:uppercase;letter-spacing:0.5px">Description</label>
+                <textarea name="${key}[description]" rows="3"
+                  style="width:100%;background:#16213e;border:1px solid rgba(124,58,237,0.3);border-radius:6px;padding:8px 10px;color:#f0f0f0;margin-top:4px;font-size:12px;resize:vertical">${p.description||''}</textarea>
+              </div>
+              <input type="hidden" name="${key}[active]" value="true">
+            </div>`;
+          }).join('')}
+        </div>
+        <button type="submit" class="btn-sm btn-primary" style="padding:10px 24px;font-size:14px">💾 Save Plan Config</button>
+      </form>
+    </div>
+
+    <div class="section-title">📱 WhatsApp Scraping Controls</div>
+    <div class="card">
+      <form method="POST" action="/admin/toggle-whatsapp-scraping" style="display:inline;margin-right:12px">
+        <input type="hidden" name="enabled" value="${waScrapingEnabled ? 'false' : 'true'}">
+        <button type="submit" class="btn-sm ${waScrapingEnabled ? 'btn-danger' : 'btn-success'}">
+          ${waScrapingEnabled ? '⏸ Pause Scraping' : '▶ Resume Scraping'}
+        </button>
+      </form>
+      <span style="font-size:13px;color:#a0a0b0">Status: <span style="color:${waScrapingEnabled ? '#10b981' : '#ef4444'};font-weight:600">${waScrapingEnabled ? 'Running' : 'Paused'}</span></span>
+
+      <div style="margin-top:20px">
+        <div class="card-title">Poll Frequency</div>
+        <form method="POST" action="/admin/update-whatsapp-config" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
+          <input type="hidden" name="whatsappScraping" value="${waScrapingEnabled}">
+          <select name="pollIntervalMinutes"
+            style="background:#0f3460;border:1px solid rgba(124,58,237,0.3);color:#f0f0f0;border-radius:8px;padding:9px 14px;font-size:13px;outline:none;cursor:pointer">
+            ${[
+              {val:30,  label:'Every 30 minutes'},
+              {val:60,  label:'Every 1 hour'},
+              {val:180, label:'Every 3 hours'},
+              {val:360, label:'Every 6 hours'},
+              {val:720, label:'Every 12 hours'},
+              {val:1440,label:'Every 24 hours'},
+            ].map(o => `<option value="${o.val}" ${waPollInterval==o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select>
+          <button type="submit" class="btn-sm btn-primary">Apply Frequency</button>
+          <span style="font-size:12px;color:#a0a0b0">Current: every ${waPollInterval} minute(s). Restart server to apply frequency changes.</span>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>`);
+});
+
+// ============================================================
+// PAYMENT GATEWAY — PAYSTACK + MONNIFY
+// ============================================================
+
+// Price map loaded dynamically from DB via getPlanConfig()
+async function getPaymentPriceInfo(plan) {
+  const config = await getPlanConfig();
+  const p = config[plan.toLowerCase()];
+  if (!p) return null;
+  return { naira: p.price, kobo: p.price * 100, label: p.name + ' Plan' };
+}
+
+// Helper — activate plan after confirmed payment
+async function activatePlanAfterPayment(userId, plan, req) {
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    const _planCfg = await getPlanConfig();
+    const durationInDays = (_planCfg[plan.toLowerCase()] && _planCfg[plan.toLowerCase()].durationDays) || 20;
+    const startDate = new Date();
+    const expirationDate = new Date(startDate);
+    expirationDate.setDate(startDate.getDate() + durationInDays);
+    const subscriptionData = {
+      plan: plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase(),
+      date: startDate.toISOString(),
+      durationInDays,
+      expirationDate: expirationDate.toISOString(),
+    };
+    await db.collection('Users_CV_biodata').updateOne(
+      { _id: userId },
+      {
+        $set: {
+          subscription: subscriptionData,
+          'interviewHelper.access': true,
+          'interviewHelper.source': 'intellijob_subscription',
+          'interviewHelper.unlockedAt': new Date(),
+        }
+      }
+    );
+    await db.collection('payment_logs').insertOne({
+      userId,
+      plan: subscriptionData.plan,
+      amount: (await getPaymentPriceInfo(plan))?.naira || 0,
+      activatedAt: new Date(),
+      expiresAt: expirationDate,
+    });
+    console.log(`[Payment] Plan ${plan} activated for user ${userId}`);
+    // Trigger main application cycle
+    if (req && req.session) {
+      main(req, { status: () => ({ json: () => {} }), json: () => {}, send: () => {}, redirect: () => {} }).catch(err => console.error('[Payment] main() error:', err.message));
+    }
+  } catch(e) {
+    console.error('[Payment] activatePlan error:', e.message);
+  } finally {
+    await client.close();
   }
 }
 
-// Example usage:
-const url4 = "https://example.com";
-getPageText(url4)
-  .then(html => {
-      if (html) {
-          console.log(html);
-      } else {
-          console.log("Failed to fetch page content.");
+// PAYSTACK — Initiate payment
+app.post('/api/initiate-payment', isAuthenticated, async (req, res) => {
+  const { plan } = req.body;
+  const userId = req.session.userId;
+  const priceInfo = await getPaymentPriceInfo(plan);
+  if (!plan || !priceInfo) {
+    return res.status(400).json({ success: false, message: 'Invalid plan' });
+  }
+  try {
+    const client = new MongoClient(process.env.MONGO_URI);
+    await client.connect();
+    const user = await client.db('olukayode_sage').collection('Users_CV_biodata')
+      .findOne({ _id: userId }, { projection: { email: 1, name: 1 } });
+    await client.close();
+    const reference = `SUN_${plan.toUpperCase()}_${userId.replace(/[^a-zA-Z0-9]/g,'')}_${Date.now()}`;
+    const paystackRes = await axios.post('https://api.paystack.co/transaction/initialize', {
+      email: user.email,
+      amount: priceInfo.kobo,
+      reference,
+      callback_url: `${process.env.APP_BASE_URL}/api/verify-payment`,
+      metadata: {
+        userId,
+        plan: plan.toLowerCase(),
+        userName: user.name,
+        custom_fields: [
+          { display_name: 'Plan', variable_name: 'plan', value: priceInfo.label },
+          { display_name: 'User ID', variable_name: 'userId', value: userId },
+        ]
       }
-  })
-  .catch(error => console.error("Error:", error));
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const { authorization_url } = paystackRes.data.data;
+    res.json({ success: true, paymentUrl: authorization_url, reference });
+  } catch(e) {
+    console.error('[Paystack] initiate error:', e.message);
+    res.status(500).json({ success: false, message: 'Could not initiate payment. Please try again.' });
+  }
+});
 
+// PAYSTACK — Verify payment (callback URL after checkout)
+app.get('/api/verify-payment', async (req, res) => {
+  const { reference, trxref } = req.query;
+  const ref = reference || trxref;
+  if (!ref) return res.redirect('/dashboard?error=' + encodeURIComponent('No payment reference found'));
+  try {
+    const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${ref}`, {
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+    });
+    const data = paystackRes.data.data;
+    if (data.status !== 'success') {
+      return res.redirect('/dashboard?error=' + encodeURIComponent('Payment was not successful. Please try again.'));
+    }
+    const { userId, plan } = data.metadata;
+    if (!userId || !plan) {
+      return res.redirect('/dashboard?error=' + encodeURIComponent('Payment metadata missing. Contact support.'));
+    }
+    await activatePlanAfterPayment(userId, plan, req);
+    res.redirect('/dashboard?success=' + encodeURIComponent(`${plan.charAt(0).toUpperCase()+plan.slice(1)} plan activated! Your applications will start shortly.`));
+  } catch(e) {
+    console.error('[Paystack] verify error:', e.message);
+    res.redirect('/dashboard?error=' + encodeURIComponent('Payment verification failed. Contact support if charged.'));
+  }
+});
+
+// PAYSTACK — Webhook (server-to-server confirmation)
+app.post('/api/paystack-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  const hash = require('crypto').createHmac('sha512', secret).update(req.body).digest('hex');
+  if (hash !== req.headers['x-paystack-signature']) {
+    return res.status(401).send('Invalid signature');
+  }
+  const event = JSON.parse(req.body);
+  if (event.event === 'charge.success') {
+    const { metadata, status } = event.data;
+    if (status === 'success' && metadata?.userId && metadata?.plan) {
+      await activatePlanAfterPayment(metadata.userId, metadata.plan, null);
+    }
+  }
+  res.sendStatus(200);
+});
+
+// MONNIFY — Initiate payment (returns payment link)
+app.post('/api/initiate-monnify-payment', isAuthenticated, async (req, res) => {
+  const { plan } = req.body;
+  const userId = req.session.userId;
+  const priceInfo = await getPaymentPriceInfo(plan);
+  if (!plan || !priceInfo) {
+    return res.status(400).json({ success: false, message: 'Invalid plan' });
+  }
+  try {
+    const client = new MongoClient(process.env.MONGO_URI);
+    await client.connect();
+    const user = await client.db('olukayode_sage').collection('Users_CV_biodata')
+      .findOne({ _id: userId }, { projection: { email: 1, name: 1 } });
+    await client.close();
+    const reference = `SUN_MON_${plan.toUpperCase()}_${Date.now()}`;
+    // Get Monnify access token
+    const authStr = Buffer.from(`${process.env.MONNIFY_API_KEY}:${process.env.MONNIFY_SECRET_KEY}`).toString('base64');
+    const tokenRes = await axios.post('https://api.monnify.com/api/v1/auth/login', {}, {
+      headers: { Authorization: `Basic ${authStr}` }
+    });
+    const accessToken = tokenRes.data.responseBody.accessToken;
+    // Initialize transaction
+    const monnifyRes = await axios.post('https://api.monnify.com/api/v1/merchant/transactions/init-transaction', {
+      amount: priceInfo.naira,
+      customerName: user.name || 'Suntrenia User',
+      customerEmail: user.email,
+      paymentReference: reference,
+      paymentDescription: priceInfo.label,
+      currencyCode: 'NGN',
+      contractCode: process.env.MONNIFY_CONTRACT_CODE,
+      redirectUrl: `${process.env.APP_BASE_URL}/api/verify-monnify-payment`,
+      paymentMethods: ['CARD', 'ACCOUNT_TRANSFER'],
+      metadata: { userId, plan: plan.toLowerCase() }
+    }, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const { checkoutUrl } = monnifyRes.data.responseBody;
+    res.json({ success: true, paymentUrl: checkoutUrl, reference });
+  } catch(e) {
+    console.error('[Monnify] initiate error:', e.message);
+    res.status(500).json({ success: false, message: 'Could not initiate Monnify payment.' });
+  }
+});
+
+// MONNIFY — Verify payment (redirect callback)
+app.get('/api/verify-monnify-payment', async (req, res) => {
+  const { paymentReference } = req.query;
+  if (!paymentReference) return res.redirect('/dashboard?error=' + encodeURIComponent('No payment reference'));
+  try {
+    const authStr = Buffer.from(`${process.env.MONNIFY_API_KEY}:${process.env.MONNIFY_SECRET_KEY}`).toString('base64');
+    const tokenRes = await axios.post('https://api.monnify.com/api/v1/auth/login', {}, {
+      headers: { Authorization: `Basic ${authStr}` }
+    });
+    const accessToken = tokenRes.data.responseBody.accessToken;
+    const verifyRes = await axios.get(
+      `https://api.monnify.com/api/v2/transactions/${encodeURIComponent(paymentReference)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const txData = verifyRes.data.responseBody;
+    if (txData.paymentStatus !== 'PAID') {
+      return res.redirect('/dashboard?error=' + encodeURIComponent('Payment not confirmed. Try again.'));
+    }
+    const { userId, plan } = txData.metaData || {};
+    if (!userId || !plan) {
+      return res.redirect('/dashboard?error=' + encodeURIComponent('Payment metadata missing.'));
+    }
+    await activatePlanAfterPayment(userId, plan, req);
+    res.redirect('/dashboard?success=' + encodeURIComponent(`${plan.charAt(0).toUpperCase()+plan.slice(1)} plan activated successfully!`));
+  } catch(e) {
+    console.error('[Monnify] verify error:', e.message);
+    res.redirect('/dashboard?error=' + encodeURIComponent('Monnify verification failed. Contact support.'));
+  }
+});
+
+// MONNIFY — Webhook
+app.post('/api/monnify-webhook', async (req, res) => {
+  try {
+    const hash = require('crypto')
+      .createHmac('sha512', process.env.MONNIFY_SECRET_KEY)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    if (hash !== req.headers['monnify-signature']) {
+      return res.status(401).send('Invalid signature');
+    }
+    const { eventType, eventData } = req.body;
+    if (eventType === 'SUCCESSFUL_TRANSACTION') {
+      const { metaData, paymentStatus } = eventData;
+      if (paymentStatus === 'PAID' && metaData?.userId && metaData?.plan) {
+        await activatePlanAfterPayment(metaData.userId, metaData.plan, null);
+      }
+    }
+    res.sendStatus(200);
+  } catch(e) {
+    console.error('[Monnify] webhook error:', e.message);
+    res.sendStatus(500);
+  }
+});
+// ============================================================
+// ============================================================
+// USER DATA API ENDPOINTS
+// ============================================================
+app.get('/api/get-user-status', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    const user = await db.collection('Users_CV_biodata').findOne(
+      { _id: userId },
+      { projection: { autoMode: 1, interviewHelper: 1 } }
+    ) || {};
+    const status = await db.collection('application_status').findOne({ userId }) || {};
+    res.json({
+      autoMode: user.autoMode || false,
+      successfulApplications: status.successfulApplications || 0,
+      isStopped: status.isStopped || false,
+      interviewHelper: user.interviewHelper?.access || false
+    });
+  } catch(e) {
+    console.error('[get-user-status]', e.message);
+    res.status(500).json({ error: e.message });
+  } finally {
+    await client.close();
+  }
+});
+
+app.get('/api/get-user-apps', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const db = client.db('olukayode_sage');
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - 7);
+    const recent = await db.collection('applicationProcessingFeeder')
+      .find({ userId, role_processed: true })
+      .sort({ processedAt: -1 }).limit(20).toArray();
+    const total = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ userId, role_processed: true });
+    const today = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ userId, role_processed: true, processedAt: { $gte: startOfDay } });
+    const week = await db.collection('applicationProcessingFeeder')
+      .countDocuments({ userId, role_processed: true, processedAt: { $gte: startOfWeek } });
+    const autoLogs = await db.collection('autoMode_daily_log')
+      .find({ userId, date: { $gte: startOfDay } }).toArray();
+    res.json({ total, today, week, recent, autoLogs });
+  } catch(e) {
+    console.error('[get-user-apps]', e.message);
+    res.status(500).json({ error: e.message });
+  } finally {
+    await client.close();
+  }
+});
+
+app.get('/api/get-subscription-details', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const user = await client.db('olukayode_sage').collection('Users_CV_biodata')
+      .findOne({ _id: userId }, { projection: { subscription: 1 } });
+    if (!user || !user.subscription) {
+      return res.json({ subscriptionData: null });
+    }
+    const sub = user.subscription;
+    const startDate = new Date(sub.date);
+    const expirationDate = new Date(sub.expirationDate);
+    const currentDate = new Date();
+    const elapsedTime = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
+    const subscriptionStatus = currentDate > expirationDate ? 'Expired' : 'Active';
+    res.json({
+      subscriptionData: {
+        subscriptionPlan: sub.plan,
+        subscriptionDuration: sub.durationInDays,
+        subscriptionElapsed: elapsedTime,
+        subscriptionStarts: startDate.toISOString().split('T')[0],
+        subscriptionExpires: expirationDate.toISOString().split('T')[0],
+        subscriptionStatus
+      }
+    });
+  } catch(e) {
+    console.error('[get-subscription-details]', e.message);
+    res.status(500).json({ error: e.message });
+  } finally {
+    await client.close();
+  }
+});
+
+// ============================================================
+// PLAN CONFIG — SINGLE SOURCE OF TRUTH
+// ============================================================
+const DEFAULT_PLANS = {
+  basic:    { name: 'Basic',    price: 9500,  applications: 20, durationDays: 15, description: 'Full job search and application automation. Personalised job matches handled for you.', highlight: '', active: true },
+  standard: { name: 'Standard', price: 19000, applications: 20, durationDays: 20, description: 'Everything in Basic plus priority processing, personalised recommendations, and career webinars.', highlight: 'Get 4 Days Free', active: true },
+  premium:  { name: 'Premium',  price: 48000, applications: 24, durationDays: 30, description: 'Everything in Standard plus direct recruiter connections, AI resume optimization, interview prep, and VIP listings.', highlight: 'Get 7 Days Free', active: true }
+};
+
+async function getPlanConfig() {
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const doc = await client.db('olukayode_sage').collection('plan_config').findOne({ _id: 'plans' });
+    if (doc && doc.basic && doc.standard && doc.premium) {
+      return { basic: doc.basic, standard: doc.standard, premium: doc.premium };
+    }
+    return DEFAULT_PLANS;
+  } catch(e) {
+    console.error('[PlanConfig] Failed to read, using defaults:', e.message);
+    return DEFAULT_PLANS;
+  } finally {
+    await client.close();
+  }
+}
+
+app.get('/api/get-plan-config', async (req, res) => {
+  try {
+    const plans = await getPlanConfig();
+    res.json({ success: true, plans });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+app.post('/admin/update-plan-config', adminAuth, async (req, res) => {
+  const { basic, standard, premium } = req.body;
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    const update = {};
+    if (basic.price) update.basic = {
+      name: 'Basic',
+      price: parseInt(basic.price),
+      applications: parseInt(basic.applications),
+      durationDays: parseInt(basic.durationDays),
+      description: basic.description || DEFAULT_PLANS.basic.description,
+      highlight: basic.highlight || '',
+      active: basic.active === 'true'
+    };
+    if (standard.price) update.standard = {
+      name: 'Standard',
+      price: parseInt(standard.price),
+      applications: parseInt(standard.applications),
+      durationDays: parseInt(standard.durationDays),
+      description: standard.description || DEFAULT_PLANS.standard.description,
+      highlight: standard.highlight || '',
+      active: standard.active === 'true'
+    };
+    if (premium.price) update.premium = {
+      name: 'Premium',
+      price: parseInt(premium.price),
+      applications: parseInt(premium.applications),
+      durationDays: parseInt(premium.durationDays),
+      description: premium.description || DEFAULT_PLANS.premium.description,
+      highlight: premium.highlight || '',
+      active: premium.active === 'true'
+    };
+    await client.db('olukayode_sage').collection('plan_config').updateOne(
+      { _id: 'plans' },
+      { $set: { ...update, updatedAt: new Date(), updatedBy: 'admin' } },
+      { upsert: true }
+    );
+    res.redirect('/admin?success=Plan+configuration+updated+successfully');
+  } catch(e) {
+    res.redirect('/admin?error=' + encodeURIComponent(e.message));
+  } finally {
+    await client.close();
+  }
+});
+
+app.post('/admin/update-whatsapp-config', adminAuth, async (req, res) => {
+  const { whatsappScraping, pollIntervalMinutes } = req.body;
+  const client = new MongoClient(process.env.MONGO_URI);
+  try {
+    await client.connect();
+    await client.db('olukayode_sage').collection('app_settings').updateOne(
+      { _id: 'global' },
+      { $set: {
+        whatsappScraping: whatsappScraping === 'true',
+        pollIntervalMinutes: parseInt(pollIntervalMinutes) || 30,
+        updatedAt: new Date()
+      }},
+      { upsert: true }
+    );
+    res.redirect('/admin?success=WhatsApp+config+updated');
+  } catch(e) {
+    res.redirect('/admin?error=' + encodeURIComponent(e.message));
+  } finally {
+    await client.close();
+  }
+});
+// ============================================================
+// ============================================================
 const server = app.listen(port, () => console.log(`Server listening on port ${port}!`));
-
 server.keepAliveTimeout = 120 * 1000;
 server.headersTimeout = 120 * 1000;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+

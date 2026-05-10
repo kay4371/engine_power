@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Suntrenia AI Intervia Helper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .features {
+            text-align: left;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .features h3 {
+            color: #667eea;
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .feature-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #17a2b8;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .info-box strong {
+            color: #17a2b8;
+        }
+
+        .info-box p {
+            color: #495057;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .version {
+            color: #adb5bd;
+            font-size: 12px;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎯</div>
+        
+        <h1>Welcome to Suntrenia AI Intervia Helper!</h1>
+        
+        <p class="subtitle">
+            Your personal AI-powered interview coach. Practice interviews on real job sites and get instant feedback from Claude AI.
+        </p>
+
+        <div class="info-box">
+            <p>
+                <strong>ℹ️ Getting Started:</strong><br>
+                This extension works with LinkedIn, Indeed, Glassdoor, and other job sites. Visit a job posting and click the extension icon to begin.
+            </p>
+        </div>
+
+        <div class="features">
+            <h3>✨ Key Features</h3>
+            <div class="feature-item">
+                <span class="feature-icon">🎤</span>
+                <span>Record your interview responses and get AI feedback</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">📋</span>
+                <span>Auto-extract job details from job postings</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">📄</span>
+                <span>Upload your CV for personalized coaching</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">🤖</span>
+                <span>Get instant AI-powered interview tips</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">⚡</span>
+                <span>Real-time transcription and analysis</span>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn-primary" onclick="openDashboard()">Go to IntelliJob Dashboard</button>
+            <button class="btn-secondary" onclick="closeWindow()">Close</button>
+        </div>
+
+        <div class="version">
+            Suntrenia AI Intervia Helper v1.0.0
+        </div>
+    </div>
+
+    <script>
+        function openDashboard() {
+            // Open the IntelliJob dashboard
+            chrome.tabs.create({
+                url: 'http://localhost:3000'
+            });
+            // Close this window after a short delay
+            setTimeout(() => {
+                window.close();
+            }, 500);
+        }
+
+        function closeWindow() {
+            window.close();
+        }
+
+        // Optional: Track when user first sees welcome page
+        chrome.storage.local.get('welcomeSeen', (result) => {
+            if (!result.welcomeSeen) {
+                chrome.storage.local.set({ welcomeSeen: true, welcomeDate: new Date().toISOString() });
+            }
+        });
+    </script>
+</body>
+</html>

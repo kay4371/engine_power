@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Activation Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .input-code {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 24px;
+            margin: 0 5px;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .input-code:focus {
+            border-color: #4299e1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Verify Your Account</h2>
+            <p class="text-gray-600 mt-2">Enter the 5-digit activation code sent to your email</p>
+        </div>
+
+        <form id="activationForm" class="space-y-6">
+            <div class="flex justify-center space-x-2">
+                <input type="text" maxlength="1" class="input-code" pattern="\d" inputmode="numeric" required>
+                <input type="text" maxlength="1" class="input-code" pattern="\d" inputmode="numeric" required>
+                <input type="text" maxlength="1" class="input-code" pattern="\d" inputmode="numeric" required>
+                <input type="text" maxlength="1" class="input-code" pattern="\d" inputmode="numeric" required>
+                <input type="text" maxlength="1" class="input-code" pattern="\d" inputmode="numeric" required>
+            </div>
+
+            <div class="flex justify-center space-x-4">
+                <button 
+                    type="submit" 
+                    class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition duration-300"
+                >
+                    Verify Code
+                </button>
+                <button 
+                    type="button" 
+                    id="resendCodeBtn"
+                    class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition duration-300"
+                >
+                    Resend Code
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Didn't receive the code? 
+                <a href="#" class="text-blue-500 hover:underline">Contact Support</a>
+            </p>
+        </div>
+    </div>
+    <script src="/auth-check.js"></script>
+    <script>
+        // Auto-focus and auto-tab between input boxes
+        const inputs = document.querySelectorAll('.input-code');
+        
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', () => {
+                // Move focus to next input if current input is filled
+                if (input.value.length === 1 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                // Allow backspace to move focus to previous input
+                if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+
+// Form submission handler
+document.getElementById('activationForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    // Collect activation code
+    const inputs = document.querySelectorAll('#activationForm input'); // Ensure inputs are correctly selected
+    const activationCode = Array.from(inputs).map(input => input.value).join('');
+
+    // Validate code is 5 digits
+    if (activationCode.length !== 5 || !/^\d+$/.test(activationCode)) {
+        alert('Please enter a valid 5-digit code');
+        return;
+    }
+
+    // Retrieve email from localStorage
+    const email = localStorage.getItem('registrationEmail');
+    if (!email) {
+        console.error('No registration email found');
+        window.location.href = '/register'; // Example redirection
+        return;
+    }
+    localStorage.removeItem('registrationEmail');
+
+    // Send verification request to server
+    fetch('/verify-activation-code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        // body: JSON.stringify({
+        //     code: activationCode,
+        //     email: email // Include email in the request body
+        // })
+
+        body: JSON.stringify({
+        activationCode: activationCode,  // Changed from 'code' to 'activationCode'
+        email: email 
+        })
+
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Backend response success:', data); // Debugging
+                // Redirect to dashboard or login page
+                window.location.href = data.redirectUrl;
+            } else {
+                console.error('Backend error:', data.message); // Debugging
+                alert(data.message || 'Invalid activation code');
+            }
+        })
+        .catch(error => {
+            console.error('Verification error:', error); // Debugging
+            alert('An error occurred. Please try again.');
+        });
+});
+        
+
+document.getElementById('resendCodeBtn').addEventListener('click', function() {
+    // Retrieve email from localStorage
+    const email = localStorage.getItem('registrationEmail');
+    
+    if (!email) {
+        alert('No registration email found. Please register again.');
+        return;
+    }
+
+    fetch('/resend-activation-code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('A new activation code has been sent to your email.');
+        } else {
+            alert(data.message || 'Failed to resend code');
+        }
+    })
+    .catch(error => {
+        console.error('Resend code error:', error);
+        alert('An error occurred. Please try again.');
+    });
+});
+</script>
+</body>
+</html>

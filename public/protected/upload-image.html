@@ -1,0 +1,717 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- <title>Dashboard Builder</title> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+    <link rel="stylesheet" href="https://rawcdn.githack.com/Loopple/loopple-public-assets/ad60f16c8a16d1dcad75e176c00d7f9e69320cd4/argon-dashboard/css/nucleo/css/nucleo.css">
+    
+    <!-- ✅ Corrected: absolute paths -->
+    <link rel="stylesheet" href="/assets/css/theme.css">
+    <link rel="stylesheet" href="/assets/css/loopple/loopple.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+
+<style>/* General form section styles */
+
+    .btn-submit {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        background-color: #0056b3;
+    }
+
+
+
+.form-section {
+    margin-bottom: 20px;
+}
+
+.section-heading {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Existing button styles */
+.button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.btn-back {
+    display: none;
+}
+
+#backButton {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-control {
+    margin-bottom: 10px;
+}
+
+.btn-submit {
+    display: none;
+}
+
+/* New styles for "Add" buttons */
+.btn-secondary {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #218838;
+}
+
+#certifications button,
+#memberships button,
+#languages button,
+#projectsContainer button {
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+#certifications button:hover,
+#memberships button:hover,
+#languages button:hover,
+#projectsContainer button:hover {
+    background-color: #138496;
+}
+
+/* Existing styles */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.entry-table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid #ddd;
+}
+
+.entry-table th,
+.entry-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.entry-table th {
+    background: linear-gradient(to bottom, #007bff, #011588);
+    color: white;
+}
+
+.entry-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.jumping-dots-loader {
+    width: 100px;
+    height: 100px;
+    border-radius: 100%;
+    position: relative;
+    margin: 0 auto;
+}
+
+.jumping-dots-loader span {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    background-color: rgba(241, 83, 110, 0.8);
+    margin: 35px 5px;
+}
+
+.jumping-dots-loader span:nth-child(1) {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+.jumping-dots-loader span:nth-child(2) {
+    animation: bounce 1s ease-in-out 0.33s infinite;
+}
+
+.jumping-dots-loader span:nth-child(3) {
+    animation: bounce 1s ease-in-out 0.66s infinite;
+}
+
+@keyframes bounce {
+    0%, 75%, 100% {
+        transform: translateY(0);
+    }
+    25% {
+        transform: translateY(-20px);
+    }
+}
+
+.certification-entry, .membership-entry, .language-entry, .project-entry {
+    margin-bottom: 15px;
+}
+
+.certification-entry input, .membership-entry input, .language-entry input, .project-entry input, .project-entry textarea {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.certification-entry input, .membership-entry input, .language-entry input {
+    height: 40px;
+}
+
+.certification-entry input::placeholder, .membership-entry input::placeholder, .language-entry input::placeholder, .project-entry input::placeholder, .project-entry textarea::placeholder {
+    color: #999;
+}
+
+ </style>  
+
+
+</head>
+<body class="g-sidenav-show">
+    <nav class="sidenav navbar navbar-vertical fixed-left navbar-expand-xs navbar-light bg-white loopple-fixed-start" id="sidenav-main">
+        <div class="sidenav-header  align-items-center">
+            <a class="navbar-brand" href="javascript:void(0)">
+                <img src="https://loopple.s3.eu-west-3.amazonaws.com/images/6hrcq113GeocFfxSvZ8Lcz38JIFfMfuafaW6l1s5.png" class="navbar-brand-img" alt="...">
+            </a>
+        </div>
+        <div class="navbar-inner">
+            <div class="collapse navbar-collapse" id="sidenav-collapse-main">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="javascript:">
+                            <i class="fa fa-desktop text-primary"></i>
+                            <span class="nav-link-text" style="font-size: 22px; font-weight: bold; font-family: 'Arial', sans-serif;">IntelliJob</span>
+                        </a>
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:" id="profileSettingsLink">
+                            <i class="fa fa-user text-success"></i>
+                            <span class="nav-link-text">Registration</span>
+                        </a>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="javascript:goNext()" id="nextButton">
+                                <i class="fas fa-arrow-right text-info"></i>
+                                <span class="nav-link-text">Next</span>
+                            </a>
+                        </li> 
+                        
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:goBack()">
+                            <i class="fas fa-arrow-left text-primary"></i>
+                            <span class="nav-link-text">Back</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="javascript:goHome()">
+                            <i class="fas fa-home text-primary"></i>
+                            <span class="nav-link-text">Home</span>
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="main-content" id="panel">
+        <nav class="navbar navbar-top navbar-expand navbar-dark border-bottom bg-dark" id="navbarTop">
+            <div class="container-fluid">
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <form class="navbar-search navbar-search-light form-inline mr-sm-3 mb-0" id="navbar-search-main">
+                        <div class="form-group mb-0">
+                            <div class="input-group input-group-alternative input-group-merge">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                </div>
+                                <input class="form-control" placeholder="Search" type="text">
+                            </div>
+                        </div>
+                        <button type="button" class="close" data-action="search-close" data-target="#navbar-search-main" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </form>
+                    <ul class="navbar-nav align-items-center  ml-md-auto ">
+                        <li class="nav-item d-xl-none">
+                            <div class="pr-3 sidenav-toggler sidenav-toggler-dark active" data-action="sidenav-pin" data-target="#sidenav-main">
+                                <div class="sidenav-toggler-inner">
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                    <i class="sidenav-toggler-line"></i>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item d-sm-none">
+                            <a class="nav-link" href="#" data-action="search-show" data-target="#navbar-search-main">
+                                <i class="ni ni-zoom-split-in"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa fa-bell"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-xl  dropdown-menu-right  py-0 overflow-hidden">
+                                <div class="px-3 py-3">
+                                    <h6 class="text-sm text-muted m-0">You have <strong class="text-primary">13</strong> notifications.</h6>
+                                </div>
+                                <div class="list-group list-group-flush">
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-1.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-2.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-3.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>5 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Your posts have been liked a lot.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets/img/theme/team-4.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>2 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">Lets meet at Starbucks at 11:30. Wdyt?</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#!" class="list-group-item list-group-item-action">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-5.jpg" class="avatar rounded-circle">
+                                            </div>
+                                            <div class="col ml--2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="mb-0 text-sm">John Snow</h4>
+                                                    </div>
+                                                    <div class="text-right text-muted">
+                                                        <small>3 hrs ago</small>
+                                                    </div>
+                                                </div>
+                                                <p class="text-sm mb-0">A new issue has been reported for Argon.</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <a href="#!" class="dropdown-item text-center text-primary font-weight-bold py-3">View all</a>
+                            </div>
+                        </li>
+                  
+                    </ul>
+                    <ul class="navbar-nav align-items-center  ml-auto ml-md-0 ">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link pr-0" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <div class="media align-items-center">
+                                    <span class="avatar avatar-sm rounded-circle">
+                                        <img alt="Image placeholder" src="https://demos.creative-tim.com/argon-dashboard/assets-old/img/theme/team-4.jpg">
+                                    </span>
+                                    <div class="media-body  ml-2  d-none d-lg-block">
+                                        <span class="mb-0 text-sm  font-weight-bold">John Snow</span>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu  dropdown-menu-right ">
+                                <div class="dropdown-header noti-title">
+                                    <h6 class="text-overflow m-0">Welcome!</h6>
+                                </div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-user"></i>
+                                    <span>My profile</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-tools"></i>
+                                    <span>Settings</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="far fa-calendar"></i>
+                                    <span>Activity</span>
+                                </a>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-phone"></i>
+                                    <span>Support</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a href="#!" class="dropdown-item">
+                                    <i class="fa fa-sign-out-alt"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid pt-3">
+            <div class="row removable">
+                <div class="col-xl-3 col-md-6" id="newEntriesTab">
+                    <div class="card bg-gradient-primary border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Upload Photograph</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">8/24</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" style="width: 30%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                              
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-info border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Nothing Here!</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">123/267</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100" style="width: 50%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-danger border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Nothing Here!</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">200/300</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100" style="width: 80%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#">Action</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-gradient-default border-0">
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col">
+                                    <h5 class="card-title text-uppercase text-muted mb-0 text-white">Notifications</h5>
+                                    <span class="h2 font-weight-bold mb-0 text-white">50/62</span>
+                                    <div class="progress progress-xs mt-3 mb-0">
+                                        <div class="progress-bar bg-success" role="progressbar" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100" style="width: 90%;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-neutral mr-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" href="#">Action</a>
+                                        <a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 mb-0 text-sm">
+                                <a href="#!" class="text-nowrap text-white font-weight-600">See details</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="jumping-dots-loader" id="loadingAnimation">
+                <span></span> <span></span> <span></span>
+            </div>
+
+            <div class="card" id="profileForm">
+                <div class="table-container">
+                    <table class="entry-table">
+                    
+                        <tbody id="entryTableBody">
+                            <!-- Entries from the form will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-header">
+                    <div class="row align-items-center"></div>
+                </div>
+                <div class="card-body">
+                    <form id="cvForm" enctype="multipart/form-data">
+                        <h6 class="heading-small text-muted mb-4">User CV Biodata Form</h6>
+                        <div id="section-1" class="form-section">
+                            <h6 class="section-heading">Upload Profile Image</h6>
+                            <div class="pl-lg-4">
+                                <div class="row align-items-center">
+                                    <div class="col-lg-8">
+                                        <div class="form-group d-flex align-items-center">
+                                            <input type="file" id="profileImage" name="profileImage" accept="image/*" class="form-control" required>
+                                            <button type="submit" id="submitImage" class="btn btn-primary ml-3" disabled>Submit</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group d-flex align-items-center">
+                                
+                                        <button type="submit" id="dontUploadButton" class="btn btn-primary ml-3" >Update Biodata</button>
+                                    </div>
+
+
+                                    <div class="col-lg-4">
+                                        <div id="imagePreviewContainer">
+                                            <img id="imagePreview" src="" alt="Image Preview" class="img-thumbnail" style="display: none; max-width: 100%; height: auto;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+
+                </div>
+                
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/jquery.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/bootstrap.bundle.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/js.cookie.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/5cef8f62939eeb089fa26d4c53a49198de421e3d/argon-dashboard/js/vendor/chart.extension.js"></script>
+                <script src="https://rawcdn.githack.com/Loopple/loopple-public-assets/7bb803d2af2ab6d71d429b0cb459c24a4cd0fbb4/argon-dashboard/js/argon.min.js"></script>
+                
+                                    <script>
+
+                                // JavaScript for image upload page
+
+document.addEventListener('DOMContentLoaded', function () {
+    const submitImageBtn = document.getElementById('submitImage');
+    const imageUploadForm = document.getElementById('cvForm'); // Reference the correct form
+
+    submitImageBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        // Perform image upload and save to database logic here
+        const formData = new FormData(imageUploadForm);
+
+        fetch('/upload', { // Replace with your actual server endpoint
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Image Uploaded Successfully! PLEASE PROCEED TO BIODATA.');
+                window.location.href = 'protected/users_biodata.html'; // Replace with your initial page URL
+            } else {
+                // Handle upload failure
+                alert('Image upload failed. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    });
+
+
+
+
+
+
+    // Image preview functionality
+    const profileImageInput = document.getElementById('profileImage');
+    const imagePreview = document.getElementById('imagePreview');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+
+    profileImageInput.addEventListener('change', function () {
+        const file = profileImageInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+            }
+
+            reader.readAsDataURL(file);
+        } else {
+            imagePreview.src = '';
+            imagePreview.style.display = 'none';
+        }
+    });
+
+    // Enable submit button once image is selected
+    profileImageInput.addEventListener('input', function () {
+        submitImageBtn.disabled = false;
+    });
+});
+
+                                    </script>
+
+                                        <script>
+                                            const submitButton = document.getElementById('submitButton');
+                                            const entryTableBody = document.getElementById('entryTableBody');
+                                            const loadingAnimation = document.getElementById('loadingAnimation');
+                                            const profileForm = document.getElementById('profileForm');
+
+                                            loadingAnimation.style.display = 'none';
+
+                                            profileForm.style.display = 'block';
+                                            
+                                
+                                        </script>
+                                        <script>
+                                            document.addEventListener('DOMContentLoaded', function () {
+                                                const dontUploadButton = document.getElementById('dontUploadButton');
+                                        
+                                                dontUploadButton.addEventListener('click', function () {
+                                                    window.location.href = 'protected/users_biodata.html'; // Replace with your actual initial page URL
+                                                });
+                                            });
+                                        </script>
+
+
+                                        <script>
+                                            function goBack() {
+                                                window.history.back(); // Navigates to the previous page
+                                            }
+
+                                            function goNext() {
+                                                window.location.href = "protected/users_biodata.html"; // Replace with the actual next page URL
+                                            }
+
+                                            function goHome() {
+                                                window.location.href = '/protected/intellijob_dashboard.html';
+; // Change this to your actual homepage URL
+                                            }
+                                        </script>
+ 
+                                        

@@ -1,0 +1,108 @@
+<!-- import { useState } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+
+const steps = ["Personal Info", "Academics", "Work Experience", "Leadership & Volunteer", "Hobbies & Interests", "Scholarship Details"];
+
+export default function MultiStepForm() {
+  const [step, setStep] = useState(0);
+  const [formData, setFormData] = useState({
+    personal: {},
+    academics: {},
+    work: {},
+    leadership: {},
+    hobbies: {},
+    scholarship: {}
+  });
+
+  const handleNext = () => setStep((prev) => Math.min(prev + 1, steps.length - 1));
+  const handleBack = () => setStep((prev) => Math.max(prev - 1, 0));
+  const handleChange = (section, key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [section]: { ...prev[section], [key]: value },
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch("/api/saveScholarshipBiodata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (response.ok) alert("Data submitted successfully!");
+    } catch (error) {
+      console.error("Submission error:", error);
+    }
+  };
+
+  return (
+    <div className="max-w-xl mx-auto p-6 bg-gray-900 text-gray-300 rounded-lg shadow-lg">
+      <h2 className="text-xl font-semibold text-purple-400 mb-4">{steps[step]}</h2>
+      <motion.div
+        key={step}
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -50 }}
+      >
+        {step === 0 && (
+          <input
+            type="text"
+            placeholder="Full Name"
+            className="w-full p-2 mb-4 border border-gray-700 rounded bg-gray-800"
+            onChange={(e) => handleChange("personal", "name", e.target.value)}
+          />
+        )}
+        {step === 1 && (
+          <input
+            type="text"
+            placeholder="Highest Degree"
+            className="w-full p-2 mb-4 border border-gray-700 rounded bg-gray-800"
+            onChange={(e) => handleChange("academics", "degree", e.target.value)}
+          />
+        )}
+        {step === 2 && (
+          <input
+            type="text"
+            placeholder="Job Title"
+            className="w-full p-2 mb-4 border border-gray-700 rounded bg-gray-800"
+            onChange={(e) => handleChange("work", "job", e.target.value)}
+          />
+        )}
+        {step === 3 && (
+          <input
+            type="text"
+            placeholder="Leadership Roles"
+            className="w-full p-2 mb-4 border border-gray-700 rounded bg-gray-800"
+            onChange={(e) => handleChange("leadership", "role", e.target.value)}
+          />
+        )}
+        {step === 4 && (
+          <input
+            type="text"
+            placeholder="Hobbies"
+            className="w-full p-2 mb-4 border border-gray-700 rounded bg-gray-800"
+            onChange={(e) => handleChange("hobbies", "hobby", e.target.value)}
+          />
+        )}
+        {step === 5 && (
+          <input
+            type="text"
+            placeholder="Scholarship Needs"
+            className="w-full p-2 mb-4 border border-gray-700 rounded bg-gray-800"
+            onChange={(e) => handleChange("scholarship", "need", e.target.value)}
+          />
+        )}
+      </motion.div>
+      <div className="flex justify-between mt-4">
+        {step > 0 && <Button onClick={handleBack} className="bg-gray-700 hover:bg-gray-600">Back</Button>}
+        {step < steps.length - 1 ? (
+          <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-500">Next</Button>
+        ) : (
+          <Button onClick={handleSubmit} className="bg-purple-600 hover:bg-purple-500">Submit</Button>
+        )}
+      </div>
+    </div>
+  );
+} -->
