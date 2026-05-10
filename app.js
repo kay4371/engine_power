@@ -13185,6 +13185,11 @@ app.post('/api/mark-job-placed', ensureAuthenticated, async (req, res) => {
 // Register Parakleet AI routes
 // ════════════════════════════════════════════════════════════════════════════
 const { requireInterviewHelperAccess } = require('./middleware/interviewHelperAuth');
+// Ensure tmp directories exist before loading routes
+['tmp/audio', 'tmp/cv'].forEach(dir => {
+  const full = require('path').join(__dirname, dir);
+  if (!require('fs').existsSync(full)) require('fs').mkdirSync(full, { recursive: true });
+});
 const transcribeRouter = require('./routes/transcribe');
 const coachRouter      = require('./routes/coach');
 
