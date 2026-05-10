@@ -24,7 +24,6 @@ require('dotenv').config();
 const classifier = new natural.BayesClassifier(); // Initialize a Bayesian classifier
 const sanitizeHtml = require('sanitize-html'); // Import sanitize-html library
 const session = require('express-session');
-const pdf = require('html-pdf');
 const PDFDocument = require('pdfkit');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
