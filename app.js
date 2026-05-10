@@ -13193,11 +13193,7 @@ const { requireInterviewHelperAccess } = require('./middleware/interviewHelperAu
 const transcribeRouter = require('./routes/transcribe');
 const coachRouter      = require('./routes/coach');
 
-// Ensure tmp directories exist
-['tmp/audio', 'tmp/cv'].forEach(dir => {
-  const full = path.join(__dirname, dir);
-  if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
-});
+
 
 // Register Parakleet routes with access middleware
 app.use('/api', requireInterviewHelperAccess, transcribeRouter);
